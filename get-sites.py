@@ -139,7 +139,7 @@ def main():
 
     # Add arguments
     parser.add_argument('-n', '--namespace', type=str,
-                        help='Namespace (use "" to parse all namespaces)', required=False, default="default")
+                        help='Namespace (not setting this option will process all namespaces)', required=False, default="")
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL',
                         required=False, default=os.environ.get('f5xc_api_url', ''))
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token',
@@ -151,7 +151,7 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
-    if '' == args.apiurl or '' == args.token:
+    if not args.apiurl or not args.token:
         parser.print_help()
         sys.exit(1)
 
