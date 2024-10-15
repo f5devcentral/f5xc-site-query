@@ -1,0 +1,7 @@
+.env
+__pycache__
+*.log
+*.json
+myenv
+old
+*ssh_key*
