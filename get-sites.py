@@ -139,11 +139,11 @@ def main():
 
     # Add arguments
     parser.add_argument('-n', '--namespace', type=str,
-                        help='Namespace (not setting this option will process all namespaces)', required=False, default="")
+                        help='Namespace (not setting this option will process all namespaces)', required=False, default='')
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL',
-                        required=False, default=os.environ.get('f5xc_api_url', ''))
+                        required=False, default='')
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token',
-                        required=False, default=os.environ.get('f5xc_api_token', ''))
+                        required=False, default='')
     parser.add_argument('-f', '--file', type=str, help='write site list to file',
                         required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('-l', '--log', type=str, help='set log level: INFO or DEBUG',
@@ -152,8 +152,13 @@ def main():
     # Parse the arguments
     args = parser.parse_args()
     if not args.apiurl or not args.token:
-        parser.print_help()
-        sys.exit(1)
+        api_url = os.environ.get('f5xc_api_token')
+        api_token = os.environ.get('f5xc_api_url')
+
+        if not api_url or not api_token:
+
+            parser.print_help()
+            sys.exit(1)
 
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
