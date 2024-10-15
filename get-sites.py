@@ -21,6 +21,8 @@ logging.basicConfig(
     ]
 )
 
+URI_F5XC_NAMESPACE= "/web/namespaces"
+
 
 def process_loadbalancers(url: str = None, sites: str = None, headers: dict = None, namespace: str = ""):
     logger.info(f"process_loadbalancers called for {url}")
@@ -110,6 +112,7 @@ def process_origin_pools(url, sites, headers, namespace):
     for item in json_items['items']:
         name = item['name']
         logger.info(f"get item {url}/{name} ...")
+
         response = requests.get(url + "/" + name, headers=headers)
         if 200 != response.status_code:
             logger.error("get failed for {}/{} with {}".format(url, name, response.status_code))
@@ -132,7 +135,7 @@ def process_origin_pools(url, sites, headers, namespace):
 
 
 def main():
-    logger.info(f"{__file__} started")
+    logger.info(f"Application {__file__} started...")
 
     # Create the parser
     parser = argparse.ArgumentParser(description="Get F5 XC Sites command line arguments")
@@ -151,12 +154,10 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
-    if not args.apiurl or not args.token:
-        api_url = os.environ.get('f5xc_api_token')
-        api_token = os.environ.get('f5xc_api_url')
+    api_url = args.apiurl if args.apiurl else os.environ.get('f5xc_api_url')
+    api_token = args.token if args.token else os.environ.get('f5xc_api_token')
 
-        if not api_url or not api_token:
-
+    if not api_url or not api_token:
             parser.print_help()
             sys.exit(1)
 
@@ -165,32 +166,32 @@ def main():
         raise ValueError('Invalid log level: %s' % args.log.upper())
     logging.basicConfig(level=numeric_level)
 
-    logger.info(f"apiurl {args.apiurl} namespace {args.namespace}")
+    logger.info(f"API URL: {api_url} -- Namespace: {args.namespace}")
 
-    headers = {"content-type": "application/json", "Authorization": "APIToken {}".format(args.token)}
+    headers = {"content-type": "application/json", "Authorization": "APIToken {}".format(api_token)}
 
-    if "" == args.namespace:
+    if args.namespace:
         # get list of all namespaces
-        response = requests.get(args.apiurl + "/web/namespaces", headers=headers)
+        response = requests.get(api_url + URI_F5XC_NAMESPACE, headers=headers)
 
         if 200 != response.status_code:
             logger.error("get all namespaces failed with {}".format(response.status_code))
-            logger.info(f"get all namespaces via {args.apiurl} failed with {response.status_code}")
+            logger.info(f"get all namespaces via {api_url} failed with {response.status_code}")
             sys.exit(1)
 
         logger.debug(json.dumps(response.json(), indent=2))
         # Extracting the names of namespaces
         json_items = response.json()
         namespaces = [item['name'] for item in json_items['items']]
-        logger.info(f"namespaces {namespaces}")
+        logger.info(f"namespaces: {namespaces}")
 
     else:
         # check api url and validate given namespace
-        response = requests.get(args.apiurl + "/web/namespaces/" + args.namespace, headers=headers)
+        response = requests.get(api_url + URI_F5XC_NAMESPACE + "/" + args.namespace, headers=headers)
 
         if 200 != response.status_code:
             logger.error("get namespace {} failed with {}".format(args.namespace, response.status_code))
-            logger.info(f"get namespace {args.namespace} via {args.apiurl} failed with {response.status_code}")
+            logger.info(f"get namespace {args.namespace} from {api_url} failed with {response.status_code}")
             sys.exit(1)
 
         logger.debug(json.dumps(response.json(), indent=2))
@@ -202,20 +203,20 @@ def main():
 
     for namespace in namespaces:
         for _type in ["http_loadbalancers", "tcp_loadbalancers"]:
-            process_loadbalancers(args.apiurl + "/config/namespaces/" +
+            process_loadbalancers(api_url + "/config/namespaces/" +
                                   namespace + "/" + _type, sites, headers, namespace)
 
-        process_proxys(args.apiurl + "/config/namespaces/" +
+        process_proxys(api_url + "/config/namespaces/" +
                        namespace + "/proxys", sites, headers, namespace)
-        process_origin_pools(args.apiurl + "/config/namespaces/" +
+        process_origin_pools(api_url + "/config/namespaces/" +
                              namespace + "/origin_pools", sites, headers, namespace)
 
     # get list of sites
-    response = requests.get(args.apiurl + "/config/namespaces/system/sites", headers=headers)
+    response = requests.get(api_url + "/config/namespaces/system/sites", headers=headers)
 
     if 200 != response.status_code:
         logger.error("get sites failed with {}".format(response.status_code))
-        logger.info(f"get sites via {args.apiurl} failed with {response.status_code}")
+        logger.info(f"get sites via {api_url} failed with {response.status_code}")
         sys.exit(1)
 
     logger.debug(json.dumps(response.json(), indent=2))
@@ -248,7 +249,7 @@ def main():
 
     # Print the results
     logger.info(f"\nSites with only origin pools: {sites_with_only_origin_pools}")
-    logger.info("Application finished")
+    logger.info(f"Application {__file__} finished")
 
 
 if __name__ == '__main__':
