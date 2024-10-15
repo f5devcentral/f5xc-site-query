@@ -21,44 +21,134 @@ logging.basicConfig(
     ]
 )
 
-URI_F5XC_NAMESPACE= "/web/namespaces"
+URI_F5XC_NAMESPACE = "/web/namespaces"
+URI_F5XC_SITES = "/config/namespaces/system/sites"
+URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
+F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers"]
 
 
-def process_loadbalancers(url: str = None, sites: str = None, headers: dict = None, namespace: str = ""):
-    logger.info(f"process_loadbalancers called for {url}")
+class Query(object):
+    def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None, json_file: str = None):
+        self.api_url = api_url
+        self.api_token = api_token
+        self.headers = {"content-type": "application/json", "Authorization": "APIToken {}".format(api_token)}
+        self.namespaces = []
+        # build hashmap with sites referenced by various objects
+        # Initialize a multidimensional dictionary
+        self.sites = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict))))
 
-    response = requests.get(url, headers=headers)
-    if 200 != response.status_code:
-        logger.error("get failed for {} with {}".format(url, response.status_code))
-        logger.info(f"get failed for  {url} with {response.status_code}")
-        sys.exit(1)
+        logger.info(f"API URL: {self.api_url} -- Namespace: {namespace}")
 
-    json_items = response.json()
-    logger.debug(json.dumps(json_items, indent=2))
+        if namespace:
+            # get list of all namespaces
+            response = requests.get(self.api_url + URI_F5XC_NAMESPACE, headers=self.headers)
 
-    for item in json_items['items']:
-        name = item['name']
-        logger.info(f"get item {url}/{name} ...")
+            if 200 != response.status_code:
+                logger.error("get all namespaces failed with {}".format(response.status_code))
+                logger.info(f"get all namespaces via {self.api_url} failed with {response.status_code}")
+                sys.exit(1)
 
-        response = requests.get(url + "/" + name, headers=headers)
+            logger.debug(json.dumps(response.json(), indent=2))
+            # Extracting the names of namespaces
+            json_items = response.json()
+            self.namespaces = [item['name'] for item in json_items['items']]
+            logger.info(f"namespaces: {self.namespaces}")
+
+        else:
+            # check api url and validate given namespace
+            response = requests.get(self.api_url + URI_F5XC_NAMESPACE + "/" + namespace, headers=self.headers)
+
+            if 200 != response.status_code:
+                logger.error("get namespace {} failed with {}".format(namespace, response.status_code))
+                logger.info(f"get namespace {namespace} from {self.api_url} failed with {response.status_code}")
+                sys.exit(1)
+
+            logger.debug(json.dumps(response.json(), indent=2))
+            self.namespaces = [namespace]
+
+        for namespace in self.namespaces:
+            for lb_type in F5XC_LOAD_BALANCER_TYPES:
+                self.process_loadbalancers("{}{}".format(self.api_url, URI_F5XC_LOAD_BALANCER.format(namespace, lb_type)), namespace)
+
+            process_proxys(self.api_url + "/config/namespaces/" +
+                           namespace + "/proxys", self.sites, self.headers, namespace)
+            process_origin_pools(self.api_url + "/config/namespaces/" +
+                                 namespace + "/origin_pools", self.sites, self.headers, namespace)
+
+        # get list of sites
+        response = requests.get(self.api_url + URI_F5XC_SITES, headers=self.headers)
+
         if 200 != response.status_code:
-            logger.error("get failed for {}/{} with {}".format(url, name, response.status_code))
-            logger.info(f"get failed for {url}/{name} with {response.status_code}")
+            logger.error("get sites failed with {}".format(response.status_code))
+            logger.info(f"get sites via {self.api_url} failed with {response.status_code}")
             sys.exit(1)
 
-        data = response.json()
-        logger.debug(json.dumps(data, indent=2))
+        logger.debug(json.dumps(response.json(), indent=2))
 
-        if 'advertise_custom' in data['spec'] and 'advertise_where' in data['spec']['advertise_custom']:
-            for index, site_info in enumerate(data['spec']['advertise_custom']['advertise_where']):
-                if 'site' in site_info:
-                    for site_type in site_info['site'].keys():
-                        if site_type in ["site", "virtual_site"]:
-                            site_name = site_info['site'][site_type]['name']
-                            sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                            logger.info(f"namespace {namespace} loadbalancer {name} {site_type} {site_name}")
-    #                    else:
-    #                        logger.info(f"site_type={site_type}", json.dumps(site_info['site'][site_type], indent=2))
+        json_items = response.json()
+        for item in json_items['items']:
+            # only add labels to sites that are referenced by a LB/origin_pool/proxys object
+            if item['name'] in self.sites['site']:
+                self.sites['site'][item['name']]['labels'] = item['labels']
+
+        if json_file not in ['stdout', '-', '']:
+            with open(json_file, 'w') as file:
+                file.write(json.dumps(self.sites, indent=2))
+                logger.info(f"{len(self.sites['site'])} sites and {len(self.sites['virtual_site'])} virtual sites written to {json_file}")
+        else:
+            logger.info(json.dumps(self.sites, indent=2))
+
+        # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
+        sites_with_only_origin_pools = []
+
+        # Iterate through each site in the JSON data
+        for site_name, site_info in self.sites['site'].items():
+            has_origin_pool = 'origin_pools' in site_info
+            has_load_balancer = 'loadbalancer' in site_info
+            has_proxys = 'proxys' in site_info
+
+            # Check if the site has only origin pools (and no load balancer)
+            if has_origin_pool and not has_load_balancer and not has_proxys:
+                sites_with_only_origin_pools.append(site_name)
+
+        # Print the results
+        logger.info(f"\nSites with only origin pools: {sites_with_only_origin_pools}")
+
+    def process_loadbalancers(self, url: str = None, namespace: str = ""):
+        logger.info(f"process_loadbalancers called for {url}")
+
+        response = requests.get(url, headers=self.headers)
+        if 200 != response.status_code:
+            logger.error("get failed for {} with {}".format(url, response.status_code))
+            logger.info(f"get failed for  {url} with {response.status_code}")
+            sys.exit(1)
+
+        json_items = response.json()
+        logger.debug(json.dumps(json_items, indent=2))
+
+        for item in json_items['items']:
+            name = item['name']
+            logger.info(f"get item {url}/{name} ...")
+
+            response = requests.get(url + "/" + name, headers=self.headers)
+            if 200 != response.status_code:
+                logger.error("get failed for {}/{} with {}".format(url, name, response.status_code))
+                logger.info(f"get failed for {url}/{name} with {response.status_code}")
+                sys.exit(1)
+
+            data = response.json()
+            logger.debug(json.dumps(data, indent=2))
+
+            if 'advertise_custom' in data['spec'] and 'advertise_where' in data['spec']['advertise_custom']:
+                for index, site_info in enumerate(data['spec']['advertise_custom']['advertise_where']):
+                    if 'site' in site_info:
+                        for site_type in site_info['site'].keys():
+                            if site_type in ["site", "virtual_site"]:
+                                site_name = site_info['site'][site_type]['name']
+                                self.sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
+                                logger.info(f"namespace {namespace} loadbalancer {name} {site_type} {site_name}")
+        #                    else:
+        #                        logger.info(f"site_type={site_type}", json.dumps(site_info['site'][site_type], indent=2))
 
 
 def process_proxys(url, sites, headers, namespace):
@@ -158,97 +248,14 @@ def main():
     api_token = args.token if args.token else os.environ.get('f5xc_api_token')
 
     if not api_url or not api_token:
-            parser.print_help()
-            sys.exit(1)
+        parser.print_help()
+        sys.exit(1)
 
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args.log.upper())
     logging.basicConfig(level=numeric_level)
 
-    logger.info(f"API URL: {api_url} -- Namespace: {args.namespace}")
-
-    headers = {"content-type": "application/json", "Authorization": "APIToken {}".format(api_token)}
-
-    if args.namespace:
-        # get list of all namespaces
-        response = requests.get(api_url + URI_F5XC_NAMESPACE, headers=headers)
-
-        if 200 != response.status_code:
-            logger.error("get all namespaces failed with {}".format(response.status_code))
-            logger.info(f"get all namespaces via {api_url} failed with {response.status_code}")
-            sys.exit(1)
-
-        logger.debug(json.dumps(response.json(), indent=2))
-        # Extracting the names of namespaces
-        json_items = response.json()
-        namespaces = [item['name'] for item in json_items['items']]
-        logger.info(f"namespaces: {namespaces}")
-
-    else:
-        # check api url and validate given namespace
-        response = requests.get(api_url + URI_F5XC_NAMESPACE + "/" + args.namespace, headers=headers)
-
-        if 200 != response.status_code:
-            logger.error("get namespace {} failed with {}".format(args.namespace, response.status_code))
-            logger.info(f"get namespace {args.namespace} from {api_url} failed with {response.status_code}")
-            sys.exit(1)
-
-        logger.debug(json.dumps(response.json(), indent=2))
-        namespaces = [args.namespace]
-
-    # build hashmap with sites referenced by various objects
-    # Initialize a multidimensional dictionary
-    sites = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict))))
-
-    for namespace in namespaces:
-        for _type in ["http_loadbalancers", "tcp_loadbalancers"]:
-            process_loadbalancers(api_url + "/config/namespaces/" +
-                                  namespace + "/" + _type, sites, headers, namespace)
-
-        process_proxys(api_url + "/config/namespaces/" +
-                       namespace + "/proxys", sites, headers, namespace)
-        process_origin_pools(api_url + "/config/namespaces/" +
-                             namespace + "/origin_pools", sites, headers, namespace)
-
-    # get list of sites
-    response = requests.get(api_url + "/config/namespaces/system/sites", headers=headers)
-
-    if 200 != response.status_code:
-        logger.error("get sites failed with {}".format(response.status_code))
-        logger.info(f"get sites via {api_url} failed with {response.status_code}")
-        sys.exit(1)
-
-    logger.debug(json.dumps(response.json(), indent=2))
-
-    json_items = response.json()
-    for item in json_items['items']:
-        # only add labels to sites that are referenced by a LB/origin_pool/proxys object
-        if item['name'] in sites['site']:
-            sites['site'][item['name']]['labels'] = item['labels']
-
-    if args.file not in ['stdout', '-', '']:
-        with open(args.file, 'w') as file:
-            file.write(json.dumps(sites, indent=2))
-            logger.info(f"{len(sites['site'])} sites and {len(sites['virtual_site'])} virtual sites written to {args.file}")
-    else:
-        logger.info(json.dumps(sites, indent=2))
-
-    # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
-    sites_with_only_origin_pools = []
-
-    # Iterate through each site in the JSON data
-    for site_name, site_info in sites['site'].items():
-        has_origin_pool = 'origin_pools' in site_info
-        has_load_balancer = 'loadbalancer' in site_info
-        has_proxys = 'proxys' in site_info
-
-        # Check if the site has only origin pools (and no load balancer)
-        if has_origin_pool and not has_load_balancer and not has_proxys:
-            sites_with_only_origin_pools.append(site_name)
-
-    # Print the results
-    logger.info(f"\nSites with only origin pools: {sites_with_only_origin_pools}")
     logger.info(f"Application {__file__} finished")
 
 
