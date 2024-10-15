@@ -149,9 +149,9 @@ def main():
     parser.add_argument('-n', '--namespace', type=str,
                         help='Namespace (use "" to parse all namespaces)', required=False, default="default")
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL',
-                        required=False, default=os.environ.get('f5xc_api_url',''))
+                        required=False, default=os.environ.get('f5xc_api_url', ''))
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token',
-                        required=False, default=os.environ.get('f5xc_api_token',''))
+                        required=False, default=os.environ.get('f5xc_api_token', ''))
     parser.add_argument('-f', '--file', type=str, help='write site list to file',
                         required=False, default=Path(__file__).stem + '.json')
 
@@ -202,7 +202,8 @@ def main():
 
     # build hashmap with sites referenced by various objects
     # Initialize a multi-dimensional dictionary
-    sites = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict))))
+    sites = defaultdict(lambda: defaultdict(
+        lambda: defaultdict(lambda: defaultdict(dict))))
 
     for namespace in namespaces:
 
