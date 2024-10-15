@@ -46,17 +46,18 @@ def process_loadbalancers(url, sites, headers, namespace):
         data = response.json()
         logging.debug(json.dumps(data, indent=2))
 
-        if 'advertise_custom' in data['spec'] and 'advertise_where' in data['spec']['advertise_custom']:
-            for index, site_info in enumerate(data['spec']['advertise_custom']['advertise_where']):
-                if 'site' in site_info:
-                    for site_type in site_info['site'].keys():
-                        if site_type in ["site", "virtual_site"]:
-                            site_name = site_info['site'][site_type]['name']
-                            sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                            print(f"namespace {namespace} loadbalancer {
-                                  name} {site_type} {site_name}", file=sys.stderr)
-    #                    else:
-    #                        print(f"site_type={site_type}", json.dumps(site_info['site'][site_type], indent=2))
+        advertise_custom = data['spec'].get('advertise_custom', {})
+        advertise_where = advertise_custom.get('advertise_where', [])
+
+        for site_info in advertise_where:
+            site_type = next(
+                (k for k in ['site', 'virtual_site'] if k in site_info), None)
+            if site_type:
+                site_name = site_info[site_type].get(site_type, {}).get('name')
+                if site_name:
+                    sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
+                    print(f"namespace {namespace} loadbalancer {name} {
+                          site_type} {site_name}", file=sys.stderr)
 
 
 def process_proxys(url, sites, headers, namespace):
@@ -85,17 +86,19 @@ def process_proxys(url, sites, headers, namespace):
 
         data = response.json()
         logging.debug(json.dumps(data, indent=2))
-        # print(json.dumps(data, indent=2), file=sys.stderr)
 
-        if 'site_virtual_sites' in data['spec'] and 'advertise_where' in data['spec']['site_virtual_sites']:
-            for index, site_info in enumerate(data['spec']['site_virtual_sites']['advertise_where']):
-                if 'site' in site_info:
-                    for site_type in site_info['site'].keys():
-                        if site_type in ["site", "virtual_site"]:
-                            site_name = site_info['site'][site_type]['name']
-                            sites[site_type][site_name][namespace]['proxys'][name] = data['system_metadata']
-                            print(f"namespace {namespace} proxys {
-                                  name} {site_type} {site_name}", file=sys.stderr)
+        site_virtual_sites = data['spec'].get('site_virtual_sites', {})
+        advertise_where = site_virtual_sites.get('advertise_where', [])
+
+        for site_info in advertise_where:
+            site = site_info.get('site', {})
+            for site_type in ['site', 'virtual_site']:
+                if site_type in site:
+                    site_name = site[site_type].get('name')
+                    if site_name:
+                        sites[site_type][site_name][namespace]['proxys'][name] = data['system_metadata']
+                        print(f"namespace {namespace} proxys {name} {
+                              site_type} {site_name}", file=sys.stderr)
 
 
 def process_origin_pools(url, sites, headers, namespace):
@@ -125,17 +128,17 @@ def process_origin_pools(url, sites, headers, namespace):
         data = response.json()
         logging.debug(json.dumps(data, indent=2))
 
-        if 'origin_servers' in data['spec']:
-            for site_info in data['spec']['origin_servers']:
-                # Iterate over the keys to check
-                for key in ['private_ip', 'k8s_service', 'consul_service', 'private_name']:
-                    if key in site_info:
-                        for site_type in site_info[key]['site_locator'].keys():
-                            site_name = site_info[key]['site_locator'][site_type]['name']
-                            # sites[site_name] = sites.get(site_name, 0) + 1
-                            sites[site_type][site_name][namespace]['origin_pools'][name] = data['system_metadata']
-                            print(f"namespace {namespace} origin_pools {
-                                  name} {site_type} {site_name}", file=sys.stderr)
+        origin_servers = data['spec'].get('origin_servers', [])
+
+        for site_info in origin_servers:
+            for key in ['private_ip', 'k8s_service', 'consul_service', 'private_name']:
+                site_locator = site_info.get(key, {}).get('site_locator', {})
+                for site_type, site_data in site_locator.items():
+                    site_name = site_data.get('name')
+                    if site_name:
+                        sites[site_type][site_name][namespace]['origin_pools'][name] = data['system_metadata']
+                        print(f"namespace {namespace} origin_pools {name} {
+                              site_type} {site_name}", file=sys.stderr)
 
 
 def main():
