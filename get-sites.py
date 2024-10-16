@@ -79,11 +79,13 @@ class Api(object):
         :param namespace: F5XC namespace
         """
 
+        self.data = dict()
         self.api_url = api_url
         self.api_token = api_token
         self.namespaces = []
         self.session = requests.Session()
         self.session.headers.update({"content-type": "application/json", "Authorization": f"APIToken {api_token}"})
+
 
         logger.info(f"API URL: {self.api_url} -- Processing Namespace: {namespace if namespace else 'ALL'}")
 
@@ -132,21 +134,21 @@ class Api(object):
         if name not in ['stdout', '-', '']:
             try:
                 with open(name, 'w') as fd:
-                    fd.write(json.dumps(self.sites, indent=2))
-                    logger.info(f"{len(self.sites['site'])} sites and {len(self.sites['virtual_site'])} virtual sites written to {name}")
+                    fd.write(json.dumps(self.data, indent=2))
+                    logger.info(f"{len(self.data['site'])} sites and {len(self.data['virtual_site'])} virtual sites written to {name}")
             except OSError as e:
                 logger.info(f"Writing file {name} failed with error: {e}")
         else:
-            logger.info(json.dumps(self.sites, indent=2))
+            logger.info(json.dumps(self.data, indent=2))
 
     def read_json_file(self, name: str = None):
         try:
             with open(name, "r") as fd:
-                self.sites = json.load(fd)
+                self.data = json.load(fd)
         except (FileNotFoundError, OSError) as e:
             logger.info(f"Reading file {name} failed with error: {e}")
 
-    def run(self):
+    def run(self) -> dict:
         import pprint
         pp = pprint.PrettyPrinter(indent=1)
         lb_urls = list()
@@ -163,7 +165,7 @@ class Api(object):
             for lb_type in F5XC_LOAD_BALANCER_TYPES:
                 lb_urls.append(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)))
 
-        pp.pprint(lb_urls)
+        logger.debug("PROXY_URLS: %s", proxy_urls)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in lb_urls}
@@ -177,10 +179,9 @@ class Api(object):
                 else:
                     lbs.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
-        pp.pprint(lbs)
-
-        #resp_process_lbs = self.process_load_balancers(lbs)
-        #pp.pprint(resp_process_lbs)
+        # pp.pprint(lbs)
+        self.data.update(self.process_load_balancers(lbs))
+        # pp.pprint(resp_process_lbs)
 
         """
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -247,6 +248,7 @@ class Api(object):
         else:
             sys.exit(1)
         """
+        return self.data
 
     def process_load_balancers(self, data: list = None) -> dict:
         """
@@ -464,7 +466,7 @@ def main():
 
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
-    # q.write_json_file(args.file)
+    q.write_json_file(args.file)
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
