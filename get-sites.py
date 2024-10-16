@@ -104,6 +104,11 @@ class Api(object):
                 sys.exit(1)
 
     def get(self, url: str = None) -> Response | bool:
+        """
+        Run HTTP GET on a given url
+        :param url: Actual URL to run GET request on
+        :return: requests.Response
+        """
         r = self.session.get(url)
 
         if 200 != r.status_code:
@@ -286,6 +291,7 @@ class Api(object):
         Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
         :param data: url to proxy mapping for all proxies in given namespace
         :return structure with proxies information being added
+        TODO test this implementation
         """
 
         urls = list()
@@ -429,6 +435,7 @@ class Api(object):
             # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
             sites_with_only_origin_pools = []
 
+            # TODO fix this to work across namespaces
             for site_name, site_info in self.data['site'].items():
                 has_proxys = 'proxys' in site_info
                 has_origin_pool = 'origin_pools' in site_info
