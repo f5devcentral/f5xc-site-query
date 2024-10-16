@@ -10,19 +10,14 @@ import json
 import logging
 import os
 import concurrent.futures
-from collections import defaultdict
-from http.client import responses
-from pprint import pprint
-
 import requests
 import sys
 from pathlib import Path
-from collections import defaultdict
 from requests import Response
 
 # Configure the logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 MAX_WORKERS = 10
 URI_F5XC_NAMESPACE = "/web/namespaces"
@@ -447,11 +442,13 @@ def main():
                         required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('-l', '--log', type=str, help='set log level: INFO or DEBUG',
                         required=False, default="INFO")
+    parser.add_argument('--log-stdout', type=bool, help='write log info to stdout',
+                        required=False, default=False)
+    parser.add_argument('--log-file', type=bool, help='write log info to file',
+                        required=False, default=False)
 
     # Parse the arguments
     args = parser.parse_args()
-    log_to_stdout = True
-    log_to_file = False
 
     if os.environ.get('GET-SITES-LOG-LEVEL'):
         level = getattr(logging, os.environ.get('GET-SITES-LOG-LEVEL').upper(), None)
@@ -463,13 +460,14 @@ def main():
 
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-    if log_to_stdout:
+    if args.log_stdout:
         ch = logging.StreamHandler()
-        ch.setLevel(level=level)
+        #ch.setLevel(level=level)
+        ch.setLevel(level=logging.INFO)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-    if log_to_file:
+    if args.log_file:
         fh = logging.FileHandler(Path(__file__).stem + '.log', "w", encoding="utf-8")
         fh.setLevel(level=level)
         fh.setFormatter(formatter)
@@ -485,11 +483,10 @@ def main():
     level = getattr(logging, args.log.upper(), None)
     if not isinstance(level, int):
         raise ValueError('Invalid log level: %s' % args.log.upper())
-    logging.basicConfig(level=level)
 
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
-    q.run()
-    q.write_json_file(args.file)
+    #q.run()
+    #q.write_json_file(args.file)
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
