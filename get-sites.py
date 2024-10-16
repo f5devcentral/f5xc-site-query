@@ -65,7 +65,7 @@ class Api(object):
 
     def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None):
         """
-        Initialize API object
+        Initialize API object. Stores session state and allows to run data processing methods.
 
         :param api_url: F5XC API URL
         :param api_token: F5XC API token
@@ -117,13 +117,18 @@ class Api(object):
 
     def build_url(self, uri: str = None) -> str:
         """
-
-        :param uri:
-        :return:
+        Build a url from api url + resource uri
+        :param uri: the resource uri
+        :return: url string
         """
         return "{}{}".format(self.api_url, uri)
 
     def write_json_file(self, name: str = None):
+        """
+        Write json to file
+        :param name: The file name to write json into
+        :return:
+        """
         if name not in ['stdout', '-', '']:
             try:
                 with open(name, 'w') as fd:
@@ -135,6 +140,11 @@ class Api(object):
             logger.info(json.dumps(self.data, indent=2))
 
     def read_json_file(self, name: str = None):
+        """
+       Read json from file into python object
+       :param name: the json file name
+       :return:
+       """
         try:
             with open(name, "r") as fd:
                 self.data = json.load(fd)
@@ -143,7 +153,11 @@ class Api(object):
 
     def run(self) -> dict:
         """
-
+        Run functions to process data
+            - process_loadbalancer for each namespace and load balancer type
+            - process_proxies for each namespace
+            - process_origin_pools for each namespace
+            - process site labels only if referenced by a load balancer/ origin pool / proxy
         :return:
         """
 
@@ -243,9 +257,9 @@ class Api(object):
 
     def process_load_balancers(self, data: list = None) -> dict:
         """
-
-        :param data:
-        :return: dict of load balancers ordered by site type
+        Add load balancer to site if load balancer refers to a site. Obtains specific load balancer by name.
+        :param data: url to load balancer mapping for all load balancer in given namespace
+        :return structure with load balancer information being added
         """
 
         urls = list()
@@ -301,9 +315,9 @@ class Api(object):
 
     def process_proxies(self, data: list = None) -> dict:
         """
-
-        :param data:
-        :return: dict
+        Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
+        :param data: url to proxy mapping for all proxies in given namespace
+        :return structure with proxies information being added
         """
 
         urls = list()
@@ -364,9 +378,9 @@ class Api(object):
 
     def process_origin_pools(self, data: list = None) -> dict:
         """
-
-        :param data:
-        :return:
+        Add origin pools to site if origin pools refers to a site. Obtains specific origin pool by name.
+        :param data: url to origin pools mapping for all origin pools in given namespace
+        :return structure with origin pool information being added
         """
 
         urls = list()
