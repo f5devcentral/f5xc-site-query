@@ -50,7 +50,7 @@ Alternatively you can set command line options instead when running the script:
 ## Usage
 
 Launched without any options will query application objects and site information for the default namespace. Alternatively a specific namespace
-can be requested via `-n <namespace>` option. To walk thru all namespaces, use `-n ''`, expect this to take several minutes depending on the 
+can be requested via `-n <namespace>` option. To walk through all namespaces, use `-n ''`, expect this to take several minutes depending on the 
 number of existing namespaces.
 
 While running, the script prints out the namespace, object and site to stderr:
