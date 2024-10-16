@@ -79,7 +79,7 @@ class Api(object):
         :param namespace: F5XC namespace
         """
 
-        self.data = dict()
+        self.data = {key: dict() for key in F5XC_SITE_TYPES}
         self.api_url = api_url
         self.api_token = api_token
         self.namespaces = []
@@ -165,10 +165,11 @@ class Api(object):
             for lb_type in F5XC_LOAD_BALANCER_TYPES:
                 lb_urls.append(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)))
 
-        logger.debug("PROXY_URLS: %s", proxy_urls)
+        logger.info("LB_URLS: %s", lb_urls)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in lb_urls}
+
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
 
@@ -179,11 +180,8 @@ class Api(object):
                 else:
                     lbs.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
-        # pp.pprint(lbs)
-        self.data.update(self.process_load_balancers(lbs))
-        # pp.pprint(resp_process_lbs)
+        self.process_load_balancers(lbs)
 
-        """
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in proxy_urls}
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -196,11 +194,8 @@ class Api(object):
                 else:
                     proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
-        resp_process_proxies = self.process_proxies(proxies, resp_process_lbs)
-        pp.pprint(resp_process_proxies)
-        """
+        self.process_proxies(proxies)
 
-        """
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in origin_pool_urls}
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -212,9 +207,8 @@ class Api(object):
                     print('%r generated an exception: %s' % (_data, exc))
                 else:
                     origin_pools.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
-        """
-        #resp_process_origin_pools = self.process_origin_pools(origin_pools, resp_process_lbs)
-        #pp.pprint(resp_process_origin_pools)
+
+        self.process_origin_pools(origin_pools)
 
         # get list of sites and process labels
         """
@@ -258,13 +252,12 @@ class Api(object):
         """
 
         urls = list()
-        response = {key: dict() for key in F5XC_SITE_TYPES}
 
         for item in data:
             for url, lbs in item.items():
                 for lb in lbs:
-                    url = "{}/{}".format(url, lb['name'])
-                    urls.append(url)
+                    _url = "{}/{}".format(url, lb['name'])
+                    urls.append(_url)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
@@ -292,11 +285,11 @@ class Api(object):
                                                 lb_name = r["metadata"]["name"]
                                                 site_name = site_info['site'][site_type]['name']
                                                 namespace = r["metadata"]["namespace"]
-                                                response[site_type][site_name] = dict()
-                                                response[site_type][site_name][namespace] = dict()
-                                                response[site_type][site_name][namespace]["loadbalancer"] = dict()
-                                                response[site_type][site_name][namespace]["loadbalancer"][lb_name] = None
-                                                response[site_type][site_name][namespace]['loadbalancer'][lb_name] = r['system_metadata']
+                                                self.data[site_type][site_name] = dict()
+                                                self.data[site_type][site_name][namespace] = dict()
+                                                self.data[site_type][site_name][namespace]["loadbalancer"] = dict()
+                                                self.data[site_type][site_name][namespace]["loadbalancer"][lb_name] = None
+                                                self.data[site_type][site_name][namespace]['loadbalancer'][lb_name] = r['system_metadata']
                                                 logger.info(f"{self.process_load_balancers.__name__} add data: [namespace: {namespace} loadbalancer: {lb_name} site_type: {site_type} site_name: {site_name}]")
                                             except Exception as e:
                                                 logger.info("lb_name:", lb_name)
@@ -306,13 +299,13 @@ class Api(object):
                                                 logger.info("system_metadata:", r['system_metadata'])
                                                 logger.info("Exception:", e)
 
-        return response
+        return self.data
 
-    def process_proxies(self, data: list = None, sites: dict = None) -> dict:
+
+    def process_proxies(self, data: list = None) -> dict:
         """
 
         :param data:
-        :param sites:
         :return: dict
         """
 
@@ -321,8 +314,8 @@ class Api(object):
         for item in data:
             for url, proxies in item.items():
                 for proxy in proxies:
-                    url = "{}/{}".format(url, proxy['name'])
-                    urls.append(url)
+                    _url = "{}/{}".format(url, proxy['name'])
+                    urls.append(_url)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
@@ -354,9 +347,13 @@ class Api(object):
                                             proxy_name = r["metadata"]["name"]
                                             site_name = site_info['site'][site_type]['name']
                                             namespace = r["metadata"]["namespace"]
-                                            sites[site_type][site_name][namespace]["proxys"] = dict()
-                                            sites[site_type][site_name][namespace]["proxys"][proxy_name] = None
-                                            sites[site_type][site_name][namespace]['proxys'][proxy_name] = r['system_metadata']
+                                            if site_name not in self.data[site_type].keys():
+                                                self.data[site_type][site_name] = dict()
+                                            if namespace not in self.data[site_type][site_name].keys():
+                                                self.data[site_type][site_name][namespace] = dict()
+                                            self.data[site_type][site_name][namespace]["proxys"] = dict()
+                                            self.data[site_type][site_name][namespace]["proxys"][proxy_name] = None
+                                            self.data[site_type][site_name][namespace]['proxys'][proxy_name] = r['system_metadata']
                                             logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
                                         except Exception as e:
                                             logger.info("lb_name:", proxy_name)
@@ -366,13 +363,12 @@ class Api(object):
                                             logger.info("system_metadata:", r['system_metadata'])
                                             logger.info("Exception:", e)
 
-        return sites
+        return self.data
 
-    def process_origin_pools(self, data: list = None, sites: dict = None) -> dict:
+    def process_origin_pools(self, data: list = None) -> dict:
         """
 
         :param data:
-        :param sites:
         :return:
         """
 
@@ -381,8 +377,8 @@ class Api(object):
         for item in data:
             for url, origin_pools in item.items():
                 for origin_pool in origin_pools:
-                    url = "{}/{}".format(url, origin_pool['name'])
-                    urls.append(url)
+                    _url = "{}/{}".format(url, origin_pool['name'])
+                    urls.append(_url)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
@@ -411,25 +407,25 @@ class Api(object):
                                     site_name = site_data.get('name')
 
                                     if site_name:
-                                        if site_name in sites:
-                                            try:
-                                                origin_pool_name = r["metadata"]["name"]
-                                                namespace = r["metadata"]["namespace"]
-                                                sites[site_type][site_name][namespace]["origin_pools"] = dict()
-                                                sites[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = None
-                                                sites[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = r['system_metadata']
-                                                print(50 * "#")
-                                                print(sites[site_type][site_name][namespace])
-                                                print(50 * "#")
-                                                logger.info(f"{self.process_origin_pools.__name__} add data: [namespace: {namespace} proxy: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
-                                            except Exception as e:
-                                                logger.info("lb_name:", origin_pool_name)
-                                                logger.info("site_type:", site_type)
-                                                logger.info("site_name:", site_name)
-                                                logger.info("namespace:", r["metadata"]["namespace"])
-                                                logger.info("system_metadata:", r['system_metadata'])
-                                                logger.info("Exception:", e)
-        return sites
+                                        try:
+                                            origin_pool_name = r["metadata"]["name"]
+                                            namespace = r["metadata"]["namespace"]
+                                            if site_name not in self.data[site_type].keys():
+                                                self.data[site_type][site_name] = dict()
+                                            if namespace not in self.data[site_type][site_name].keys():
+                                                self.data[site_type][site_name][namespace] = dict()
+                                            self.data[site_type][site_name][namespace]["origin_pools"] = dict()
+                                            self.data[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = None
+                                            self.data[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = r['system_metadata']
+                                            logger.info(f"{self.process_origin_pools.__name__} add data: [namespace: {namespace} proxy: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
+                                        except Exception as e:
+                                            logger.info("site_type:", site_type)
+                                            logger.info("site_name:", site_name)
+                                            logger.info("namespace:", r["metadata"]["namespace"])
+                                            logger.info("system_metadata:", r['system_metadata'])
+                                            logger.info("origin_pool_name:", origin_pool_name)
+                                            logger.info("Exception:", e)
+        return self.data
 
 
 def main():
@@ -466,7 +462,7 @@ def main():
 
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
-    #q.write_json_file(args.file)
+    # q.write_json_file(args.file)
     q.write_json_file("get-sites-concurrent.json")
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
