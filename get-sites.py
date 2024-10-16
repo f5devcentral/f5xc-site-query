@@ -245,6 +245,7 @@ def main():
     sites_with_neither = []
 
     # Iterate through each site in the JSON data
+    # TODO fix this to work across namespaces
     for site_name, _ in sites['site'].items():
         for namespace, site_info in sites['site'][site_name].items():
             has_origin_pool = 'origin_pools' in site_info
