@@ -5,12 +5,12 @@
 Helper tool get-sites.py queries application objects (HTTP and TCP Load Balancers, Proxys and Origin Pools) per namespace
 (or all namespaces) and creates a json file with all objects listed per site, virtual site and namespace.
 
-The generated get-sites.json file helps answering questions like
+The generated get-sites.json file helps to answer questions like
 
 a) What application objects are assigned to a site or virtual site and in what namespace
 b) Who created an application object
 c) Are there sites that only serve origin pools
-d) Are there application objects assigned to non-existant sites
+d) Are there application objects assigned to non-existent sites
 
 ## Installation
 
@@ -29,7 +29,8 @@ The script uses a F5XC API Token to access a Tenant's configuration.
 
 1. Create an API Token for our Tenant:
 
-   Sign into the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'. Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
+   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'. 
+   Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
 
 2. Define environment variables
 
@@ -176,9 +177,9 @@ json.sites_with_only_origin_pools[10] = "auto-aws-crt";
 json.sites_with_only_origin_pools[11] = "ce-rseries-integration";
 ```
 
-d) Are there application objects assigned to non-existant sites
+d) Are there application objects assigned to non-existent sites
 
-Look thru the generated get-sites.json file for empty site_labels. See answer a) above.
+Look through the generated get-sites.json file for empty site_labels. See answer `a)` above.
 
 
 
