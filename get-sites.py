@@ -466,7 +466,8 @@ def main():
 
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
-    q.write_json_file(args.file)
+    #q.write_json_file(args.file)
+    q.write_json_file("get-sites-concurrent.json")
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
