@@ -285,7 +285,6 @@ class Api(object):
 
         return self.data
 
-
     def process_proxies(self, data: list = None) -> dict:
         """
         Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
@@ -457,13 +456,13 @@ def main():
     parser = argparse.ArgumentParser(description="Get F5 XC Sites command line arguments")
 
     # Add arguments
-    parser.add_argument('-n', '--namespace', type=str,help='Namespace (not setting this option will process all namespaces)', required=False, default='')
-    parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL',required=False, default='')
-    parser.add_argument('-t', '--token', type=str, help='F5 XC API Token',required=False, default='')
-    parser.add_argument('-f', '--file', type=str, help='write site list to file',required=False, default=Path(__file__).stem + '.json')
+    parser.add_argument('-n', '--namespace', type=str, help='Namespace (not setting this option will process all namespaces)', required=False, default='')
+    parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL', required=False, default='')
+    parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default='')
+    parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
-    parser.add_argument('--log-stdout', type=bool, help='write log info to stdout',required=False, default=True)
-    parser.add_argument('--log-file', type=bool, help='write log info to file',required=False, default=None)
+    parser.add_argument('--log-stdout', type=bool, help='write log info to stdout', required=False, default=True)
+    parser.add_argument('--log-file', type=bool, help='write log info to file', required=False, default=None)
 
     # Parse the arguments
     args = parser.parse_args()
@@ -504,6 +503,7 @@ def main():
     q.run()
     q.write_json_file(args.file)
     logger.info(f"Application {os.path.basename(__file__)} finished")
+
 
 if __name__ == '__main__':
     main()
