@@ -32,36 +32,36 @@ F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'priv
 
 class Api(object):
     """
-        Represents the query API.
+    Represents the query API.
 
-        Attributes
-        ----------
-        api_url : str
-            F5XC API URL
-        api_token : str
-            F5XC API token
-        namespaces : str
-            F5XC namespace
-        session: request.Session
-            http session
+    Attributes
+    ----------
+    api_url : str
+        F5XC API URL
+    api_token : str
+        F5XC API token
+    namespaces : str
+        F5XC namespace
+    session: request.Session
+        http session
 
-        Methods
-        -------
-        build_url(uri=None)
-            builds api url based on uri
-        write_json_file(name=None)
-            writes data to json file
-        read_json_file(name=None)
-            read data from json file
-        run()
-            run the queries and build ds
-        process_load_balancers()
-            get and process load balancers
-        process_proxies()
-            get and process proxies
-        process_origin_pools()
-            get and process origin pools
-        """
+    Methods
+    -------
+    build_url(uri=None)
+        builds api url based on uri
+    write_json_file(name=None)
+        writes data to json file
+    read_json_file(name=None)
+        read data from json file
+    run()
+        run the queries and build ds
+    process_load_balancers()
+        get and process load balancers
+    process_proxies()
+        get and process proxies
+    process_origin_pools()
+        get and process origin pools
+    """
 
     def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None):
         """
@@ -79,7 +79,6 @@ class Api(object):
         self.session = requests.Session()
         self.session.headers.update({"content-type": "application/json", "Authorization": f"APIToken {api_token}"})
 
-
         logger.info(f"API URL: {self.api_url} -- Processing Namespace: {namespace if namespace else 'ALL'}")
 
         if not namespace:
@@ -88,10 +87,9 @@ class Api(object):
 
             if response:
                 logger.debug(json.dumps(response.json(), indent=2))
-                # Extracting namespaces names
                 json_items = response.json()
                 self.namespaces = [item['name'] for item in json_items['items']]
-                logger.info(f"namespaces: {self.namespaces}")
+                logger.info(f"Available namespaces: {self.namespaces}")
             else:
                 sys.exit(1)
 
@@ -117,7 +115,7 @@ class Api(object):
 
     def build_url(self, uri: str = None) -> str:
         """
-        Build a url from api url + resource uri
+        Build url from api url + resource uri
         :param uri: the resource uri
         :return: url string
         """
@@ -221,37 +219,7 @@ class Api(object):
                     origin_pools.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
         self.process_origin_pools(origin_pools)
-
-        # get list of sites and process labels
-        _sites = self.get(self.build_url(URI_F5XC_SITES))
-
-        if _sites:
-            logger.debug(json.dumps(_sites.json(), indent=2))
-            sites = _sites.json()
-
-            for site in sites['items']:
-                # only add labels to sites that are referenced by a LB/origin_pool/proxys object
-                if site['name'] in self.data['site']:
-                    self.data['site'][site['name']]['labels'] = site['labels']
-
-            # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
-            sites_with_only_origin_pools = []
-
-            # Iterate through each site in the JSON data
-            for site_name, site_info in self.data['site'].items():
-                has_proxys = 'proxys' in site_info
-                has_origin_pool = 'origin_pools' in site_info
-                has_load_balancer = 'loadbalancer' in site_info
-
-                # Check if the site has origin pools only (and no load balancer)
-                if has_origin_pool and not has_load_balancer and not has_proxys:
-                    sites_with_only_origin_pools.append(site_name)
-
-            # Print the results
-            logger.info(f"Sites with origin pools only: {sites_with_only_origin_pools}")
-
-        else:
-            sys.exit(1)
+        self.process_sites()
 
         return self.data
 
@@ -437,6 +405,42 @@ class Api(object):
                                             logger.info("origin_pool_name:", origin_pool_name)
                                             logger.info("Exception:", e)
         return self.data
+
+    def process_sites(self) -> dict:
+        """
+        Get list of sites and process labels. Only add labels to sites that are referenced by a LB/origin_pool/proxys object.
+        Store the sites with only origin pools and without origin pools or load balancers.
+        Check if the site has origin pools only (and no load balancer).
+        :return: structure with label information being added
+        """
+
+        logger.info(f"{self.process_sites.__name__} get all sites from {self.build_url(URI_F5XC_SITES)}")
+        _sites = self.get(self.build_url(URI_F5XC_SITES))
+
+        if _sites:
+            logger.debug(json.dumps(_sites.json(), indent=2))
+            sites = _sites.json()
+
+            for site in sites['items']:
+                if site['name'] in self.data['site']:
+                    logger.info(f"{self.process_sites.__name__} add label information to site {site['name']}")
+                    self.data['site'][site['name']]['labels'] = site['labels']
+
+            # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
+            sites_with_only_origin_pools = []
+
+            for site_name, site_info in self.data['site'].items():
+                has_proxys = 'proxys' in site_info
+                has_origin_pool = 'origin_pools' in site_info
+                has_load_balancer = 'loadbalancer' in site_info
+
+                # Check if the site has origin pools only (and no load balancer)
+                if has_origin_pool and not has_load_balancer and not has_proxys:
+                    sites_with_only_origin_pools.append(site_name)
+
+            logger.info(f"{self.process_sites.__name__} Sites with origin pools only: {sites_with_only_origin_pools}")
+
+            return self.data
 
 
 def main():
