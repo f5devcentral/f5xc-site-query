@@ -68,9 +68,23 @@ class Query(object):
             writes data to json file
         read_json_file(name=None)
             read data from json file
+        run()
+            run the queries and build ds
+        process_load_balancers()
+            get and process load balancers
+        process_proxies()
+            get and process proxies
+        process_origin_pools()
+            get and process origin pools
         """
 
-    def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None, json_file: str = None):
+    def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None):
+        """
+        Initialize query object
+        :param api_url: F5XC API URL
+        :param api_token: F5XC API token
+        :param namespace: F5XC namespace
+        """
         self.api_url = api_url
         self.api_token = api_token
         self.namespaces = []
@@ -105,9 +119,18 @@ class Query(object):
                 sys.exit(1)
 
     def build_url(self, uri: str = None) -> str:
+        """
+
+        :param uri:
+        :return:
+        """
         return "{}{}".format(self.api_url, uri)
 
     def run(self):
+        """
+
+        :return:
+        """
         for namespace in self.namespaces:
             for lb_type in F5XC_LOAD_BALANCER_TYPES:
                 self.process_load_balancers(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)), namespace)
@@ -147,6 +170,11 @@ class Query(object):
             sys.exit(1)
 
     def write_json_file(self, name: str = None):
+        """
+
+        :param name:
+        :return:
+        """
         if name not in ['stdout', '-', '']:
             try:
                 with open(name, 'w') as fd:
@@ -158,6 +186,11 @@ class Query(object):
             logger.info(json.dumps(self.sites, indent=2))
 
     def read_json_file(self, name: str = None):
+        """
+
+        :param name:
+        :return:
+        """
         try:
             with open(name, "r") as fd:
                 self.sites = json.load(fd)
@@ -165,6 +198,12 @@ class Query(object):
             logger.info(f"Reading file {name} failed with error: {e}")
 
     def process_load_balancers(self, url: str = None, namespace: str = None) -> dict | bool:
+        """
+
+        :param url:
+        :param namespace:
+        :return:
+        """
         logger.info(f"process_load_balancers called for {url}")
         response = api_get(self.session, url)
 
@@ -207,6 +246,12 @@ class Query(object):
             sys.exit(1)
 
     def process_proxies(self, url: str = None, namespace: str = None):
+        """
+
+        :param url:
+        :param namespace:
+        :return:
+        """
         logger.info(f"process_proxies called for {url}")
         response = api_get(self.session, url)
 
@@ -240,6 +285,12 @@ class Query(object):
             sys.exit(1)
 
     def process_origin_pools(self, url: str = None, namespace: str = None):
+        """
+
+        :param url:
+        :param namespace:
+        :return:
+        """
         logger.info(f"process_origin_pools called for {url}")
         response = api_get(self.session, url)
 
@@ -305,7 +356,7 @@ def main():
         raise ValueError('Invalid log level: %s' % args.log.upper())
     logging.basicConfig(level=level)
 
-    q = Query(api_url=api_url, api_token=api_token, namespace=args.namespace, json_file=args.file)
+    q = Query(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
     q.write_json_file(args.file)
 
