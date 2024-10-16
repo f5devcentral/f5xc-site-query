@@ -307,7 +307,7 @@ def main():
 
     q = Query(api_url=api_url, api_token=api_token, namespace=args.namespace, json_file=args.file)
     q.run()
-    # q.write_json_file(args.file)
+    q.write_json_file(args.file)
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
