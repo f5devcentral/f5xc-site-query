@@ -65,7 +65,7 @@ class Api(object):
 
     def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None):
         """
-        Initialize API object
+        Initialize API object. Stores session state and allows to run data processing methods.
 
         :param api_url: F5XC API URL
         :param api_token: F5XC API token
@@ -116,15 +116,19 @@ class Api(object):
 
     def build_url(self, uri: str = None) -> str:
         """
-
-        :param uri:
-        :return:
+        Build a url from api url + resource uri
+        :param uri: the resource uri
+        :return: url string
         """
         return "{}{}".format(self.api_url, uri)
 
     def run(self):
         """
-
+        Run functions to process data
+            - process_loadbalancer for each namespace and load balancer type
+            - process_proxies for each namespace
+            - process_origin_pools for each namespace
+            - process site labels only if referenced by a load balancer/ origin pool / proxy
         :return:
         """
         for namespace in self.namespaces:
@@ -167,8 +171,8 @@ class Api(object):
 
     def write_json_file(self, name: str = None):
         """
-
-        :param name:
+        Write json to file
+        :param name: The file name to write json into
         :return:
         """
         if name not in ['stdout', '-', '']:
@@ -183,8 +187,8 @@ class Api(object):
 
     def read_json_file(self, name: str = None):
         """
-
-        :param name:
+        Read json from file into python object
+        :param name: the json file name
         :return:
         """
         try:
@@ -195,9 +199,9 @@ class Api(object):
 
     def process_load_balancers(self, url: str = None, namespace: str = None) -> dict | bool:
         """
-
-        :param url:
-        :param namespace:
+        Add load balancer to site if load balancer refers to a site. Obtains load balancer from given url and namespace.
+        :param url: All load balancers for given namespace
+        :param namespace: F5XC namespace
         :return:
         """
         logger.info(f"process_load_balancers called for {url}")
@@ -243,9 +247,9 @@ class Api(object):
 
     def process_proxies(self, url: str = None, namespace: str = None):
         """
-
-        :param url:
-        :param namespace:
+        Add proxies to site if proxies refers to a site. Obtains proxies from given url and namespace.
+        :param url: All proxies for given namespace
+        :param namespace: F5XC namespace
         :return:
         """
         logger.info(f"process_proxies called for {url}")
@@ -282,10 +286,9 @@ class Api(object):
 
     def process_origin_pools(self, url: str = None, namespace: str = None):
         """
-
-        :param url:
-        :param namespace:
-        :return:
+        Add origin pools to site if origin pools refers to a site. Obtains origin pool from given url and namespace.
+        :param url: All origin pools for given namespace
+        :param namespace: F5XC namespace
         """
         logger.info(f"process_origin_pools called for {url}")
         response = self.get(url)
