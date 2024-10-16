@@ -154,6 +154,7 @@ class Api(object):
             sites_with_only_origin_pools = []
 
             # Iterate through each site in the JSON data
+            # TODO fix this to work across namespaces
             for site_name, site_info in self.sites['site'].items():
                 has_origin_pool = 'origin_pools' in site_info
                 has_load_balancer = 'loadbalancer' in site_info
