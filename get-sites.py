@@ -4,10 +4,9 @@ import argparse
 import json
 import logging
 import os
-import concurrent.futures
-
 import requests
 import sys
+from pprint import pprint
 from pathlib import Path
 from collections import defaultdict, namedtuple
 
