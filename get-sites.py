@@ -238,7 +238,26 @@ def main():
     for item in json_items['items']:
         # only add labels to sites that are referenced by a LB/origin_pool/proxys object
         if item['name'] in sites['site']:
-            sites['site'][item['name']]['labels'] = item['labels']
+            sites['site'][item['name']]['site_labels'] = item['labels']
+
+    # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
+    sites_with_only_origin_pools = []
+    sites_with_neither = []
+
+    # Iterate through each site in the JSON data
+    for site_name, _ in sites['site'].items():
+        for namespace, site_info in sites['site'][site_name].items():
+            has_origin_pool = 'origin_pools' in site_info
+            has_load_balancer = 'loadbalancer' in site_info
+            has_proxys = 'proxys' in site_info
+
+            # Check if the site has only origin pools (and no load balancer)
+            if has_origin_pool and not has_load_balancer and not has_proxys:
+                sites_with_only_origin_pools.append(site_name)
+
+    sites['sites_with_only_origin_pools'] = sites_with_only_origin_pools
+    logging.debug(f"\nSites with only origin pools: {
+                  sites_with_only_origin_pools}")
 
     if args.file not in ['stdout', '-', '']:
         with open(args.file, 'w') as file:
@@ -247,23 +266,6 @@ def main():
                   len(sites['virtual_site'])} virtual sites written to {args.file}")
     else:
         print(json.dumps(sites, indent=2))
-
-    # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
-    sites_with_only_origin_pools = []
-    sites_with_neither = []
-
-    # Iterate through each site in the JSON data
-    for site_name, site_info in sites['site'].items():
-        has_origin_pool = 'origin_pools' in site_info
-        has_load_balancer = 'loadbalancer' in site_info
-        has_proxys = 'proxys' in site_info
-
-        # Check if the site has only origin pools (and no load balancer)
-        if has_origin_pool and not has_load_balancer and not has_proxys:
-            sites_with_only_origin_pools.append(site_name)
-
-    # Print the results
-    print(f"\nSites with only origin pools: {sites_with_only_origin_pools}")
 
     logging.info("Application finished")
 
