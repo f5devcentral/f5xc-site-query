@@ -32,9 +32,9 @@ F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers"]
 F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'private_name']
 
 
-class Query(object):
+class Api(object):
     """
-        Represents a query.
+        Represents the query API.
 
         Attributes
         ----------
@@ -67,7 +67,8 @@ class Query(object):
 
     def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None):
         """
-        Initialize query object
+        Initialize API object
+
         :param api_url: F5XC API URL
         :param api_token: F5XC API token
         :param namespace: F5XC namespace
@@ -353,7 +354,7 @@ def main():
         raise ValueError('Invalid log level: %s' % args.log.upper())
     logging.basicConfig(level=level)
 
-    q = Query(api_url=api_url, api_token=api_token, namespace=args.namespace)
+    q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
     q.write_json_file(args.file)
 
