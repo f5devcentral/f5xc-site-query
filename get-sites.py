@@ -186,7 +186,6 @@ def main():
         # Extracting the names of namespaces
         json_items = response.json()
         namespaces = [item['name'] for item in json_items['items']]
-        print(f"namespaces {namespaces}")
 
     else:
         # check api url and validate given namespace
@@ -207,6 +206,8 @@ def main():
     # Initialize a multi-dimensional dictionary
     sites = defaultdict(lambda: defaultdict(
         lambda: defaultdict(lambda: defaultdict(dict))))
+
+    sites['namespaces'] = namespaces
 
     for namespace in namespaces:
 
