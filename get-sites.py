@@ -149,8 +149,11 @@ class Api(object):
             logger.info(f"Reading file {name} failed with error: {e}")
 
     def run(self) -> dict:
-        import pprint
-        pp = pprint.PrettyPrinter(indent=1)
+        """
+
+        :return:
+        """
+
         lb_urls = list()
         proxy_urls = list()
         origin_pool_urls = list()
@@ -165,7 +168,9 @@ class Api(object):
             for lb_type in F5XC_LOAD_BALANCER_TYPES:
                 lb_urls.append(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)))
 
-        logger.info("LB_URLS: %s", lb_urls)
+        logger.debug("LB_URLS: %s", lb_urls)
+        logger.debug("PROXY_URLS: %s", proxy_urls)
+        logger.debug("ORIGIN_POOL_URLS: %s", origin_pool_urls)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in lb_urls}
@@ -211,7 +216,6 @@ class Api(object):
         self.process_origin_pools(origin_pools)
 
         # get list of sites and process labels
-        """
         _sites = self.get(self.build_url(URI_F5XC_SITES))
 
         if _sites:
@@ -220,14 +224,14 @@ class Api(object):
 
             for site in sites['items']:
                 # only add labels to sites that are referenced by a LB/origin_pool/proxys object
-                if site['name'] in resp_process_lbs['site']:
-                    resp_process_lbs['site'][site['name']]['labels'] = site['labels']
+                if site['name'] in self.data['site']:
+                    self.data['site'][site['name']]['labels'] = site['labels']
 
             # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
             sites_with_only_origin_pools = []
 
             # Iterate through each site in the JSON data
-            for site_name, site_info in resp_process_lbs['site'].items():
+            for site_name, site_info in self.data['site'].items():
                 has_proxys = 'proxys' in site_info
                 has_origin_pool = 'origin_pools' in site_info
                 has_load_balancer = 'loadbalancer' in site_info
@@ -237,11 +241,11 @@ class Api(object):
                     sites_with_only_origin_pools.append(site_name)
 
             # Print the results
-            logger.info(f"\nSites with origin pools only: {sites_with_only_origin_pools}")
+            logger.info(f"Sites with origin pools only: {sites_with_only_origin_pools}")
 
         else:
             sys.exit(1)
-        """
+
         return self.data
 
     def process_load_balancers(self, data: list = None) -> dict:

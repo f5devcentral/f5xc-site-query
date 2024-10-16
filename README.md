@@ -29,7 +29,8 @@ The script uses a F5XC API Token to access a Tenant's configuration.
 
 1. Create an API Token for our Tenant:
 
-   Sign into the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'. Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
+   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'. 
+   Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
 
 2. Define environment variables
 
