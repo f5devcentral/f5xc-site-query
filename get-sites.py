@@ -7,8 +7,8 @@ import os
 import requests
 import sys
 from pathlib import Path
-from collections import defaultdict, namedtuple
-from requests import Response, Session, session
+from collections import defaultdict
+from requests import Response
 
 # Configure the logging
 logger = logging.getLogger(__name__)
@@ -30,17 +30,6 @@ URI_F5XC_PROXIES = "/config/namespaces/{namespace}/proxys"
 F5XC_SITE_TYPES = ["site", "virtual_site"]
 F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers"]
 F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'private_name']
-
-
-def api_get(s: Session = None, url: str = None) -> Response | bool:
-    r = s.get(url)
-
-    if 200 != r.status_code:
-        logger.error("get failed for {} with {}".format(url, r.status_code))
-        logger.info(f"get failed for  {url} with {r.status_code}")
-        return False
-
-    return r if r else False
 
 
 class Query(object):
@@ -95,7 +84,7 @@ class Query(object):
 
         if not namespace:
             # get list of all namespaces
-            response = api_get(self.session, self.build_url(URI_F5XC_NAMESPACE))
+            response = self.get(self.build_url(URI_F5XC_NAMESPACE))
 
             if response:
                 logger.debug(json.dumps(response.json(), indent=2))
@@ -108,13 +97,23 @@ class Query(object):
 
         else:
             # check api url and validate given namespace
-            response = api_get(self.session, self.build_url(f"{URI_F5XC_NAMESPACE}/{namespace}"))
+            response = self.get(self.build_url(f"{URI_F5XC_NAMESPACE}/{namespace}"))
 
             if response:
                 logger.debug(json.dumps(response.json(), indent=2))
                 self.namespaces = [namespace]
             else:
                 sys.exit(1)
+
+    def get(self, url: str = None) -> Response | bool:
+        r = self.session.get(url)
+
+        if 200 != r.status_code:
+            logger.error("get failed for {} with {}".format(url, r.status_code))
+            logger.info(f"get failed for  {url} with {r.status_code}")
+            return False
+
+        return r if r else False
 
     def build_url(self, uri: str = None) -> str:
         """
@@ -137,7 +136,7 @@ class Query(object):
             self.process_origin_pools(self.build_url(URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)), namespace)
 
         # get list of sites
-        response = api_get(self.session, self.build_url(URI_F5XC_SITES))
+        response = self.get(self.build_url(URI_F5XC_SITES))
 
         if response:
             logger.debug(json.dumps(response.json(), indent=2))
@@ -203,7 +202,7 @@ class Query(object):
         :return:
         """
         logger.info(f"process_load_balancers called for {url}")
-        response = api_get(self.session, url)
+        response = self.get(url)
 
         if response:
             r = dict()
@@ -213,7 +212,7 @@ class Query(object):
             for item in json_items['items']:
                 name = item['name']
                 logger.info(f"get item {url}/{name} ...")
-                response = api_get(self.session, f"{url}/{name}")
+                response = self.get(f"{url}/{name}")
 
                 if response:
                     data = response.json()
@@ -251,7 +250,7 @@ class Query(object):
         :return:
         """
         logger.info(f"process_proxies called for {url}")
-        response = api_get(self.session, url)
+        response = self.get(url)
 
         if response:
             json_items = response.json()
@@ -260,7 +259,7 @@ class Query(object):
             for item in json_items['items']:
                 name = item['name']
                 logger.info(f"get item {url}/{name} ...")
-                response = api_get(self.session, f"{url}/{name}")
+                response = self.get(f"{url}/{name}")
 
                 if response:
                     data = response.json()
@@ -290,7 +289,7 @@ class Query(object):
         :return:
         """
         logger.info(f"process_origin_pools called for {url}")
-        response = api_get(self.session, url)
+        response = self.get(url)
 
         if response:
             json_items = response.json()
@@ -299,7 +298,7 @@ class Query(object):
             for item in json_items['items']:
                 name = item['name']
                 logger.info(f"get item {url}/{name} ...")
-                response = api_get(self.session, f"{url}/{name}")
+                response = self.get(f"{url}/{name}")
 
                 if response:
                     data = response.json()
