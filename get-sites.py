@@ -6,10 +6,8 @@ import logging
 import os
 import requests
 import sys
-from pprint import pprint
 from pathlib import Path
 from collections import defaultdict, namedtuple
-
 from requests import Response, Session, session
 
 # Configure the logging
@@ -47,7 +45,7 @@ def api_get(s: Session = None, url: str = None) -> Response | bool:
 
 class Query(object):
     """
-        A class used to represent api query
+        Represents a query.
 
         Attributes
         ----------
