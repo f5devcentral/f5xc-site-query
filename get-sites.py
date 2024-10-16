@@ -5,13 +5,15 @@ import json
 import logging
 import os
 import concurrent.futures
+from collections import defaultdict
+from http.client import responses
+from pprint import pprint
 
 import requests
 import sys
 from pathlib import Path
-from collections import defaultdict, namedtuple
 
-from requests import Response, Session, session
+from requests import Response
 
 # Configure the logging
 logger = logging.getLogger(__name__)
@@ -76,15 +78,12 @@ class Api(object):
         :param api_token: F5XC API token
         :param namespace: F5XC namespace
         """
+
         self.api_url = api_url
         self.api_token = api_token
         self.namespaces = []
         self.session = requests.Session()
         self.session.headers.update({"content-type": "application/json", "Authorization": f"APIToken {api_token}"})
-        # build hashmap with sites referenced by various objects. Initialize a multidimensional dictionary
-        # self.sites = {"site": dict()}  # defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict))))
-        # self.sites = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict))))
-        self.site1 = {"site": dict()}
 
         logger.info(f"API URL: {self.api_url} -- Processing Namespace: {namespace if namespace else 'ALL'}")
 
@@ -129,80 +128,6 @@ class Api(object):
         """
         return "{}{}".format(self.api_url, uri)
 
-    def run(self):
-        import pprint
-        pp = pprint.PrettyPrinter(indent=1)
-
-        # Item = namedtuple('Item', ['namespace', 'lb_type'])
-        items = list()
-
-        for namespace in self.namespaces:
-            for lb_type in F5XC_LOAD_BALANCER_TYPES:
-                #items.append(Item(namespace, lb_type))
-                items.append(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)))
-
-        response = list()
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            future_to_ds = {executor.submit(self.get, url=item): item for item in items}
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
-
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    print('%r generated an exception: %s' % (_data, exc))
-                else:
-                    #self.site1["site"].update(data["site"]) if data else None
-                    response.append(data.json()["items"]) if data else None
-
-        # pp.pprint(self.sites)
-        # pp.pprint(response)
-        self.process_load_balancers1(response)
-        """
-        for namespace in self.namespaces:
-            for lb_type in F5XC_LOAD_BALANCER_TYPES:
-                self.process_load_balancers(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)), namespace)
-
-            self.process_proxies(self.build_url(URI_F5XC_PROXIES.format(namespace=namespace)), namespace)
-            self.process_origin_pools(self.build_url(URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)), namespace)
-        """
-
-        # for namespace in self.namespaces:
-        #    self.process_proxies(self.build_url(URI_F5XC_PROXIES.format(namespace=namespace)), namespace)
-        #    self.process_origin_pools(self.build_url(URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)), namespace)
-
-        # get list of sites
-        response = self.get(self.build_url(URI_F5XC_SITES))
-
-        if response:
-            logger.debug(json.dumps(response.json(), indent=2))
-            json_items = response.json()
-
-            for item in json_items['items']:
-                # only add labels to sites that are referenced by a LB/origin_pool/proxys object
-                if item['name'] in self.sites['site']:
-                    self.sites['site'][item['name']]['labels'] = item['labels']
-
-            # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
-            sites_with_only_origin_pools = []
-
-            # Iterate through each site in the JSON data
-            for site_name, site_info in self.sites['site'].items():
-                has_origin_pool = 'origin_pools' in site_info
-                has_load_balancer = 'loadbalancer' in site_info
-                has_proxys = 'proxys' in site_info
-
-                # Check if the site has origin pools only (and no load balancer)
-                if has_origin_pool and not has_load_balancer and not has_proxys:
-                    sites_with_only_origin_pools.append(site_name)
-
-            # Print the results
-            logger.info(f"\nSites with origin pools only: {sites_with_only_origin_pools}")
-
-        else:
-            sys.exit(1)
-
     def write_json_file(self, name: str = None):
         if name not in ['stdout', '-', '']:
             try:
@@ -221,224 +146,288 @@ class Api(object):
         except (FileNotFoundError, OSError) as e:
             logger.info(f"Reading file {name} failed with error: {e}")
 
-    def process_load_balancers(self, url: str = None, namespace: str = None) -> dict | bool:
-        """
+    def run(self):
+        import pprint
+        pp = pprint.PrettyPrinter(indent=1)
+        lb_urls = list()
+        proxy_urls = list()
+        origin_pool_urls = list()
+        lbs = list()
+        proxies = list()
+        origin_pools = list()
 
-        :param url:
-        :param namespace:
-        :return:
-        """
-        logger.info(f"process_load_balancers called for {url}")
-        response = self.get(url)
+        for namespace in self.namespaces:
+            proxy_urls.append(self.build_url(URI_F5XC_PROXIES.format(namespace=namespace)))
+            origin_pool_urls.append(self.build_url(URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)))
 
-        if response:
-            r = dict()
-            json_items = response.json()
-            logger.debug(json.dumps(json_items, indent=2))
+            for lb_type in F5XC_LOAD_BALANCER_TYPES:
+                lb_urls.append(self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)))
 
-            for item in json_items['items']:
-                name = item['name']
-                logger.info(f"get item {url}/{name} ...")
-                response = self.get(f"{url}/{name}")
+        pp.pprint(lb_urls)
 
-                if response:
-                    data = response.json()
-                    logger.debug(json.dumps(data, indent=2))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in lb_urls}
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
 
-                    if 'advertise_custom' in data['spec'] and 'advertise_where' in data['spec']['advertise_custom']:
-                        for index, site_info in enumerate(data['spec']['advertise_custom']['advertise_where']):
-                            if 'site' in site_info:
-                                for site_type in site_info['site'].keys():
-                                    if site_type in F5XC_SITE_TYPES:
-                                        try:
-                                            """
-                                            r[site_type] = dict()
-                                            site_name = site_info['site'][site_type]['name']
-                                            r[site_type][site_name] = dict()
-                                            r[site_type][site_name][namespace] = dict()
-                                            r[site_type][site_name][namespace]['loadbalancer'] = dict()
-                                            r[site_type][site_name][namespace]['loadbalancer'][name] = None
-                                            # self.sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                                            r[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                                            """
-                                            site_name = site_info['site'][site_type]['name']
-                                            self.sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                                            logger.info(f"namespace {namespace} loadbalancer {name} {site_type} {site_name}")
-                                        except Exception as e:
-                                            logger.info("site_type:", site_type)
-                                            logger.info("site_name:", site_name)
-                                            logger.info("namespace:", namespace)
-                                            logger.info("lb_name:", name)
-                                            logger.info("system_metadata:", data['system_metadata'])
-                                            logger.info("Exception:", e)
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    print('%r generated an exception: %s' % (_data, exc))
                 else:
-                    sys.exit(1)
+                    lbs.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
-            return r if r else False
+        pp.pprint(lbs)
+
+        #resp_process_lbs = self.process_load_balancers(lbs)
+        #pp.pprint(resp_process_lbs)
+
+        """
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in proxy_urls}
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    print('%r generated an exception: %s' % (_data, exc))
+                else:
+                    proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+
+        resp_process_proxies = self.process_proxies(proxies, resp_process_lbs)
+        pp.pprint(resp_process_proxies)
+        """
+
+        """
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in origin_pool_urls}
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    print('%r generated an exception: %s' % (_data, exc))
+                else:
+                    origin_pools.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+        """
+        #resp_process_origin_pools = self.process_origin_pools(origin_pools, resp_process_lbs)
+        #pp.pprint(resp_process_origin_pools)
+
+        # get list of sites and process labels
+        """
+        _sites = self.get(self.build_url(URI_F5XC_SITES))
+
+        if _sites:
+            logger.debug(json.dumps(_sites.json(), indent=2))
+            sites = _sites.json()
+
+            for site in sites['items']:
+                # only add labels to sites that are referenced by a LB/origin_pool/proxys object
+                if site['name'] in resp_process_lbs['site']:
+                    resp_process_lbs['site'][site['name']]['labels'] = site['labels']
+
+            # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
+            sites_with_only_origin_pools = []
+
+            # Iterate through each site in the JSON data
+            for site_name, site_info in resp_process_lbs['site'].items():
+                has_proxys = 'proxys' in site_info
+                has_origin_pool = 'origin_pools' in site_info
+                has_load_balancer = 'loadbalancer' in site_info
+
+                # Check if the site has origin pools only (and no load balancer)
+                if has_origin_pool and not has_load_balancer and not has_proxys:
+                    sites_with_only_origin_pools.append(site_name)
+
+            # Print the results
+            logger.info(f"\nSites with origin pools only: {sites_with_only_origin_pools}")
 
         else:
             sys.exit(1)
+        """
 
-    def process_load_balancers1(self, data: list) -> dict | bool:
+    def process_load_balancers(self, data: list = None) -> dict:
+        """
+
+        :param data:
+        :return: dict of load balancers ordered by site type
+        """
 
         urls = list()
-        response = list()
-        for item in data:
-            for lb in item:
-                name = lb['name']
+        response = {key: dict() for key in F5XC_SITE_TYPES}
 
-                for lb_type in F5XC_LOAD_BALANCER_TYPES:
-                    url = self.build_url(URI_F5XC_LOAD_BALANCER.format(namespace=lb["namespace"], lb_type=lb_type))
-                    logger.info(f"get item {url}/{name} ...")
-                    #response = api_get(self.session, f"{url}/{name}")
-                    #print("LB_RESPONSE:", response.json() if response else None)
+        for item in data:
+            for url, lbs in item.items():
+                for lb in lbs:
+                    url = "{}/{}".format(url, lb['name'])
                     urls.append(url)
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                    future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
-                    for future in concurrent.futures.as_completed(future_to_ds):
-                        _data = future_to_ds[future]
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
 
-                        try:
-                            data = future.result()
-                        except Exception as exc:
-                            print('%r generated an exception: %s' % (_data, exc))
-                        else:
-                            # self.site1["site"].update(data["site"]) if data else None
-                            response.append(data.json()["items"]) if data else None
-                            print(response)
+                try:
+                    logger.info(f"{self.process_load_balancers.__name__} get item {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    print('%s: %r generated an exception: %s' % (self.process_load_balancers.__name__, _data, exc))
+                else:
+                    logger.info(f"{self.process_load_balancers.__name__} got item: {future_to_ds[future]} ...")
 
-        print(response)
+                    if result:
+                        r = result.json()
+                        logger.debug(json.dumps(r, indent=2))
+                        if 'advertise_custom' in r['spec'] and 'advertise_where' in r['spec']['advertise_custom']:
+                            for index, site_info in enumerate(r['spec']['advertise_custom']['advertise_where']):
+                                if 'site' in site_info:
+                                    for site_type in site_info['site'].keys():
+                                        if site_type in F5XC_SITE_TYPES:
+                                            try:
+                                                lb_name = r["metadata"]["name"]
+                                                site_name = site_info['site'][site_type]['name']
+                                                namespace = r["metadata"]["namespace"]
+                                                response[site_type][site_name] = dict()
+                                                response[site_type][site_name][namespace] = dict()
+                                                response[site_type][site_name][namespace]["loadbalancer"] = dict()
+                                                response[site_type][site_name][namespace]["loadbalancer"][lb_name] = None
+                                                response[site_type][site_name][namespace]['loadbalancer'][lb_name] = r['system_metadata']
+                                                logger.info(f"{self.process_load_balancers.__name__} add data: [namespace: {namespace} loadbalancer: {lb_name} site_type: {site_type} site_name: {site_name}]")
+                                            except Exception as e:
+                                                logger.info("lb_name:", lb_name)
+                                                logger.info("site_type:", site_type)
+                                                logger.info("site_name:", site_name)
+                                                logger.info("namespace:", r["metadata"]["namespace"])
+                                                logger.info("system_metadata:", r['system_metadata'])
+                                                logger.info("Exception:", e)
+
+        return response
+
+    def process_proxies(self, data: list = None, sites: dict = None) -> dict:
         """
-        logger.info(f"process_load_balancers called for {url}")
-        response = api_get(self.session, url)
 
-        if response:
-            r = dict()
-            json_items = response.json()
-            logger.debug(json.dumps(json_items, indent=2))
+        :param data:
+        :param sites:
+        :return: dict
+        """
 
-            for item in json_items['items']:
-                name = item['name']
-                logger.info(f"get item {url}/{name} ...")
-                response = api_get(self.session, f"{url}/{name}")
+        urls = list()
 
-                if response:
-                    data = response.json()
-                    logger.debug(json.dumps(data, indent=2))
+        for item in data:
+            for url, proxies in item.items():
+                for proxy in proxies:
+                    url = "{}/{}".format(url, proxy['name'])
+                    urls.append(url)
 
-                    if 'advertise_custom' in data['spec'] and 'advertise_where' in data['spec']['advertise_custom']:
-                        for index, site_info in enumerate(data['spec']['advertise_custom']['advertise_where']):
-                            if 'site' in site_info:
-                                for site_type in site_info['site'].keys():
-                                    if site_type in F5XC_SITE_TYPES:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    logger.info(f"{self.process_proxies.__name__} get item {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    print('%s: %r generated an exception: %s' % (self.process_proxies.__name__, _data, exc))
+                else:
+                    logger.info(f"{self.process_proxies.__name__} got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        r = result.json()
+                        logger.debug(json.dumps(r, indent=2))
+                        site_virtual_sites = r['spec'].get('site_virtual_sites', {})
+                        advertise_where = site_virtual_sites.get('advertise_where', [])
+
+                        for site_info in advertise_where:
+                            site = site_info.get('site', {})
+                            for site_type in F5XC_SITE_TYPES:
+                                if site_type in site:
+                                    site_name = site[site_type].get('name')
+                                    if site_name:
                                         try:
-                                            
-                                            #r[site_type] = dict()
-                                            #site_name = site_info['site'][site_type]['name']
-                                            #r[site_type][site_name] = dict()
-                                            #r[site_type][site_name][namespace] = dict()
-                                            #r[site_type][site_name][namespace]['loadbalancer'] = dict()
-                                            #r[site_type][site_name][namespace]['loadbalancer'][name] = None
-                                            # self.sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                                            #r[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
+                                            proxy_name = r["metadata"]["name"]
                                             site_name = site_info['site'][site_type]['name']
-                                            self.sites[site_type][site_name][namespace]['loadbalancer'][name] = data['system_metadata']
-                                            logger.info(f"namespace {namespace} loadbalancer {name} {site_type} {site_name}")
+                                            namespace = r["metadata"]["namespace"]
+                                            sites[site_type][site_name][namespace]["proxys"] = dict()
+                                            sites[site_type][site_name][namespace]["proxys"][proxy_name] = None
+                                            sites[site_type][site_name][namespace]['proxys'][proxy_name] = r['system_metadata']
+                                            logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
                                         except Exception as e:
-                                            print("site_type:", site_type)
-                                            print("site_name:", site_name)
-                                            print("namespace:", namespace)
-                                            print("lb_name:", name)
-                                            print("system_metadata:", data['system_metadata'])
-                                            print("Exception:", e)
-                else:
-                    sys.exit(1)
+                                            logger.info("lb_name:", proxy_name)
+                                            logger.info("site_type:", site_type)
+                                            logger.info("site_name:", site_name)
+                                            logger.info("namespace:", r["metadata"]["namespace"])
+                                            logger.info("system_metadata:", r['system_metadata'])
+                                            logger.info("Exception:", e)
 
-            return r if r else False
+        return sites
 
-        else:
-            sys.exit(1)
+    def process_origin_pools(self, data: list = None, sites: dict = None) -> dict:
         """
 
-    def process_proxies(self, url: str = None, namespace: str = None):
-        """
-
-        :param url:
-        :param namespace:
+        :param data:
+        :param sites:
         :return:
         """
-        logger.info(f"process_proxies called for {url}")
-        response = self.get(url)
 
-        if response:
-            json_items = response.json()
-            logger.debug(json.dumps(json_items, indent=2))
+        urls = list()
 
-            for item in json_items['items']:
-                name = item['name']
-                logger.info(f"get item {url}/{name} ...")
-                response = self.get(f"{url}/{name}")
+        for item in data:
+            for url, origin_pools in item.items():
+                for origin_pool in origin_pools:
+                    url = "{}/{}".format(url, origin_pool['name'])
+                    urls.append(url)
 
-                if response:
-                    data = response.json()
-                    logger.debug(json.dumps(data, indent=2))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
-                    site_virtual_sites = data['spec'].get('site_virtual_sites', {})
-                    advertise_where = site_virtual_sites.get('advertise_where', [])
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
 
-                    for site_info in advertise_where:
-                        site = site_info.get('site', {})
-                        for site_type in ['site', 'virtual_site']:
-                            if site_type in site:
-                                site_name = site[site_type].get('name')
-                                if site_name:
-                                    self.sites[site_type][site_name][namespace]['proxys'][name] = data['system_metadata']
-                                    logger.info(f"namespace {namespace} proxys {name} {site_type} {site_name}")
+                try:
+                    logger.info(f"{self.process_origin_pools.__name__} get item {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    print('%s: %r generated an exception: %s' % (self.process_origin_pools.__name__, _data, exc))
                 else:
-                    sys.exit(1)
-        else:
-            sys.exit(1)
+                    logger.info(f"{self.process_origin_pools.__name__} got item: {future_to_ds[future]} ...")
 
-    def process_origin_pools(self, url: str = None, namespace: str = None):
-        """
+                    if result:
+                        r = result.json()
+                        logger.debug(json.dumps(r, indent=2))
+                        origin_servers = r['spec'].get('origin_servers', [])
 
-        :param url:
-        :param namespace:
-        :return:
-        """
-        logger.info(f"process_origin_pools called for {url}")
-        response = self.get(url)
+                        for origin_server in origin_servers:
+                            for key in F5XC_ORIGIN_SERVER_TYPES:
+                                site_locator = origin_server.get(key, {}).get('site_locator', {})
 
-        if response:
-            json_items = response.json()
-            logger.debug(json.dumps(json_items, indent=2))
+                                for site_type, site_data in site_locator.items():
+                                    site_name = site_data.get('name')
 
-            for item in json_items['items']:
-                name = item['name']
-                logger.info(f"get item {url}/{name} ...")
-                response = self.get(f"{url}/{name}")
-
-                if response:
-                    data = response.json()
-                    logger.debug(json.dumps(data, indent=2))
-                    origin_servers = data['spec'].get('origin_servers', [])
-
-                    for site_info in origin_servers:
-                        for key in F5XC_ORIGIN_SERVER_TYPES:
-                            site_locator = site_info.get(key, {}).get('site_locator', {})
-
-                            for site_type, site_data in site_locator.items():
-                                site_name = site_data.get('name')
-
-                                if site_name:
-                                    self.sites[site_type][site_name][namespace]['origin_pools'][name] = data['system_metadata']
-                                    logger.info(f"namespace {namespace} origin_pools {name} {site_type} {site_name}")
-                else:
-                    sys.exit(1)
-        else:
-            sys.exit(1)
+                                    if site_name:
+                                        if site_name in sites:
+                                            try:
+                                                origin_pool_name = r["metadata"]["name"]
+                                                namespace = r["metadata"]["namespace"]
+                                                sites[site_type][site_name][namespace]["origin_pools"] = dict()
+                                                sites[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = None
+                                                sites[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = r['system_metadata']
+                                                print(50 * "#")
+                                                print(sites[site_type][site_name][namespace])
+                                                print(50 * "#")
+                                                logger.info(f"{self.process_origin_pools.__name__} add data: [namespace: {namespace} proxy: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
+                                            except Exception as e:
+                                                logger.info("lb_name:", origin_pool_name)
+                                                logger.info("site_type:", site_type)
+                                                logger.info("site_name:", site_name)
+                                                logger.info("namespace:", r["metadata"]["namespace"])
+                                                logger.info("system_metadata:", r['system_metadata'])
+                                                logger.info("Exception:", e)
+        return sites
 
 
 def main():
@@ -475,7 +464,7 @@ def main():
 
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
-    q.write_json_file(args.file)
+    # q.write_json_file(args.file)
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
