@@ -321,20 +321,19 @@ class Api(object):
 
 
 def main():
+    logger.info(f"Application {os.path.basename(__file__)} started...")
+
     # Create the parser
     parser = argparse.ArgumentParser(description="Get F5 XC Sites command line arguments")
 
     # Add arguments
-    parser.add_argument('-n', '--namespace', type=str,
-                        help='Namespace (not setting this option will process all namespaces)', required=False, default='')
-    parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL',
-                        required=False, default='')
-    parser.add_argument('-t', '--token', type=str, help='F5 XC API Token',
-                        required=False, default='')
-    parser.add_argument('-f', '--file', type=str, help='write site list to file',
-                        required=False, default=Path(__file__).stem + '.json')
-    parser.add_argument('-l', '--log', type=str, help='set log level: INFO or DEBUG',
-                        required=False, default="INFO")
+    parser.add_argument('-n', '--namespace', type=str, help='Namespace (not setting this option will process all namespaces)', required=False, default='')
+    parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL', required=False, default='')
+    parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default='')
+    parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
+    parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
+    parser.add_argument('--log-stdout', type=bool, help='write log info to stdout', required=False, default=True)
+    parser.add_argument('--log-file', type=bool, help='write log info to file', required=False, default=None)
 
     # Parse the arguments
     args = parser.parse_args()
@@ -344,7 +343,7 @@ def main():
     if os.environ.get('GET-SITES-LOG-LEVEL'):
         level = getattr(logging, os.environ.get('GET-SITES-LOG-LEVEL').upper(), None)
     else:
-        level = getattr(logging, args.log.upper(), None)
+        level = getattr(logging, args.log_level.upper(), None)
 
     if not isinstance(level, int):
         raise ValueError('Invalid log level: %s' % os.environ.get('GET-SITES-LOG-LEVEL').upper())
@@ -358,7 +357,7 @@ def main():
         logger.addHandler(ch)
 
     if log_to_file:
-        fh = logging.FileHandler(Path(__file__).stem + '.log', "w", encoding="utf-8")
+        fh = logging.FileHandler(args.log_file, "w", encoding="utf-8") if args.file is None else logging.FileHandler(Path(__file__).stem + '.log', "w", encoding="utf-8")
         fh.setLevel(level=level)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
@@ -371,10 +370,9 @@ def main():
         sys.exit(1)
 
     logger.info(f"Application {os.path.basename(__file__)} started...")
-    logger.debug("A DEBUG MESSAGE")
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
-    #q.run()
-    #q.write_json_file(args.file)
+    q.run()
+    q.write_json_file(args.file)
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
