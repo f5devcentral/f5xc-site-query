@@ -513,12 +513,12 @@ def main():
 
     logger.info(f"Application {os.path.basename(__file__)} started...")
     start_time = time.perf_counter()
-    q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
+    q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace, workers=args.workers)
     q.run()
     q.write_json_file(args.file)
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
-    logger.info(f'Query time: {int(elapsed_time)} seconds')
+    logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
