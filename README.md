@@ -8,8 +8,11 @@ Helper tool get-sites.py queries application objects (HTTP and TCP Load Balancer
 The generated get-sites.json file helps to answer questions like
 
 a) What application objects are assigned to a site or virtual site and in what namespace
+
 b) Who created an application object
+
 c) Are there sites that only serve origin pools
+
 d) Are there application objects assigned to non-existent sites
 
 ## Installation
