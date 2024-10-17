@@ -10,6 +10,10 @@ import json
 import logging
 import os
 import concurrent.futures
+import threading
+import time
+from pprint import pprint, PrettyPrinter
+
 import requests
 import sys
 from pathlib import Path
@@ -20,6 +24,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 MAX_WORKERS = 10
+QUERY_STRING_LB_HTTP = "/http_loadbalancers/"
+QUERY_STRING_LB_TCP = "/tcp_loadbalancers/"
 URI_F5XC_NAMESPACE = "/web/namespaces"
 URI_F5XC_SITES = "/config/namespaces/system/sites"
 URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
@@ -51,8 +57,6 @@ class Api(object):
         builds api url based on uri
     write_json_file(name=None)
         writes data to json file
-    read_json_file(name=None)
-        read data from json file
     run()
         run the queries and build ds
     process_load_balancers()
@@ -73,9 +77,9 @@ class Api(object):
         """
 
         self.data = {key: dict() for key in F5XC_SITE_TYPES}
+        self.lock = threading.Lock()
         self.api_url = api_url
         self.api_token = api_token
-        self.namespaces = []
         self.session = requests.Session()
         self.session.headers.update({"content-type": "application/json", "Authorization": f"APIToken {api_token}"})
 
@@ -88,8 +92,8 @@ class Api(object):
             if response:
                 logger.debug(json.dumps(response.json(), indent=2))
                 json_items = response.json()
-                self.namespaces = [item['name'] for item in json_items['items']]
-                logger.info(f"Available namespaces: {self.namespaces}")
+                self.data['namespaces'] = [item['name'] for item in json_items['items']]
+                logger.info(f"Available namespaces: {self.data['namespaces']}")
             else:
                 sys.exit(1)
 
@@ -99,7 +103,7 @@ class Api(object):
 
             if response:
                 logger.debug(json.dumps(response.json(), indent=2))
-                self.namespaces = [namespace]
+                self.data['namespaces'] = [namespace]
             else:
                 sys.exit(1)
 
@@ -142,18 +146,6 @@ class Api(object):
         else:
             logger.info(json.dumps(self.data, indent=2))
 
-    def read_json_file(self, name: str = None):
-        """
-       Read json from file into python object
-       :param name: the json file name
-       :return:
-       """
-        try:
-            with open(name, "r") as fd:
-                self.data = json.load(fd)
-        except (FileNotFoundError, OSError) as e:
-            logger.info(f"Reading file {name} failed with error: {e}")
-
     def run(self) -> dict:
         """
         Run functions to process data
@@ -171,7 +163,7 @@ class Api(object):
         proxies = list()
         origin_pools = list()
 
-        for namespace in self.namespaces:
+        for namespace in self.data["namespaces"]:
             proxy_urls.append(self.build_url(URI_F5XC_PROXIES.format(namespace=namespace)))
             origin_pool_urls.append(self.build_url(URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)))
 
@@ -183,6 +175,7 @@ class Api(object):
         logger.debug("ORIGIN_POOL_URLS: %s", origin_pool_urls)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            logger.info("Prepare load balancer query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in lb_urls}
 
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -191,13 +184,14 @@ class Api(object):
                 try:
                     data = future.result()
                 except Exception as exc:
-                    print('%r generated an exception: %s' % (_data, exc))
+                    logger.info('%r generated an exception: %s' % (_data, exc))
                 else:
                     lbs.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
         self.process_load_balancers(lbs)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            logger.info("Prepare proxies query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in proxy_urls}
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
@@ -205,13 +199,14 @@ class Api(object):
                 try:
                     data = future.result()
                 except Exception as exc:
-                    print('%r generated an exception: %s' % (_data, exc))
+                    logger.info('%r generated an exception: %s' % (_data, exc))
                 else:
                     proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
         self.process_proxies(proxies)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            logger.info("Prepare origin pools query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in origin_pool_urls}
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
@@ -219,7 +214,7 @@ class Api(object):
                 try:
                     data = future.result()
                 except Exception as exc:
-                    print('%r generated an exception: %s' % (_data, exc))
+                    logger.info('%r generated an exception: %s' % (_data, exc))
                 else:
                     origin_pools.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
@@ -243,6 +238,8 @@ class Api(object):
                     _url = "{}/{}".format(url, lb['name'])
                     urls.append(_url)
 
+        logger.debug(f"{self.process_load_balancers.__name__} url: {urls}")
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
@@ -253,7 +250,7 @@ class Api(object):
                     logger.info(f"{self.process_load_balancers.__name__} get item {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
-                    print('%s: %r generated an exception: %s' % (self.process_load_balancers.__name__, _data, exc))
+                    logger.info('%s: %r generated an exception: %s' % (self.process_load_balancers.__name__, _data, exc))
                 else:
                     logger.info(f"{self.process_load_balancers.__name__} got item: {future_to_ds[future]} ...")
 
@@ -269,11 +266,25 @@ class Api(object):
                                                 lb_name = r["metadata"]["name"]
                                                 site_name = site_info['site'][site_type]['name']
                                                 namespace = r["metadata"]["namespace"]
-                                                self.data[site_type][site_name] = dict()
-                                                self.data[site_type][site_name][namespace] = dict()
-                                                self.data[site_type][site_name][namespace]["loadbalancer"] = dict()
-                                                self.data[site_type][site_name][namespace]["loadbalancer"][lb_name] = None
-                                                self.data[site_type][site_name][namespace]['loadbalancer'][lb_name] = r['system_metadata']
+                                                if site_name not in self.data[site_type].keys():
+                                                    self.data[site_type][site_name] = dict()
+                                                if 'namespaces' not in self.data[site_type][site_name].keys():
+                                                    self.data[site_type][site_name]['namespaces'] = dict()
+                                                if namespace not in self.data[site_type][site_name]['namespaces'].keys():
+                                                    self.data[site_type][site_name]['namespaces'][namespace] = dict()
+                                                if "loadbalancer" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
+                                                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"] = dict()
+                                                if QUERY_STRING_LB_TCP in future_to_ds[future]:
+                                                    if "tcp" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
+                                                        self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"] = dict()
+                                                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name] = None
+                                                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name] = r['system_metadata']
+                                                if QUERY_STRING_LB_HTTP in future_to_ds[future]:
+                                                    if "http" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
+                                                        self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"] = dict()
+                                                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name] = None
+                                                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name] = r['system_metadata']
+
                                                 logger.info(f"{self.process_load_balancers.__name__} add data: [namespace: {namespace} loadbalancer: {lb_name} site_type: {site_type} site_name: {site_name}]")
                                             except Exception as e:
                                                 logger.info("lb_name:", lb_name)
@@ -290,7 +301,6 @@ class Api(object):
         Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
         :param data: url to proxy mapping for all proxies in given namespace
         :return structure with proxies information being added
-        TODO test this implementation
         """
 
         urls = list()
@@ -300,6 +310,8 @@ class Api(object):
                 for proxy in proxies:
                     _url = "{}/{}".format(url, proxy['name'])
                     urls.append(_url)
+
+        logger.debug(f"{self.process_proxies.__name__} url: {urls}")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
@@ -311,7 +323,7 @@ class Api(object):
                     logger.info(f"{self.process_proxies.__name__} get item {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
-                    print('%s: %r generated an exception: %s' % (self.process_proxies.__name__, _data, exc))
+                    logger.info('%s: %r generated an exception: %s' % (self.process_proxies.__name__, _data, exc))
                 else:
                     logger.info(f"{self.process_proxies.__name__} got item: {future_to_ds[future]} ...")
 
@@ -333,11 +345,13 @@ class Api(object):
                                             namespace = r["metadata"]["namespace"]
                                             if site_name not in self.data[site_type].keys():
                                                 self.data[site_type][site_name] = dict()
-                                            if namespace not in self.data[site_type][site_name].keys():
-                                                self.data[site_type][site_name][namespace] = dict()
-                                            self.data[site_type][site_name][namespace]["proxys"] = dict()
-                                            self.data[site_type][site_name][namespace]["proxys"][proxy_name] = None
-                                            self.data[site_type][site_name][namespace]['proxys'][proxy_name] = r['system_metadata']
+                                                self.data[site_type][site_name]['namespaces'] = dict()
+                                            if namespace not in self.data[site_type][site_name]['namespaces'].keys():
+                                                self.data[site_type][site_name]['namespaces'][namespace] = dict()
+                                            if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
+                                                self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
+                                            self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = None
+                                            self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name] = r['system_metadata']
                                             logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
                                         except Exception as e:
                                             logger.info("lb_name:", proxy_name)
@@ -364,6 +378,8 @@ class Api(object):
                     _url = "{}/{}".format(url, origin_pool['name'])
                     urls.append(_url)
 
+        logger.debug(f"{self.process_origin_pools.__name__} url: {urls}")
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
@@ -374,7 +390,7 @@ class Api(object):
                     logger.info(f"{self.process_origin_pools.__name__} get item {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
-                    print('%s: %r generated an exception: %s' % (self.process_origin_pools.__name__, _data, exc))
+                    logger.info('%s: %r generated an exception: %s' % (self.process_origin_pools.__name__, _data, exc))
                 else:
                     logger.info(f"{self.process_origin_pools.__name__} got item: {future_to_ds[future]} ...")
 
@@ -396,11 +412,13 @@ class Api(object):
                                             namespace = r["metadata"]["namespace"]
                                             if site_name not in self.data[site_type].keys():
                                                 self.data[site_type][site_name] = dict()
-                                            if namespace not in self.data[site_type][site_name].keys():
-                                                self.data[site_type][site_name][namespace] = dict()
-                                            self.data[site_type][site_name][namespace]["origin_pools"] = dict()
-                                            self.data[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = None
-                                            self.data[site_type][site_name][namespace]["origin_pools"][origin_pool_name] = r['system_metadata']
+                                                self.data[site_type][site_name]['namespaces'] = dict()
+                                            if namespace not in self.data[site_type][site_name]['namespaces'].keys():
+                                                self.data[site_type][site_name]['namespaces'][namespace] = dict()
+                                            if "origin_pools" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
+                                                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"] = dict()
+                                            self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = None
+                                            self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = r['system_metadata']
                                             logger.info(f"{self.process_origin_pools.__name__} add data: [namespace: {namespace} proxy: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
                                         except Exception as e:
                                             logger.info("site_type:", site_type)
@@ -431,20 +449,16 @@ class Api(object):
                     logger.info(f"{self.process_sites.__name__} add label information to site {site['name']}")
                     self.data['site'][site['name']]['labels'] = site['labels']
 
-            # Dictionaries to store the sites with only origin pools and without origin pools or load balancers
-            sites_with_only_origin_pools = []
+            sites_with_origin_pools_only = []
 
-            # TODO fix this to work across namespaces
-            for site_name, site_info in self.data['site'].items():
-                has_proxys = 'proxys' in site_info
-                has_origin_pool = 'origin_pools' in site_info
-                has_load_balancer = 'loadbalancer' in site_info
+            for site_name, site_data in self.data['site'].items():
+                for n_name, n_data in site_data['namespaces'].items():
+                    # Check if the site has origin pools only
+                    if len(n_data.keys()) == 1 and 'origin_pools' in n_data.keys():
+                        sites_with_origin_pools_only.append(site_name)
 
-                # Check if the site has origin pools only (and no load balancer)
-                if has_origin_pool and not has_load_balancer and not has_proxys:
-                    sites_with_only_origin_pools.append(site_name)
-
-            logger.info(f"{self.process_sites.__name__} Sites with origin pools only: {sites_with_only_origin_pools}")
+            self.data["sites_with_origin_pools_only"] = sites_with_origin_pools_only
+            logger.info(f"{self.process_sites.__name__} Sites with origin pools only: {sites_with_origin_pools_only}")
 
             return self.data
 
@@ -461,13 +475,11 @@ def main():
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default='')
     parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
-    parser.add_argument('--log-stdout', type=bool, help='write log info to stdout', required=False, default=True)
-    parser.add_argument('--log-file', type=bool, help='write log info to file', required=False, default=None)
+    parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
+    parser.add_argument('--log-file', help='write log info to file', action='store_true')
 
     # Parse the arguments
     args = parser.parse_args()
-    log_to_stdout = True
-    log_to_file = False
 
     if os.environ.get('GET-SITES-LOG-LEVEL'):
         level = getattr(logging, os.environ.get('GET-SITES-LOG-LEVEL').upper(), None)
@@ -479,13 +491,13 @@ def main():
 
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-    if log_to_stdout:
+    if args.log_stdout:
         ch = logging.StreamHandler()
         ch.setLevel(level=level)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-    if log_to_file:
+    if args.log_file:
         fh = logging.FileHandler(args.log_file, "w", encoding="utf-8") if args.file is None else logging.FileHandler(Path(__file__).stem + '.log', "w", encoding="utf-8")
         fh.setLevel(level=level)
         fh.setFormatter(formatter)
@@ -499,11 +511,16 @@ def main():
         sys.exit(1)
 
     logger.info(f"Application {os.path.basename(__file__)} started...")
+    start_time = time.perf_counter()
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace)
     q.run()
     q.write_json_file(args.file)
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    logger.info(f'Query time: {int(elapsed_time)} seconds')
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
 if __name__ == '__main__':
     main()
+    #cProfile.run('main()', sort='cumtime')
