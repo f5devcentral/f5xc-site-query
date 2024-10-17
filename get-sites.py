@@ -12,7 +12,6 @@ import os
 import concurrent.futures
 import threading
 import time
-from pprint import pprint, PrettyPrinter
 
 import requests
 import sys
@@ -23,7 +22,6 @@ from requests import Response
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-MAX_WORKERS = 10
 QUERY_STRING_LB_HTTP = "/http_loadbalancers/"
 QUERY_STRING_LB_TCP = "/tcp_loadbalancers/"
 URI_F5XC_NAMESPACE = "/web/namespaces"
@@ -46,10 +44,10 @@ class Api(object):
         F5XC API URL
     api_token : str
         F5XC API token
-    namespaces : str
-        F5XC namespace
     session: request.Session
         http session
+    workers: int
+       maximum number of workers
 
     Methods
     -------
@@ -67,19 +65,21 @@ class Api(object):
         get and process origin pools
     """
 
-    def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None):
+    def __init__(self, api_url: str = None, api_token: str = None, namespace: str = None, workers: int = 10):
         """
         Initialize API object. Stores session state and allows to run data processing methods.
 
         :param api_url: F5XC API URL
         :param api_token: F5XC API token
         :param namespace: F5XC namespace
+        :param workers: Maximum number of workers for concurrent processing
         """
 
         self.data = {key: dict() for key in F5XC_SITE_TYPES}
         self.lock = threading.Lock()
         self.api_url = api_url
         self.api_token = api_token
+        self.workers = workers
         self.session = requests.Session()
         self.session.headers.update({"content-type": "application/json", "Authorization": f"APIToken {api_token}"})
 
@@ -174,7 +174,7 @@ class Api(object):
         logger.debug("PROXY_URLS: %s", proxy_urls)
         logger.debug("ORIGIN_POOL_URLS: %s", origin_pool_urls)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             logger.info("Prepare load balancer query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in lb_urls}
 
@@ -190,7 +190,7 @@ class Api(object):
 
         self.process_load_balancers(lbs)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             logger.info("Prepare proxies query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in proxy_urls}
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -205,7 +205,7 @@ class Api(object):
 
         self.process_proxies(proxies)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             logger.info("Prepare origin pools query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in origin_pool_urls}
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -240,7 +240,7 @@ class Api(object):
 
         logger.debug(f"{self.process_load_balancers.__name__} url: {urls}")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -313,7 +313,7 @@ class Api(object):
 
         logger.debug(f"{self.process_proxies.__name__} url: {urls}")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -380,7 +380,7 @@ class Api(object):
 
         logger.debug(f"{self.process_origin_pools.__name__} url: {urls}")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
 
             for future in concurrent.futures.as_completed(future_to_ds):
@@ -474,6 +474,7 @@ def main():
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL', required=False, default='')
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default='')
     parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
+    parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing', required=False, default=10)
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
     parser.add_argument('--log-file', help='write log info to file', action='store_true')
@@ -523,4 +524,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    #cProfile.run('main()', sort='cumtime')
