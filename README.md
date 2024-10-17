@@ -8,8 +8,11 @@ Helper tool get-sites.py queries application objects (HTTP and TCP Load Balancer
 The generated get-sites.json file helps to answer questions like
 
 a) What application objects are assigned to a site or virtual site and in what namespace
+
 b) Who created an application object
+
 c) Are there sites that only serve origin pools
+
 d) Are there application objects assigned to non-existent sites
 
 ## Installation
@@ -41,41 +44,32 @@ export f5xc_api_url="https://<tenant>.console.ves.volterra.io/api"
 export f5xc_api_token="............................"
 ```
 
-Alternatively you can set command line options instead when running the script:
+Alternatively you can set command line options instead when running the script.
 
-```
-./get-sites.py -t f5xc_api_token -a https://<tenant>.console.ves.volterra.io/api
-```
 
 ## Usage
 
-Launched without any options will query application objects and site information for the default namespace. Alternatively a specific namespace
-can be requested via `-n <namespace>` option. To walk through all namespaces, use `-n ''`, expect this to take several minutes depending on the 
-number of existing namespaces.
-
-While running, the script prints out the namespace, object and site to stderr:
-
 ```
 $ ./get-sites.py 
-namespace default loadbalancer f5dc-hello site alt-reg-site
-namespace default loadbalancer f5dc-hello-cluster2 site f5dc-wdc-2-sat-cluster-2
-namespace default loadbalancer test site aws-tgw-site
-namespace default loadbalancer camera-default site smartretail-isv
-namespace default loadbalancer f5dc-cluster2-iperf3 site f5dc-wdc-2-sat-cluster-2
-namespace default loadbalancer mw-test site aws-tgw-site
-namespace default proxys abc site bhu-appstack
-namespace default origin_pools byerly-pool site byerly-twg
-namespace default origin_pools camera-1 site smartretail-isv
-namespace default origin_pools f5dc-cluster1-iperf3 site f5dc-wdc-1-sat-cluster-1
-namespace default origin_pools f5dc-hello site f5dc-wdc-1-sat-cluster-1
-namespace default origin_pools f5os-demo-pool site f5os-demo2-site
-namespace default origin_pools mgala-aws-ubuntu-sms site mgala-sms-demo2
-namespace default origin_pools mw-test site alt-reg-site
-namespace default origin_pools mwce1-alpine1 site mw-ce1
-namespace default origin_pools xcdf-test site data-fabric-on-xc-a2-gpu
-11 sites and 0 virtual sites written to get-sites.json
+usage: get-sites.py [-h] [-n NAMESPACE] [-a APIURL] [-t TOKEN] [-f FILE] [-w WORKERS] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
-Sites with only origin pools: []
+Get F5 XC Sites command line arguments
+
+options:
+  -h, --help            show this help message and exit
+  -n NAMESPACE, --namespace NAMESPACE
+                        Namespace (not setting this option will process all namespaces)
+  -a APIURL, --apiurl APIURL
+                        F5 XC API URL
+  -t TOKEN, --token TOKEN
+                        F5 XC API Token
+  -f FILE, --file FILE  write site list to file
+  -w WORKERS, --workers WORKERS
+                        maximum number of worker for concurrent processing
+  --log-level LOG_LEVEL
+                        set log level to INFO or DEBUG
+  --log-stdout          write log info to stdout
+  --log-file            write log info to file
 ```
 
 The generated get-sites.json is now populated with application objects per namespace and site/virtual site and can be parsed
