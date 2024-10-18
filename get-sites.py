@@ -458,7 +458,10 @@ class Api(object):
                         sites_with_origin_pools_only.append(site_name)
 
             self.data["sites_with_origin_pools_only"] = sites_with_origin_pools_only
-            logger.info(f"{self.process_sites.__name__} Sites with origin pools only: {sites_with_origin_pools_only}")
+            logger.info(f"{self.process_sites.__name__} <{len(sites_with_origin_pools_only)}> sites with origin pools only: {sites_with_origin_pools_only}")
+
+            self.data["orphaned_sites"] = [k for k, v in self.data['site'].items() if 'labels' not in v.keys()]
+            logger.info(f"{self.process_sites.__name__} <{len(self.data["orphaned_sites"])}> sites without labels (orphaned): {self.data["orphaned_sites"]}")
 
             return self.data
 
