@@ -173,7 +173,25 @@ json.sites_with_only_origin_pools[11] = "ce-rseries-integration";
 
 d) Are there application objects assigned to non-existent sites
 
-Look through the generated get-sites.json file for empty site_labels. See answer `a)` above.
+A list is written to the json file with site names that have been referenced by one of the objects but no longer
+exists:
+
+```
+$ gron get-sites.json |grep orphaned                                                                                                       
+json.orphaned_sites = [];                                                                                                                                                             
+json.orphaned_sites[1] = "aws-vpc-appstack-scale";                                                                                                                                    
+json.orphaned_sites[2] = "casfdey-smsv2";                                                                                                                                             
+json.orphaned_sites[3] = "smartretail-isv";                                                                                                                                           
+json.orphaned_sites[4] = "f5dc-wdc-2-sat-cluster-2";                                                                                                                                  
+json.orphaned_sites[5] = "cuyn-minikube2";                                                                                                                                            
+json.orphaned_sites[6] = "erdc-chen-awsnet";                                                                                                                                          
+json.orphaned_sites[7] = "fwabz-r5k-stage-2";                                                                                                                                         
+json.orphaned_sites[8] = "mn-gw-pk8s";                                                                                                                                                
+json.orphaned_sites[9] = "mn-aws";                                                                                                                                                    
+json.orphaned_sites[10] = "m-mn-az";                                                                                                                                                  
+json.orphaned_sites[11] = "m-mn-test";                                                                                                                                                
+json.orphaned_sites[12] = "m-gcp-vip";                  
+```
 
 
 
