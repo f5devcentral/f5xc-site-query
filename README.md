@@ -201,4 +201,4 @@ The steps to compare site information are as follows:
     2024-10-22 16:11:09,129 - INFO - compare done with results: {'os': True, 'cpu': True, 'memory': True, 'network': [True]}
     ```
   
-Above output shows there are no differences for hardware  info items __CPU__, __MEMORY__ and __network__
+Above output shows there are no differences for hardware  info items __cpu__, __memory__ and __network__
