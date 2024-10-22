@@ -229,6 +229,7 @@ class HwInfo:
             "os": self.os == other.os,
             "cpu": self.cpu == other.cpu,
             "memory": self.memory == other.memory,
+            "storage": self.storage == other.storage,
             "network": [(n_self == n_other) for n_self, n_other in zip(self.network, other.network)]
         }
 
