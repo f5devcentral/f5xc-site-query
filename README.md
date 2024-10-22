@@ -193,3 +193,12 @@ The steps to compare site information are as follows:
     ```bash
     ./get-sites.py -f `./out_site_b.json` -s `siteB` --diff-file `./ou_site_a_json` -w 16 --log-level INFO --log-stdout
     ``` 
+- Output
+    ```bash
+    2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site written to ./get-sites-diff-b.json
+    2024-10-22 16:11:09,129 - INFO - compare started with data from get-sites-diff-a.json and current api run...
+    2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site read from ./get-sites-diff-a.json
+    2024-10-22 16:11:09,129 - INFO - compare done with results: {'os': True, 'cpu': True, 'memory': True, 'network': [True]}
+    ```
+  
+Above output show there are no differences for hardware  info items __CPU__, __MEMORY__ and __network__
