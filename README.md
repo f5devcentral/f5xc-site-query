@@ -179,7 +179,6 @@ d) Are there application objects assigned to non-existent sites
 
 Look through the generated `get-sites.json` file for empty site_labels. See answer `a)` above.
 
-
 ### Compare function
 
 This tool provides a comparison function to compare page information. 
