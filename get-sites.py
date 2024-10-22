@@ -808,7 +808,7 @@ def main():
     parser.add_argument('-s', '--site', type=str, help='site to be processed', required=False, default="")
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default="")
     parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing', required=False, default=10)
-    parser.add_argument('--diff-file', type=str, help='compare source snapshot', required=False, default="")
+    parser.add_argument('--diff-file', type=str, help='compare to site', required=False, default="")
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
     parser.add_argument('--log-file', help='write log info to file', action='store_true')
