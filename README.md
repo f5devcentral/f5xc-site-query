@@ -51,25 +51,29 @@ Alternatively you can set command line options instead when running the script.
 
 ```
 $ ./get-sites.py 
-usage: get-sites.py [-h] [-n NAMESPACE] [-a APIURL] [-t TOKEN] [-f FILE] [-w WORKERS] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
+usage: get-sites.py [-h] [-a APIURL] [-f FILE] [-n NAMESPACE] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
 Get F5 XC Sites command line arguments
 
 options:
   -h, --help            show this help message and exit
-  -n NAMESPACE, --namespace NAMESPACE
-                        Namespace (not setting this option will process all namespaces)
   -a APIURL, --apiurl APIURL
                         F5 XC API URL
+  -f FILE, --file FILE  write site list to file
+  -n NAMESPACE, --namespace NAMESPACE
+                        namespace (not setting this option will process all namespaces)
+  -s SITE, --site SITE  site to be processed
   -t TOKEN, --token TOKEN
                         F5 XC API Token
-  -f FILE, --file FILE  write site list to file
   -w WORKERS, --workers WORKERS
                         maximum number of worker for concurrent processing
+  --diff-file DIFF_FILE
+                        compare source snapshot
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
   --log-file            write log info to file
+
 ```
 
 The generated get-sites.json is now populated with application objects per namespace and site/virtual site and can be parsed
@@ -173,10 +177,20 @@ json.sites_with_only_origin_pools[11] = "ce-rseries-integration";
 
 d) Are there application objects assigned to non-existent sites
 
-Look through the generated get-sites.json file for empty site_labels. See answer `a)` above.
+Look through the generated `get-sites.json` file for empty site_labels. See answer `a)` above.
 
 
+### Compare function
+
+This tool provides a comparison function to compare page information. 
+The steps to compare site information are as follows:
 
 
-
-
+- Run query for `siteA` and write data to `out_site_a.json`
+    ```bash
+    ./get-sites.py -f `./out_site_a_json` -s `siteA` -w 16 --log-level INFO --log-stdout
+    ```
+- Run query for `siteB` and compare to `siteA` data
+    ```bash
+    ./get-sites.py -f `./out_site_b.json` -s `siteB` --diff-file `./ou_site_a_json` -w 16 --log-level INFO --log-stdout
+    ``` 
