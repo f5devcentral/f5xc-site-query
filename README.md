@@ -68,7 +68,7 @@ options:
   -w WORKERS, --workers WORKERS
                         maximum number of worker for concurrent processing
   --diff-file DIFF_FILE
-                        compare source snapshot
+                        compare to site
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
