@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import csv
+from os import write
 from pathlib import Path
 from types import NotImplementedType
 
@@ -387,7 +388,15 @@ class Api(object):
         :param name:
         :return:
         """
-        pass
+
+        # Open a new CSV file and write the header row
+        with open(name, 'w', newline='') as fd:
+            fieldnames = ["site"] + [k for k in data.keys()]
+            writer = csv.DictWriter(fd, fieldnames=fieldnames)
+
+            writer.writeheader()
+            # site,os,cpu,memory,storage,network
+            writer.writerow({'site': self.site, 'os': data['os'], 'cpu': data['cpu'], 'memory': data['memory'], 'storage': data['storage'], 'network': data['network']})
 
     @classmethod
     def read_json_file(cls, name: str = None) -> dict:
@@ -871,7 +880,8 @@ def main():
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace, site=args.site, workers=args.workers)
     q.run()
     q.write_json_file(args.file)
-    q.compare(args.diff_file) if args.diff_file else None
+    data = q.compare(args.diff_file) if args.diff_file else None
+    q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
     logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
