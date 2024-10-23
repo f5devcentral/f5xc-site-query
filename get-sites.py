@@ -784,7 +784,7 @@ class Api(object):
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
         :param file: file name data loaded to compare with
-        :return: comparison status per hw_info item
+        :return: comparison status per hw_info item or False if site is a orphaned site or does not exist in data
         """
 
         logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
