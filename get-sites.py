@@ -780,20 +780,29 @@ class Api(object):
                                     if F5XC_NODE_PRIMARY in node['node_info']['role']:
                                         self.data['site'][urls[future_to_ds[future]]]['hw_info'] = node['hw_info']
 
-    def compare(self, file: str = None) -> dict[str, bool]:
+    def compare(self, file: str = None) -> dict[str, bool] | bool:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
         :param file: file name data loaded to compare with
         :return: comparison status per hw_info item
         """
-        
-        logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
-        data = self.read_json_file(file)
-        hw_info_a = HwInfo(**data['site'][self.site]['hw_info'])
-        hw_info_b = HwInfo(**self.data['site'][self.site]['hw_info'])
-        logger.info(f"{self.compare.__name__} done with results: {hw_info_a == hw_info_b}")
 
-        return hw_info_a == hw_info_b
+        logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
+        if self.site in self.data['orphaned_sites']:
+            logger.info(f"{self.compare.__name__} Site {self.site} cannot be compared since orphaned site...")
+            return False
+
+        elif self.site not in self.data['site']:
+            logger.info(f"{self.compare.__name__} Site {self.site} cannot be compared. Site not found  in existing data...")
+            return False
+
+        else:
+            data = self.read_json_file(file)
+            hw_info_a = HwInfo(**data['site'][self.site]['hw_info'])
+            hw_info_b = HwInfo(**self.data['site'][self.site]['hw_info'])
+            logger.info(f"{self.compare.__name__} done with results: {hw_info_a == hw_info_b}")
+
+            return hw_info_a == hw_info_b
 
 
 def main():
