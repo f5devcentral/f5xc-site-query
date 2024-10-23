@@ -386,16 +386,15 @@ class Api(object):
         """
         Flatten JSON data. Write flattened data to CSV
         :param name:
+        :param data:
         :return:
         """
 
-        # Open a new CSV file and write the header row
         with open(name, 'w', newline='') as fd:
             fieldnames = ["site"] + [k for k in data.keys()]
             writer = csv.DictWriter(fd, fieldnames=fieldnames)
 
             writer.writeheader()
-            # site,os,cpu,memory,storage,network
             writer.writerow({'site': self.site, 'os': data['os'], 'cpu': data['cpu'], 'memory': data['memory'], 'storage': data['storage'], 'network': data['network']})
 
     @classmethod
