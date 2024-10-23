@@ -11,6 +11,7 @@ import logging
 import os
 import sys
 import time
+import csv
 from pathlib import Path
 from types import NotImplementedType
 
@@ -379,6 +380,14 @@ class Api(object):
                 logger.info(f"Writing file {name} failed with error: {e}")
         else:
             logger.info(json.dumps(self.data, indent=2))
+
+    def write_csv_file(self, name: str = None, data: dict[str, bool] = None):
+        """
+        Flatten JSON data. Write flattened data to CSV
+        :param name:
+        :return:
+        """
+        pass
 
     @classmethod
     def read_json_file(cls, name: str = None) -> dict:
@@ -790,7 +799,7 @@ class Api(object):
         logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
         data = self.read_json_file(file)
 
-        if self.site in self.data['orphaned_sites'] or self.site not in data['orphaned_sites']:
+        if self.site in self.data['orphaned_sites'] or self.site in data['orphaned_sites']:
             logger.info(f"{self.compare.__name__} site {self.site} cannot be compared since orphaned site...")
             return False
 
@@ -814,6 +823,7 @@ def main():
 
     # Add arguments
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL', required=False, default="")
+    parser.add_argument('-c', '--csv-file', help='write site info to csv file', required=False, default="")
     parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('-n', '--namespace', type=str, help='namespace (not setting this option will process all namespaces)', required=False, default="")
     parser.add_argument('-s', '--site', type=str, help='site to be processed', required=False, default="")
