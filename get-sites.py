@@ -788,16 +788,17 @@ class Api(object):
         """
 
         logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
-        if self.site in self.data['orphaned_sites']:
-            logger.info(f"{self.compare.__name__} Site {self.site} cannot be compared since orphaned site...")
+        data = self.read_json_file(file)
+
+        if self.site in self.data['orphaned_sites'] or self.site not in data['orphaned_sites']:
+            logger.info(f"{self.compare.__name__} site {self.site} cannot be compared since orphaned site...")
             return False
 
-        elif self.site not in self.data['site']:
-            logger.info(f"{self.compare.__name__} Site {self.site} cannot be compared. Site not found  in existing data...")
+        elif self.site not in self.data['site'] or self.site not in data['site']:
+            logger.info(f"{self.compare.__name__} site {self.site} cannot be compared. Site not found  in existing data...")
             return False
 
         else:
-            data = self.read_json_file(file)
             hw_info_a = HwInfo(**data['site'][self.site]['hw_info'])
             hw_info_b = HwInfo(**self.data['site'][self.site]['hw_info'])
             logger.info(f"{self.compare.__name__} done with results: {hw_info_a == hw_info_b}")
