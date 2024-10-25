@@ -652,7 +652,7 @@ class Api(object):
         def process():
             try:
                 proxy_name = r["metadata"]["name"]
-                site_name = site_info['site'][site_type]['name']
+                site_name = site_info[site_type][site_type]['name']
                 namespace = r["metadata"]["namespace"]
                 if site_name not in self.data[site_type].keys():
                     self.data[site_type][site_name] = dict()
@@ -705,18 +705,15 @@ class Api(object):
                             if self.must_break:
                                 break
                             else:
-                                site = site_info.get('site', {})
-                                if site:
-                                    if 'site' in site_info:
-                                        for site_type in site_info['site'].keys():
-                                            if site_type in F5XC_SITE_TYPES:
-                                                if self.site:
-                                                    if self.site == site_info['site'][site_type]['name']:
-                                                        self.must_break = True
-                                                        process()
-                                                        break
-                                                else:
-                                                    process()
+                                for site_type in site_info.keys():
+                                    if site_type in F5XC_SITE_TYPES:
+                                        if self.site:
+                                            if self.site == site_info[site_type][site_type]['name']:
+                                                self.must_break = True
+                                                process()
+                                                break
+                                        else:
+                                            process()
 
         return self.data
 
