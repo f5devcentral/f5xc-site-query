@@ -569,30 +569,25 @@ class Api(object):
         """
 
         def process():
-            for site_type in F5XC_SITE_TYPES:
-                if site_type in site:
-                    site_name = site[site_type].get('name')
-                    if site_name:
-                        try:
-                            proxy_name = r["metadata"]["name"]
-                            site_name = site_info['site'][site_type]['name']
-                            namespace = r["metadata"]["namespace"]
-                            if site_name not in self.data[site_type].keys():
-                                self.data[site_type][site_name] = dict()
-                                self.data[site_type][site_name]['namespaces'] = dict()
-                            if namespace not in self.data[site_type][site_name]['namespaces'].keys():
-                                self.data[site_type][site_name]['namespaces'][namespace] = dict()
-                            if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
-                                self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
-                            self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = None
-                            self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name] = r['system_metadata']
-                            logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
-                        except Exception as e:
-                            logger.info("site_type:", site_type)
-                            logger.info("site_name:", site_name)
-                            logger.info("namespace:", r["metadata"]["namespace"])
-                            logger.info("system_metadata:", r['system_metadata'])
-                            logger.info("Exception:", e)
+            try:
+                proxy_name = r["metadata"]["name"]
+                site_name = site_info['site'][site_type]['name']
+                namespace = r["metadata"]["namespace"]
+                if site_name not in self.data[site_type].keys():
+                    self.data[site_type][site_name] = dict()
+                    self.data[site_type][site_name]['namespaces'] = dict()
+                if namespace not in self.data[site_type][site_name]['namespaces'].keys():
+                    self.data[site_type][site_name]['namespaces'][namespace] = dict()
+                if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
+                    self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = None
+                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name] = r['system_metadata']
+                logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
+            except Exception as e:
+                logger.info("site_type:", site_type)
+                logger.info("namespace:", r["metadata"]["namespace"])
+                logger.info("system_metadata:", r['system_metadata'])
+                logger.info("Exception:", e)
 
         urls = list()
 
@@ -630,14 +625,17 @@ class Api(object):
                                 break
                             else:
                                 site = site_info.get('site', {})
-
-                                if self.site:
-                                    if site['site']["name"] == self.site:
-                                        self.must_break = True
-                                        process()
-                                        break
-                                else:
-                                    process()
+                                if site:
+                                    if 'site' in site_info:
+                                        for site_type in site_info['site'].keys():
+                                            if site_type in F5XC_SITE_TYPES:
+                                                if self.site:
+                                                    if self.site == site_info['site'][site_type]['name']:
+                                                        self.must_break = True
+                                                        process()
+                                                        break
+                                                else:
+                                                    process()
 
         return self.data
 
