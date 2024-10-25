@@ -21,7 +21,7 @@ d) Are there application objects assigned to non-existent sites
    `python3 -m venv myenv`
 
 2. Source the new environment:
-    `source myenv/bin/activate`
+   `source myenv/bin/activate`
 
 3. Install required python modules:
    `python3 -m pip install -r requirements.txt`
@@ -32,12 +32,12 @@ The script uses a F5XC API Token to access a Tenant's configuration.
 
 1. Create an API Token for our Tenant:
 
-   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'. 
+   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'.
    Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
 
 2. Define environment variables
 
-Set environment variables with the API URL (replace tenant with your tenant name) and the generated API Token. 
+Set environment variables with the API URL (replace tenant with your tenant name) and the generated API Token.
 
 ```
 export f5xc_api_url="https://<tenant>.console.ves.volterra.io/api"
@@ -45,7 +45,6 @@ export f5xc_api_token="............................"
 ```
 
 Alternatively you can set command line options instead when running the script.
-
 
 ## Usage
 
@@ -149,7 +148,7 @@ a) What application objects are assigned to a site or virtual site and in what n
     . . .
 ```
 
-The site `alt-reg-site` has a loadbalancer f5dc-hello and origin pool `mw-test` assigned. Empty `site_labels` for this 
+The site `alt-reg-site` has a loadbalancer f5dc-hello and origin pool `mw-test` assigned. Empty `site_labels` for this
 site `alt-reg-site` indicates the site no longer exists.
 
 b) Who created an application object
@@ -201,9 +200,8 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 
 ### Compare function
 
-This tool provides a comparison function to compare page information. 
+This tool provides a comparison function to compare page information.
 The steps to compare site information are as follows:
-
 
 - Run query for `siteA` and write data to `out_site_a.json`
     ```bash
@@ -220,8 +218,8 @@ The steps to compare site information are as follows:
     2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site read from ./get-sites-diff-a.json
     2024-10-22 16:11:09,129 - INFO - compare done with results: {'os': True, 'cpu': True, 'memory': True, 'network': [True]}
     ```
-  
-Above output shows there are no differences for hardware  info items __cpu__, __memory__ and __network__
+
+Above output shows there are no differences for hardware info items __cpu__, __memory__ and __network__
 
 ### Create csv inventory file
 
@@ -231,7 +229,7 @@ This tool offers the function to create a CSV inventory file. This file can be r
     ```bash
     ./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
     ```
-- Run create CSV inventory file function  
+- Run create CSV inventory file function
     ```bash
     ./get-sites.py -f ./get-sites-all-ns.json -c inventory.csv --log-level INFO --log-stdout
     ```
