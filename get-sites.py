@@ -423,7 +423,11 @@ class Api(object):
                             rows.append(row)
 
                         elif k1 == "proxys":
+                            print(k1, v1)
                             if "spec" in v2.keys():
+                                print(200 * "#")
+                                print("process proxies")
+                                print(200 * "#")
                                 proxy_type = "dynamic_proxy" if v2['spec'].get("dynamic_proxy") else "http_proxy" if v2['spec'].get("http_proxy") else "unknown"
                                 advertise_where_types = list()
 
@@ -662,7 +666,12 @@ class Api(object):
                 if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
                     self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
                 self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = None
-                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name] = r['system_metadata']
+                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['spec'] = r['spec']
+                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['metadata'] = r['metadata']
+                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['system_metadata'] = r['system_metadata']
                 logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 logger.info("site_type:", site_type)
