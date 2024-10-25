@@ -12,8 +12,8 @@ import os
 import sys
 import time
 import csv
-from os import write
 from pathlib import Path
+from pprint import pprint, PrettyPrinter
 from types import NotImplementedType
 
 import requests
@@ -397,6 +397,59 @@ class Api(object):
             writer.writeheader()
             writer.writerow({'site': self.site, 'os': data['os'], 'cpu': data['cpu'], 'memory': data['memory'], 'storage': data['storage'], 'network': data['network']})
 
+    def write_inventory_to_csv(self, json_file: str = None, csv_file: str = None):
+        """
+        Write site inventory to CSV file
+        :param json_file: json input data
+        :param csv_file: output csv file
+        :return:
+        """
+
+        fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
+        data = self.read_json_file(json_file)
+        rows = list()
+
+        for site, attrs in data['site'].items():
+            row = {"type": "site", "subtype_a": "N/A", "subtype_b": "N/A", "object_name": site}
+            rows.append(row)
+
+            for k, v in attrs['namespaces'].items():
+                for k1, v1 in v.items():
+                    for k2, v2 in v1.items():
+                        if k1 == "loadbalancer":
+                            for k3, v3 in v2.items():
+                                if "spec" in v3.keys():
+                                    if "advertise_custom" in v3['spec'].keys():
+                                        row = {"type": k1, "subtype_a": k2, "subtype_b": 'Advertise Policy Custom', "object_name": k3}
+                                        rows.append(row)
+
+                        elif k1 == "origin_pools":
+                            row = {"type": k1, "subtype_a": "N/A", "subtype_b": 'N/A', "object_name": k2}
+                            rows.append(row)
+
+                        elif k1 == "proxys":
+                            if "spec" in v2.keys():
+                                proxy_type = "dynamic_proxy" if v2['spec'].get("dynamic_proxy") else "http_proxy" if v2['spec'].get("http_proxy") else "unknown"
+                                advertise_where_types = list()
+
+                                for item in v2['spec']['site_virtual_sites']['advertise_where']:
+                                    advertise_where_type = 'site' if item.get('site') else 'virtual_site'
+                                    advertise_where_types.append(advertise_where_type)
+
+                                row = {"type": k1, "subtype_a": proxy_type, "subtype_b": "/".join(advertise_where_types), "object_name": k2}
+                                rows.append(row)
+                        else:
+                            print(f"unknown type {k1}")
+            row = {"type": "###################", "subtype_a": "###################", "subtype_b": "###################", "object_name": "###################"}
+            rows.append(row)
+
+        with open(csv_file, 'w', newline='') as fd:
+            writer = csv.DictWriter(fd, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for row in rows:
+                writer.writerow(row)
+
     @classmethod
     def read_json_file(cls, name: str = None) -> dict:
         try:
@@ -508,13 +561,23 @@ class Api(object):
                 if QUERY_STRING_LB_TCP in future_to_ds[future]:
                     if "tcp" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
                         self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name] = None
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name] = r['system_metadata']
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['spec'] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['metadata'] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['system_metadata'] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['spec'] = r['spec']
+                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['metadata'] = r['metadata']
+                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['system_metadata'] = r['system_metadata']
                 if QUERY_STRING_LB_HTTP in future_to_ds[future]:
                     if "http" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
                         self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name] = None
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name] = r['system_metadata']
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['spec'] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['metadata'] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['system_metadata'] = dict()
+                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['spec'] = r['spec']
+                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['metadata'] = r['metadata']
+                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['system_metadata'] = r['system_metadata']
                 logger.info(f"{self.process_load_balancers.__name__} add data: [namespace: {namespace} loadbalancer: {lb_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 logger.info("site_type:", site_type)
@@ -593,8 +656,15 @@ class Api(object):
                             if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
                                 self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
                             self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = None
-                            self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name] = r['system_metadata']
+                            self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = dict()
+                            self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
+                            self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
+                            self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
+                            self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['spec'] = r['spec']
+                            self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['metadata'] = r['metadata']
+                            self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['system_metadata'] = r['system_metadata']
                             logger.info(f"{self.process_proxies.__name__} add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
+
                         except Exception as e:
                             logger.info("site_type:", site_type)
                             logger.info("site_name:", site_name)
@@ -801,7 +871,7 @@ class Api(object):
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
         :param file: file name data loaded to compare with
-        :return: comparison status per hw_info item or False if site is a orphaned site or does not exist in data
+        :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
         logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
@@ -834,6 +904,7 @@ def main():
     parser.add_argument('-c', '--csv-file', help='write site info to csv file', required=False, default="")
     parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('-n', '--namespace', type=str, help='namespace (not setting this option will process all namespaces)', required=False, default="")
+    parser.add_argument('-q', '--query', help='run site query', action='store_true')
     parser.add_argument('-s', '--site', type=str, help='site to be processed', required=False, default="")
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default="")
     parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing', required=False, default=10)
@@ -877,10 +948,15 @@ def main():
     logger.info(f"Application {os.path.basename(__file__)} started...")
     start_time = time.perf_counter()
     q = Api(api_url=api_url, api_token=api_token, namespace=args.namespace, site=args.site, workers=args.workers)
-    q.run()
-    q.write_json_file(args.file)
-    data = q.compare(args.diff_file) if args.diff_file else None
-    q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+
+    if args.query:
+        q.run()
+        q.write_json_file(args.file)
+        data = q.compare(args.diff_file) if args.diff_file else None
+        q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+
+    q.write_inventory_to_csv(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
+
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
     logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
