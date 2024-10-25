@@ -397,7 +397,7 @@ class Api(object):
             writer.writeheader()
             writer.writerow({'site': self.site, 'os': data['os'], 'cpu': data['cpu'], 'memory': data['memory'], 'storage': data['storage'], 'network': data['network']})
 
-    def write_inventory_to_csv(self, json_file: str = None, csv_file: str = None):
+    def write_csv_invetory(self, json_file: str = None, csv_file: str = None):
         """
         Write site inventory to CSV file
         :param json_file: json input data
@@ -405,7 +405,7 @@ class Api(object):
         :return:
         """
 
-        logger.info(f"{self.write_inventory_to_csv.__name__} started...")
+        logger.info(f"{self.write_csv_invetory.__name__} started...")
 
         def process():
             for k, v in attrs['namespaces'].items():
@@ -423,11 +423,7 @@ class Api(object):
                             rows.append(row)
 
                         elif k1 == "proxys":
-                            print(k1, v1)
                             if "spec" in v2.keys():
-                                print(200 * "#")
-                                print("process proxies")
-                                print(200 * "#")
                                 proxy_type = "dynamic_proxy" if v2['spec'].get("dynamic_proxy") else "http_proxy" if v2['spec'].get("http_proxy") else "unknown"
                                 advertise_where_types = list()
 
@@ -435,11 +431,11 @@ class Api(object):
                                     advertise_where_type = 'site' if item.get('site') else 'virtual_site'
                                     advertise_where_types.append(advertise_where_type)
 
-                                row = {"type": k1, "subtype_a": proxy_type, "subtype_b": "/".join(advertise_where_types), "object_name": k2}
+                                row = {"type": "proxy", "subtype_a": proxy_type, "subtype_b": f"Advertise Policies [{"/".join(advertise_where_types).capitalize()}]", "object_name": k2}
                                 rows.append(row)
                         else:
                             print(f"unknown type {k1}")
-            row = {"type": "###################", "subtype_a": "###################", "subtype_b": "###################", "object_name": "###################"}
+            row = {"type": 20 * "#", "subtype_a": 20 * "#", "subtype_b": 40 * "#", "object_name": 40 *"#"}
             rows.append(row)
 
         fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
@@ -463,7 +459,7 @@ class Api(object):
             for row in rows:
                 writer.writerow(row)
 
-        logger.info(f"{self.write_inventory_to_csv.__name__} -> Done")
+        logger.info(f"{self.write_csv_invetory.__name__} -> Done")
 
     @classmethod
     def read_json_file(cls, name: str = None) -> dict:
@@ -665,7 +661,7 @@ class Api(object):
                     self.data[site_type][site_name]['namespaces'][namespace] = dict()
                 if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
                     self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = None
+                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = dict()
                 self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
                 self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
                 self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
@@ -744,8 +740,13 @@ class Api(object):
                     self.data[site_type][site_name]['namespaces'][namespace] = dict()
                 if "origin_pools" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
                     self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = None
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = r['system_metadata']
+                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
+                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
+                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
+                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
                 logger.info(f"{self.process_origin_pools.__name__} add data: [namespace: {namespace} proxy: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 logger.info("site_type:", site_type)
@@ -965,7 +966,7 @@ def main():
         elapsed_time = end_time - start_time
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
 
-    q.write_inventory_to_csv(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
+    q.write_csv_invetory(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
