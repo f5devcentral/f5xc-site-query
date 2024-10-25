@@ -405,14 +405,9 @@ class Api(object):
         :return:
         """
 
-        fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
-        data = self.read_json_file(json_file)
-        rows = list()
+        logger.info(f"{self.write_inventory_to_csv.__name__} started...")
 
-        for site, attrs in data['site'].items():
-            row = {"type": "site", "subtype_a": "N/A", "subtype_b": "N/A", "object_name": site}
-            rows.append(row)
-
+        def process():
             for k, v in attrs['namespaces'].items():
                 for k1, v1 in v.items():
                     for k2, v2 in v1.items():
@@ -443,12 +438,28 @@ class Api(object):
             row = {"type": "###################", "subtype_a": "###################", "subtype_b": "###################", "object_name": "###################"}
             rows.append(row)
 
+        fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
+        data = self.read_json_file(json_file)
+        rows = list()
+
+        for site, attrs in data['site'].items():
+            row = {"type": "site", "subtype_a": "N/A", "subtype_b": "N/A", "object_name": site}
+            rows.append(row)
+            process()
+
+        for site, attrs in data['virtual_site'].items():
+            row = {"type": "virtual_site", "subtype_a": "N/A", "subtype_b": "N/A", "object_name": site}
+            rows.append(row)
+            process()
+
         with open(csv_file, 'w', newline='') as fd:
             writer = csv.DictWriter(fd, fieldnames=fieldnames)
             writer.writeheader()
 
             for row in rows:
                 writer.writerow(row)
+
+        logger.info(f"{self.write_inventory_to_csv.__name__} -> Done")
 
     @classmethod
     def read_json_file(cls, name: str = None) -> dict:
@@ -548,7 +559,7 @@ class Api(object):
         def process():
             try:
                 lb_name = r["metadata"]["name"]
-                site_name = site_info['site'][site_type]['name']
+                site_name = site_info[site_type][site_type]['name']
                 namespace = r["metadata"]["namespace"]
                 if site_name not in self.data[site_type].keys():
                     self.data[site_type][site_name] = dict()
@@ -619,16 +630,15 @@ class Api(object):
                                 if self.must_break:
                                     break
                                 else:
-                                    if 'site' in site_info:
-                                        for site_type in site_info['site'].keys():
-                                            if site_type in F5XC_SITE_TYPES:
-                                                if self.site:
-                                                    if self.site == site_info['site'][site_type]['name']:
-                                                        self.must_break = True
-                                                        process()
-                                                        break
-                                                else:
+                                    for site_type in site_info.keys():
+                                        if site_type in F5XC_SITE_TYPES:
+                                            if self.site:
+                                                if self.site == site_info['site'][site_type]['name']:
+                                                    self.must_break = True
                                                     process()
+                                                    break
+                                            else:
+                                                process()
 
         return self.data
 
@@ -945,12 +955,11 @@ def main():
         q.write_json_file(args.file)
         data = q.compare(args.diff_file) if args.diff_file else None
         q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+        logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
 
     q.write_inventory_to_csv(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
-
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
