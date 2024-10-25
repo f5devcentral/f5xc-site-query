@@ -6,14 +6,13 @@ authors: cklewar, mwiget
 
 import argparse
 import concurrent.futures
+import csv
 import json
 import logging
 import os
 import sys
 import time
-import csv
 from pathlib import Path
-from pprint import pprint, PrettyPrinter
 from types import NotImplementedType
 
 import requests
@@ -435,7 +434,7 @@ class Api(object):
                                 rows.append(row)
                         else:
                             print(f"unknown type {k1}")
-            row = {"type": 20 * "#", "subtype_a": 20 * "#", "subtype_b": 40 * "#", "object_name": 40 *"#"}
+            row = {"type": 20 * "#", "subtype_a": 20 * "#", "subtype_b": 40 * "#", "object_name": 40 * "#"}
             rows.append(row)
 
         fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
@@ -633,7 +632,7 @@ class Api(object):
                                     for site_type in site_info.keys():
                                         if site_type in F5XC_SITE_TYPES:
                                             if self.site:
-                                                if self.site == site_info['site'][site_type]['name']:
+                                                if self.site == site_info[site_type][site_type]['name']:
                                                     self.must_break = True
                                                     process()
                                                     break
