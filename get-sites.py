@@ -908,13 +908,13 @@ def main():
 
     # Add arguments
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL', required=False, default="")
-    parser.add_argument('-c', '--csv-file', help='write site info to csv file', required=False, default="")
-    parser.add_argument('-f', '--file', type=str, help='write site list to file', required=False, default=Path(__file__).stem + '.json')
+    parser.add_argument('-c', '--csv-file', help='write inventory info to csv file', required=False, default="")
+    parser.add_argument('-f', '--file', type=str, help='read/write api data to/from json file', required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('-n', '--namespace', type=str, help='namespace (not setting this option will process all namespaces)', required=False, default="")
     parser.add_argument('-q', '--query', help='run site query', action='store_true')
     parser.add_argument('-s', '--site', type=str, help='site to be processed', required=False, default="")
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default="")
-    parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing', required=False, default=10)
+    parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing (default 10)', required=False, default=10)
     parser.add_argument('--diff-file', type=str, help='compare to site', required=False, default="")
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
@@ -959,8 +959,9 @@ def main():
     if args.query:
         q.run()
         q.write_json_file(args.file)
-        data = q.compare(args.diff_file) if args.diff_file else None
-        q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+        q.compare(args.diff_file) if args.diff_file else None
+        # data = q.compare(args.diff_file) if args.diff_file else None
+        # q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')

@@ -51,7 +51,7 @@ Alternatively you can set command line options instead when running the script.
 
 ```
 $ ./get-sites.py 
-usage: get-sites.py [-h] [-a APIURL] [-f FILE] [-n NAMESPACE] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
+usage: get-sites.py [-h] [-a APIURL] [-c CSV_FILE] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
 Get F5 XC Sites command line arguments
 
@@ -59,21 +59,41 @@ options:
   -h, --help            show this help message and exit
   -a APIURL, --apiurl APIURL
                         F5 XC API URL
-  -f FILE, --file FILE  write site list to file
+  -c CSV_FILE, --csv-file CSV_FILE
+                        write inventory info to csv file
+  -f FILE, --file FILE  read/write api data to/from json file
   -n NAMESPACE, --namespace NAMESPACE
                         namespace (not setting this option will process all namespaces)
+  -q, --query           run site query
   -s SITE, --site SITE  site to be processed
   -t TOKEN, --token TOKEN
                         F5 XC API Token
   -w WORKERS, --workers WORKERS
-                        maximum number of worker for concurrent processing
+                        maximum number of worker for concurrent processing (default 10)
   --diff-file DIFF_FILE
                         compare to site
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
   --log-file            write log info to file
+```
 
+### Example to get data from all namespaces:
+
+```bash
+./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+```
+
+### Example to get data from specific namespace:
+
+```bash
+./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-level INFO --log-stdout
+```
+
+### Example to get data for specific site:
+
+```bash
+./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-level INFO --log-stdout
 ```
 
 The generated get-sites.json is now populated with application objects per namespace and site/virtual site and can be parsed
@@ -187,11 +207,11 @@ The steps to compare site information are as follows:
 
 - Run query for `siteA` and write data to `out_site_a.json`
     ```bash
-    ./get-sites.py -f `./out_site_a_json` -s `siteA` -w 16 --log-level INFO --log-stdout
+    ./get-sites.py -f `./out_site_a_json` -q -s `siteA` --log-level INFO --log-stdout
     ```
 - Run query for `siteB` and compare to `siteA` data
     ```bash
-    ./get-sites.py -f `./out_site_b.json` -s `siteB` --diff-file `./ou_site_a_json` -w 16 --log-level INFO --log-stdout
+    ./get-sites.py -f `./out_site_b.json` -q -s `siteB` --diff-file `./ou_site_a_json` --log-level INFO --log-stdout
     ``` 
 - Output
     ```bash
@@ -202,3 +222,16 @@ The steps to compare site information are as follows:
     ```
   
 Above output shows there are no differences for hardware  info items __cpu__, __memory__ and __network__
+
+### Create csv inventory file
+
+This tool offers the function to create a CSV inventory file. This file can be read in and further processed by applying filters to the generated data.
+
+- Run query for specif site or specific namespace or for all data
+    ```bash
+    ./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+    ```
+- Run create CSV inventory file function  
+    ```bash
+    ./get-sites.py -f ./get-sites-all-ns.json -c inventory.csv --log-level INFO --log-stdout
+    ```
