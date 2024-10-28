@@ -245,6 +245,7 @@ class Api(object):
 
     Attributes
     ----------
+    _logger: logger instance
     _api_url : str
         F5XC API URL
     _api_token : str
@@ -466,8 +467,7 @@ class Api(object):
 
         self.logger.info(f"{self.write_csv_invetory.__name__} -> Done")
 
-    @classmethod
-    def read_json_file(cls, name: str = None) -> dict:
+    def read_json_file(self, name: str = None) -> dict:
         try:
             with open(name, 'r') as fd:
                 data = json.load(fp=fd)
@@ -935,7 +935,7 @@ def main():
     if not isinstance(level, int):
         raise ValueError('Invalid log level: %s' % os.environ.get('GET-SITES-LOG-LEVEL').upper())
 
-    #formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     formatter = ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s')
 
     if args.log_stdout:
