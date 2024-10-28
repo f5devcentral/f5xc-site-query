@@ -21,7 +21,7 @@ d) Are there application objects assigned to non-existent sites
    `python3 -m venv myenv`
 
 2. Source the new environment:
-    `source myenv/bin/activate`
+   `source myenv/bin/activate`
 
 3. Install required python modules:
    `python3 -m pip install -r requirements.txt`
@@ -32,12 +32,12 @@ The script uses a F5XC API Token to access a Tenant's configuration.
 
 1. Create an API Token for our Tenant:
 
-   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'. 
+   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'.
    Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
 
 2. Define environment variables
 
-Set environment variables with the API URL (replace tenant with your tenant name) and the generated API Token. 
+Set environment variables with the API URL (replace tenant with your tenant name) and the generated API Token.
 
 ```
 export f5xc_api_url="https://<tenant>.console.ves.volterra.io/api"
@@ -46,12 +46,11 @@ export f5xc_api_token="............................"
 
 Alternatively you can set command line options instead when running the script.
 
-
 ## Usage
 
 ```
 $ ./get-sites.py 
-usage: get-sites.py [-h] [-a APIURL] [-f FILE] [-n NAMESPACE] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
+usage: get-sites.py [-h] [-a APIURL] [-c CSV_FILE] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
 Get F5 XC Sites command line arguments
 
@@ -59,21 +58,41 @@ options:
   -h, --help            show this help message and exit
   -a APIURL, --apiurl APIURL
                         F5 XC API URL
-  -f FILE, --file FILE  write site list to file
+  -c CSV_FILE, --csv-file CSV_FILE
+                        write inventory info to csv file
+  -f FILE, --file FILE  read/write api data to/from json file
   -n NAMESPACE, --namespace NAMESPACE
                         namespace (not setting this option will process all namespaces)
+  -q, --query           run site query
   -s SITE, --site SITE  site to be processed
   -t TOKEN, --token TOKEN
                         F5 XC API Token
   -w WORKERS, --workers WORKERS
-                        maximum number of worker for concurrent processing
+                        maximum number of worker for concurrent processing (default 10)
   --diff-file DIFF_FILE
                         compare to site
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
   --log-file            write log info to file
+```
 
+### Example to get data from all namespaces:
+
+```bash
+./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+```
+
+### Example to get data from specific namespace:
+
+```bash
+./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-level INFO --log-stdout
+```
+
+### Example to get data for specific site:
+
+```bash
+./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-level INFO --log-stdout
 ```
 
 The generated get-sites.json is now populated with application objects per namespace and site/virtual site and can be parsed
@@ -129,7 +148,7 @@ a) What application objects are assigned to a site or virtual site and in what n
     . . .
 ```
 
-The site `alt-reg-site` has a loadbalancer f5dc-hello and origin pool `mw-test` assigned. Empty `site_labels` for this 
+The site `alt-reg-site` has a loadbalancer f5dc-hello and origin pool `mw-test` assigned. Empty `site_labels` for this
 site `alt-reg-site` indicates the site no longer exists.
 
 b) Who created an application object
@@ -181,17 +200,16 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 
 ### Compare function
 
-This tool provides a comparison function to compare page information. 
+This tool provides a comparison function to compare page information.
 The steps to compare site information are as follows:
-
 
 - Run query for `siteA` and write data to `out_site_a.json`
     ```bash
-    ./get-sites.py -f `./out_site_a_json` -s `siteA` -w 16 --log-level INFO --log-stdout
+    ./get-sites.py -f `./out_site_a_json` -q -s `siteA` --log-level INFO --log-stdout
     ```
 - Run query for `siteB` and compare to `siteA` data
     ```bash
-    ./get-sites.py -f `./out_site_b.json` -s `siteB` --diff-file `./ou_site_a_json` -w 16 --log-level INFO --log-stdout
+    ./get-sites.py -f `./out_site_b.json` -q -s `siteB` --diff-file `./ou_site_a_json` --log-level INFO --log-stdout
     ``` 
 - Output
     ```bash
@@ -200,5 +218,18 @@ The steps to compare site information are as follows:
     2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site read from ./get-sites-diff-a.json
     2024-10-22 16:11:09,129 - INFO - compare done with results: {'os': True, 'cpu': True, 'memory': True, 'network': [True]}
     ```
-  
-Above output shows there are no differences for hardware  info items __cpu__, __memory__ and __network__
+
+Above output shows there are no differences for hardware info items __cpu__, __memory__ and __network__
+
+### Create csv inventory file
+
+This tool offers the function to create a CSV inventory file. This file can be read in and further processed by applying filters to the generated data.
+
+- Run query for specif site or specific namespace or for all data
+    ```bash
+    ./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+    ```
+- Run create CSV inventory file function
+    ```bash
+    ./get-sites.py -f ./get-sites-all-ns.json -c inventory.csv --log-level INFO --log-stdout
+    ```
