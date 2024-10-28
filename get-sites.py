@@ -935,7 +935,6 @@ def main():
     if not isinstance(level, int):
         raise ValueError('Invalid log level: %s' % os.environ.get('GET-SITES-LOG-LEVEL').upper())
 
-    # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     formatter = ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s')
 
     if args.log_stdout:
