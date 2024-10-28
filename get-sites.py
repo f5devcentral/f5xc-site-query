@@ -403,7 +403,7 @@ class Api(object):
             writer.writeheader()
             writer.writerow({'site': self.site, 'os': data['os'], 'cpu': data['cpu'], 'memory': data['memory'], 'storage': data['storage'], 'network': data['network']})
 
-    def write_csv_invetory(self, json_file: str = None, csv_file: str = None):
+    def write_csv_inventory(self, json_file: str = None, csv_file: str = None):
         """
         Write site inventory to CSV file
         :param json_file: json input data
@@ -411,7 +411,7 @@ class Api(object):
         :return:
         """
 
-        self.logger.info(f"{self.write_csv_invetory.__name__} started...")
+        self.logger.info(f"{self.write_csv_inventory.__name__} started...")
 
         def process():
             for k, v in attrs['namespaces'].items():
@@ -421,12 +421,12 @@ class Api(object):
                             for k3, v3 in v2.items():
                                 if "spec" in v3.keys():
                                     if "advertise_custom" in v3['spec'].keys():
-                                        row = {"type": k1, "subtype_a": k2, "subtype_b": 'Advertise Policy Custom', "object_name": k3}
-                                        rows.append(row)
+                                        _row = {"type": k1, "subtype_a": k2, "subtype_b": 'Advertise Policy Custom', "object_name": k3}
+                                        rows.append(_row)
 
                         elif k1 == "origin_pools":
-                            row = {"type": k1, "subtype_a": "N/A", "subtype_b": 'N/A', "object_name": k2}
-                            rows.append(row)
+                            _row = {"type": k1, "subtype_a": "N/A", "subtype_b": 'N/A', "object_name": k2}
+                            rows.append(_row)
 
                         elif k1 == "proxys":
                             if "spec" in v2.keys():
@@ -437,12 +437,12 @@ class Api(object):
                                     advertise_where_type = 'site' if item.get('site') else 'virtual_site'
                                     advertise_where_types.append(advertise_where_type)
 
-                                row = {"type": "proxy", "subtype_a": proxy_type, "subtype_b": f"Advertise Policies [{"/".join(advertise_where_types).capitalize()}]", "object_name": k2}
-                                rows.append(row)
+                                _row = {"type": "proxy", "subtype_a": proxy_type, "subtype_b": f"Advertise Policies [{"/".join(advertise_where_types).capitalize()}]", "object_name": k2}
+                                rows.append(_row)
                         else:
                             print(f"unknown type {k1}")
-            row = {"type": 20 * "#", "subtype_a": 20 * "#", "subtype_b": 40 * "#", "object_name": 40 * "#"}
-            rows.append(row)
+            _row = {"type": 20 * "#", "subtype_a": 20 * "#", "subtype_b": 40 * "#", "object_name": 40 * "#"}
+            rows.append(_row)
 
         fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
         data = self.read_json_file(json_file)
@@ -465,7 +465,7 @@ class Api(object):
             for row in rows:
                 writer.writerow(row)
 
-        self.logger.info(f"{self.write_csv_invetory.__name__} -> Done")
+        self.logger.info(f"{self.write_csv_inventory.__name__} -> Done")
 
     def read_json_file(self, name: str = None) -> dict:
         try:
@@ -971,7 +971,7 @@ def main():
         elapsed_time = end_time - start_time
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
 
-    q.write_csv_invetory(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
+    q.write_csv_inventory(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
