@@ -437,7 +437,7 @@ class Api(object):
                                     advertise_where_type = 'site' if item.get('site') else 'virtual_site'
                                     advertise_where_types.append(advertise_where_type)
 
-                                _row = {"type": "proxy", "subtype_a": proxy_type, "subtype_b": f"Advertise Policies [{"/".join(advertise_where_types).capitalize()}]", "object_name": k2}
+                                _row = {"type": "proxy", "subtype_a": proxy_type, "subtype_b": f"Advertise Policies [{'/'.join(advertise_where_types).capitalize()}]", "object_name": k2}
                                 rows.append(_row)
                         else:
                             print(f"unknown type {k1}")
@@ -849,7 +849,7 @@ class Api(object):
             self.logger.info(f"{self.process_sites.__name__} <{len(sites_with_origin_pools_only)}> sites with origin pools only")
 
             self.data["orphaned_sites"] = [k for k, v in self.data['site'].items() if 'labels' not in v.keys()]
-            self.logger.info(f"{self.process_sites.__name__} <{len(self.data["orphaned_sites"])}> sites without labels (orphaned)")
+            self.logger.info(f"{self.process_sites.__name__} <{len(self.data['orphaned_sites'])}> sites without labels (orphaned)")
 
             self.process_site_details(urls=urls)
 
