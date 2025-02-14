@@ -15,6 +15,10 @@ c) Are there sites that only serve origin pools
 
 d) Are there application objects assigned to non-existent sites
 
+## Requirements
+
+- Python >= 3.13
+
 ## Installation
 
 1. Create a Python Virtual Environment:
