@@ -1,0 +1,99 @@
+import concurrent.futures
+import json
+import pprint
+from logging import Logger
+
+from requests import Session
+
+import lib.const as c
+
+from lib.processor.base import Base
+
+
+class Bgp(Base):
+    def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
+        super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
+        self._bgps = list()
+
+    @property
+    def bgps(self):
+        return self._bgps
+
+    def run(self) -> dict | None:
+        """
+        Get list of bgp objects. Only add labels to sites that are referenced by a LB/origin_pool/proxys object.
+        Store the sites with only origin pools and without origin pools or load balancers.
+        Check if the site has origin pools only (and no load balancer). Get site details hw info.
+        :return: structure with label information being added
+        """
+        pp = pprint.PrettyPrinter()
+
+        def process():
+            try:
+                bgp_name = r["metadata"]["name"]
+                site_name = r['spec']['where'][site_type]["ref"][0]['name']
+                if site_name not in self.data[site_type].keys():
+                    self.data[site_type][site_name] = dict()
+                if 'bgp' not in self.data[site_type][site_name].keys():
+                    self.data[site_type][site_name]['bgp'] = dict()
+                self.data[site_type][site_name]['bgp'][bgp_name] = dict()
+                self.data[site_type][site_name]['bgp'][bgp_name]['spec'] = dict()
+                self.data[site_type][site_name]['bgp'][bgp_name]['metadata'] = dict()
+                self.data[site_type][site_name]['bgp'][bgp_name]['system_metadata'] = dict()
+                self.data[site_type][site_name]['bgp'][bgp_name]['spec'] = r['spec']
+                self.data[site_type][site_name]['bgp'][bgp_name]['metadata'] = r['metadata']
+                self.data[site_type][site_name]['bgp'][bgp_name]['system_metadata'] = r['system_metadata']
+
+            except Exception as e:
+                self.logger.info("site_type:", site_type)
+                self.logger.info("namespace:", r["metadata"]["namespace"])
+                self.logger.info("system_metadata:", r['system_metadata'])
+                self.logger.info("Exception:", e)
+
+        self.logger.info(f"process bpg get all bgp objects from {self.build_url(c.URI_F5XC_BGPS).format(namespace="system")}")
+        _bgps = self.get(self.build_url(c.URI_F5XC_BGPS).format(namespace="system"))
+
+        if _bgps:
+            self.logger.debug(json.dumps(_bgps.json(), indent=2))
+            bgps = [bgp for bgp in _bgps.json()['items']]
+            urls = dict()
+
+            for bgp in bgps:
+                urls[self.build_url(c.URI_F5XC_BGP.format(namespace="system", name=bgp['name']))] = bgp['name']
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+                self.logger.info("Prepare bgp query...")
+                future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
+
+                for future in concurrent.futures.as_completed(future_to_ds):
+                    _data = future_to_ds[future]
+
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        self.logger.info('%r generated an exception: %s' % (_data, exc))
+                    else:
+                        self.logger.info(f"process bgp got item: {future_to_ds[future]} ...")
+
+                        if result:
+                            r = result.json()
+                            self.logger.debug(json.dumps(r, indent=2))
+                            pp.pprint(r)
+
+                            if 'where' in r['spec']:
+                                for site_type in r['spec']['where'].keys():
+                                    if self.must_break:
+                                        break
+                                    else:
+                                        if site_type in c.F5XC_SITE_TYPES:
+                                            if self.site:
+                                                if self.site == r['spec']['where'][site_type]["ref"][0]['name']:
+                                                    self.must_break = True
+                                                    process()
+                                                    break
+                                            else:
+                                                process()
+
+            pp.pprint(self.bgps)
+
+        return self.data
