@@ -13,20 +13,12 @@ from lib.processor.base import Base
 class Bgp(Base):
     def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
-        self._bgps = list()
-
-    @property
-    def bgps(self):
-        return self._bgps
 
     def run(self) -> dict | None:
         """
-        Get list of bgp objects. Only add labels to sites that are referenced by a LB/origin_pool/proxys object.
-        Store the sites with only origin pools and without origin pools or load balancers.
-        Check if the site has origin pools only (and no load balancer). Get site details hw info.
-        :return: structure with label information being added
+        Get list of bgp objects. Add bgp object data to site. If site does not exist add site.
+        :return: structure with bgp information being added
         """
-        pp = pprint.PrettyPrinter()
 
         def process():
             try:
@@ -78,7 +70,6 @@ class Bgp(Base):
                         if result:
                             r = result.json()
                             self.logger.debug(json.dumps(r, indent=2))
-                            pp.pprint(r)
 
                             if 'where' in r['spec']:
                                 for site_type in r['spec']['where'].keys():
@@ -93,7 +84,5 @@ class Bgp(Base):
                                                     break
                                             else:
                                                 process()
-
-            pp.pprint(self.bgps)
 
         return self.data
