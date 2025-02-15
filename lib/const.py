@@ -1,0 +1,15 @@
+URI_F5XC_NAMESPACE = "/web/namespaces"
+URI_F5XC_SITES = "/config/namespaces/system/sites"
+URI_F5XC_SITE = "/config/namespaces/system/sites/{name}"
+URI_F5XC_SMS_V1 = "/config/namespaces/{namespace}/securemesh_sites/{name}"
+URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
+URI_F5XC_ORIGIN_POOLS = "/config/namespaces/{namespace}/origin_pools"
+URI_F5XC_PROXIES = "/config/namespaces/{namespace}/proxys"
+URI_F5XC_BGPS = "/config/namespaces/{namespace}/bgps"
+URI_F5XC_BGP = "/config/namespaces/{namespace}/bgps/{name}"
+URI_F5XC_SITE_MESH_GROUP = "/config/namespaces/{namespace}/site_mesh_group/{name}"
+URI_F5XC_SITE_MESH_GROUPS = "/config/namespaces/{namespace}/site_mesh_groups"
+F5XC_SITE_TYPES = ["site", "virtual_site"]
+F5XC_NODE_PRIMARY = "k8s-master-primary"
+F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers", "udp_loadbalancers"]
+F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'private_name']
