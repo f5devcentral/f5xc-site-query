@@ -62,6 +62,7 @@ class Site(Base):
         :return:
         """
 
+        pp = pprint.PrettyPrinter()
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
 
@@ -86,9 +87,11 @@ class Site(Base):
 
                     if result:
                         r = result.json()
+                        pp.pprint(r)
                         self.logger.debug(json.dumps(r, indent=2))
 
                         if urls[future_to_ds[future]] in self.data['site']:
+                            self.data['site'][urls[future_to_ds[future]]]['kind'] = r['system_metadata']['owner_view']["kind"]
                             self.data['site'][urls[future_to_ds[future]]]['metadata'] = r['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['spec'] = r['spec']
 
@@ -244,7 +247,7 @@ class Site(Base):
                         urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data["site"][site]["sms"]['metadata']['name']
                 elif "sli_config" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
                     if "dc_cluster_group" in self.data["site"][site]["sms"]["spec"]['custom_network_config']["sli_config"].keys():
-                        name = self.data["site"][site]["sms"]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
+                        name = self.data["site"][site]["sms"]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
                         urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data["site"][site]["sms"]['metadata']['name']
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -265,7 +268,6 @@ class Site(Base):
 
                     if result:
                         dc_cg = result.json()
-                        pp.pprint(dc_cg)
                         self.logger.debug(json.dumps(dc_cg, indent=2))
 
                         if urls_slo[future_to_ds[future]] in self.data['site']:
@@ -300,7 +302,7 @@ class Site(Base):
                             if "dc_cluster_group" not in self.data['site'][urls_sli[future_to_ds[future]]]:
                                 self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'] = dict()
 
-                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
                             self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
                             self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
                             self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
