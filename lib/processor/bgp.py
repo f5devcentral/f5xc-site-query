@@ -1,12 +1,10 @@
 import concurrent.futures
 import json
-import pprint
 from logging import Logger
 
 from requests import Session
 
 import lib.const as c
-
 from lib.processor.base import Base
 
 
