@@ -5,7 +5,6 @@ from logging import Logger
 from requests import Session
 
 import lib.const as c
-
 from lib.processor.base import Base
 
 QUERY_STRING_LB_HTTP = "/http_loadbalancers/"

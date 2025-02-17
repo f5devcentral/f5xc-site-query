@@ -1,18 +1,24 @@
 import concurrent.futures
 import json
+import pprint
 from logging import Logger
 
 from requests import Session
 
 import lib.const as c
-
 from lib.processor.base import Base
+
+SMS_VERSION = "v1"
 
 
 class Site(Base):
     def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
-        self.lbs = list()
+        self._sites = list()
+
+    @property
+    def sites(self):
+        return self._sites
 
     def run(self) -> dict | None:
         """
@@ -27,27 +33,19 @@ class Site(Base):
 
         if _sites:
             self.logger.debug(json.dumps(_sites.json(), indent=2))
-            sites = [site for site in _sites.json()['items'] if self.site == site['name']] if self.site else _sites.json()['items']
-            # Stores site urls build from URI_F5XC_SITE
-            urls_site = dict()
-            # Stores site urls build from URI_F5XC_SMS_V1
-            urls_sms_v1 = dict()
+            self._sites = [site for site in _sites.json()['items'] if self.site == site['name']] if self.site else _sites.json()['items']
 
-            for site in sites:
-                urls_site[self.build_url(c.URI_F5XC_SITE.format(name=site['name']))] = site['name']
-                urls_sms_v1[self.build_url(c.URI_F5XC_SMS_V1.format(namespace="system", name=site['name']))] = site['name']
-
-                if site['name'] in self.data['site']:
-                    self.logger.info(f"process sites add label information to site {site['name']}")
-                    self.data['site'][site['name']]['labels'] = site['labels']
+            for processor in c.SITE_OBJECT_PROCESSORS:
+                getattr(self, f"process_{processor}")()
 
             sites_with_origin_pools_only = []
 
             for site_name, site_data in self.data['site'].items():
-                for n_name, n_data in site_data['namespaces'].items():
-                    # Check if the site has origin pools only
-                    if len(n_data.keys()) == 1 and 'origin_pools' in n_data.keys():
-                        sites_with_origin_pools_only.append(site_name)
+                if "namespaces" in site_data.keys():
+                    for n_name, n_data in site_data['namespaces'].items():
+                        # Check if the site has origin pools only
+                        if len(n_data.keys()) == 1 and 'origin_pools' in n_data.keys():
+                            sites_with_origin_pools_only.append(site_name)
 
             self.data["sites_with_origin_pools_only"] = sites_with_origin_pools_only
             self.logger.info(f"process sites <{len(sites_with_origin_pools_only)}> sites with origin pools only")
@@ -55,52 +53,203 @@ class Site(Base):
             self.data["orphaned_sites"] = [k for k, v in self.data['site'].items() if 'labels' not in v.keys()]
             self.logger.info(f"process sites <{len(self.data['orphaned_sites'])}> sites without labels (orphaned)")
 
-            self.process_smv1_site_details(urls=urls_sms_v1)
-            self.process_site_details(urls=urls_site)
-
             return self.data
 
-    def process_smv1_site_details(self, urls: dict = None):
+    def process_site(self):
+        """
+        Process general site details and add data to specific site.
+        Details including for instance enhanced firewall policies, network interfaces, etc.
+        :return:
+        """
+
+        # Stores site urls build from URI_F5XC_SITE
+        urls = dict()
+
+        # Build urls for site
+        for site in self.sites:
+            urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare sms v1 site details query...")
+            self.logger.info("Prepare general site details query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
 
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
 
                 try:
-                    self.logger.info(f"process smv v1 site details get item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process general site details get item: {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process site details", _data, exc))
+                    self.logger.info('%s: %r generated an exception: %s' % ("process general site details", _data, exc))
                 else:
-                    self.logger.info(f"process sms v1 site details got item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process general site details got item: {future_to_ds[future]} ...")
 
                     if result:
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
+
                         if urls[future_to_ds[future]] in self.data['site']:
-                            if "sms_v1" not in self.data['site'][urls[future_to_ds[future]]].keys():
-                                self.data['site'][urls[future_to_ds[future]]]['sms_v1'] = dict()
+                            self.data['site'][urls[future_to_ds[future]]]['metadata'] = r['metadata']
+                            self.data['site'][urls[future_to_ds[future]]]['spec'] = r['spec']
 
-                            self.data['site'][urls[future_to_ds[future]]]['sms_v1']['metadata'] = r['metadata']
-                            self.data['site'][urls[future_to_ds[future]]]['sms_v1']['spec'] = r['spec']
+                            if r['metadata']['name'] in self.data['site']:
+                                self.logger.info(f"process sites add label information to site {r['metadata']['name']}")
+                                self.data['site'][urls[future_to_ds[future]]]['labels'] = r['metadata']['labels']
 
-    def process_site_details(self, urls: dict = None):
+    def process_sms(self):
+        """
+        Process sms specific site details and add data to specific site.
+        Details including for instance enhanced firewall policies, network interfaces, etc.
+        :return:
+        """
+
+        pp = pprint.PrettyPrinter()
+        # Stores site urls build from URI_F5XC_SITE
+        urls = dict()
+
+        # Build urls for site
+        for site in self.sites:
+            if SMS_VERSION == "v1":
+                urls[self.build_url(c.URI_F5XC_SMS_V1.format(namespace="system", name=site['name']))] = site['name']
+            elif SMS_VERSION == "v2":
+                urls[self.build_url(c.URI_F5XC_SMS_V2.format(namespace="system", name=site['name']))] = site['name']
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare site details query...")
+            self.logger.info(f"Prepare sms {SMS_VERSION} site details query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
 
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
 
                 try:
-                    self.logger.info(f"process site details get item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process smv {SMS_VERSION} site details get item: {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % ("process sms site details", _data, exc))
+                else:
+                    self.logger.info(f"process sms {SMS_VERSION} site details got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        r = result.json()
+                        self.logger.debug(json.dumps(r, indent=2))
+
+                        if urls[future_to_ds[future]] in self.data['site']:
+                            if "sms" not in self.data['site'][urls[future_to_ds[future]]].keys():
+                                self.data['site'][urls[future_to_ds[future]]]['sms'] = dict()
+
+                            self.data['site'][urls[future_to_ds[future]]]['sms']['metadata'] = r['metadata']
+                            self.data['site'][urls[future_to_ds[future]]]['sms']['spec'] = r['spec']
+
+    def process_efp(self):
+        """
+        Process Secure Mesh site enhanced firewall policies details and add data to specific site.
+        :return:
+        """
+
+        # Build enhanced firewall policy urls for given site
+        urls = dict()
+
+        # Get efp name by iterating existing sms data
+        for site in self.data['site'].keys():
+            if "custom_network_config" in self.data["site"][site]["sms"]["spec"].keys():
+                if "active_enhanced_firewall_policies" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
+                    for efp in self.data["site"][site]["sms"]["spec"]['custom_network_config']['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data["site"][site]["sms"]['metadata']['name']
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            self.logger.info("Prepare enhanced firewall policy details query...")
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    self.logger.info(f"process enhanced firewall policy details get item: {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
                     self.logger.info('%s: %r generated an exception: %s' % ("process site details", _data, exc))
                 else:
-                    self.logger.info(f"process site details got item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process enhanced firewall policy details got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        efp = result.json()
+                        self.logger.debug(json.dumps(efp, indent=2))
+                        if urls[future_to_ds[future]] in self.data['site']:
+                            if "efp" not in self.data['site'][urls[future_to_ds[future]]]:
+                                self.data['site'][urls[future_to_ds[future]]]['efp'] = dict()
+
+                            self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']] = dict()
+                            self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']]['metadata'] = efp['metadata']
+                            self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']]['spec'] = efp['spec']
+
+    def process_fpp(self):
+        """
+        Process Secure Mesh site forward proxy policy details and add data to specific site.
+        :return:
+        """
+
+        # Build forward proxy policy urls for given site
+        urls = dict()
+
+        # Get efp name by iterating existing sms data
+        for site in self.data['site'].keys():
+            if "custom_network_config" in self.data["site"][site]["sms"]["spec"].keys():
+                if "active_forward_proxy_policies" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
+                    for fpp in self.data["site"][site]["sms"]["spec"]['custom_network_config']['active_forward_proxy_policies']['forward_proxy_policies']:
+                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data["site"][site]["sms"]['metadata']['name']
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            self.logger.info("Prepare forward proxy policy details query...")
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    self.logger.info(f"process forward proxy policy details get item: {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % ("process forward proxy policy details", _data, exc))
+                else:
+                    self.logger.info(f"process forward proxy policy details got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        fpp = result.json()
+                        self.logger.debug(json.dumps(fpp, indent=2))
+
+                        if urls[future_to_ds[future]] in self.data['site']:
+                            if "fpp" not in self.data['site'][urls[future_to_ds[future]]]:
+                                self.data['site'][urls[future_to_ds[future]]]['fpp'] = dict()
+
+                            self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']] = dict()
+                            self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['metadata'] = fpp['metadata']
+                            self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['spec'] = fpp['spec']
+
+    def process_hw_info(self):
+        """
+        Process site hardware info and add data to site data.
+        :return:
+        """
+
+        # Build ce node hardware info urls for given site
+        urls = dict()
+        for site in self.sites:
+            urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            self.logger.info("Prepare site hardware info query...")
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    self.logger.info(f"process site hardware info get item: {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % ("process site hardware info", _data, exc))
+                else:
+                    self.logger.info(f"process site hardware info got item: {future_to_ds[future]} ...")
 
                     if result:
                         r = result.json()
