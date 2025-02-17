@@ -84,9 +84,9 @@ class Site(Base):
 
                         if urls[future_to_ds[future]] in self.data['site']:
                             self.data['site'][urls[future_to_ds[future]]]['kind'] = r['system_metadata']['owner_view']["kind"]
+                            self.data['site'][urls[future_to_ds[future]]]['main_node_count'] = len(r['spec']['main_nodes'])
                             self.data['site'][urls[future_to_ds[future]]]['metadata'] = r['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['spec'] = r['spec']
-                            self.data['site'][urls[future_to_ds[future]]]['status'] = r['spec']
 
                             if r['metadata']['name'] in self.data['site']:
                                 self.logger.info(f"process sites add label information to site {r['metadata']['name']}")
@@ -137,6 +137,7 @@ class Site(Base):
 
                             self.data['site'][urls[future_to_ds[future]]]['sms']['metadata'] = r['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['sms']['spec'] = r['spec']
+                            self.data['site'][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
 
         return self.data
 
