@@ -225,6 +225,88 @@ class Site(Base):
                             self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['metadata'] = fpp['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['spec'] = fpp['spec']
 
+    def process_dc_cluster_group(self):
+        """
+        Process Secure Mesh site dc cluster group details and add data to specific site.
+        :return:
+        """
+        pp = pprint.PrettyPrinter()
+        # Build dc cluster group urls for given site
+        urls_slo = dict()
+        urls_sli = dict()
+
+        # Get dc cluster group name by iterating existing sms data. Check for SLO and SLI interface if DC cluster group set.
+        for site in self.data['site'].keys():
+            if "custom_network_config" in self.data["site"][site]["sms"]["spec"].keys():
+                if "slo_config" in self.data["site"][site]["sms"]["spec"]['custom_network_config'].keys():
+                    if "dc_cluster_group" in self.data["site"][site]["sms"]["spec"]['custom_network_config']["slo_config"].keys():
+                        name = self.data["site"][site]["sms"]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
+                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data["site"][site]["sms"]['metadata']['name']
+                elif "sli_config" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
+                    if "dc_cluster_group" in self.data["site"][site]["sms"]["spec"]['custom_network_config']["sli_config"].keys():
+                        name = self.data["site"][site]["sms"]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
+                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data["site"][site]["sms"]['metadata']['name']
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            self.logger.info("Prepare dc cluster group slo details query...")
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls_slo.keys()}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    self.logger.info(f"process dc cluster group slo details get item: {future_to_ds[future]} ...")
+                    result = future.result()
+                    print(result)
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % ("process dc cluster group details", _data, exc))
+                else:
+                    self.logger.info(f"process dc cluster group slo details got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        dc_cg = result.json()
+                        pp.pprint(dc_cg)
+                        self.logger.debug(json.dumps(dc_cg, indent=2))
+
+                        if urls_slo[future_to_ds[future]] in self.data['site']:
+                            if "dc_cluster_group" not in self.data['site'][urls_slo[future_to_ds[future]]]:
+                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'] = dict()
+
+                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo'] = dict()
+                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['metadata'] = dc_cg['metadata']
+                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['spec'] = dc_cg['spec']
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            self.logger.info("Prepare dc cluster group sli details query...")
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls_sli.keys()}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+
+                try:
+                    self.logger.info(f"process dc cluster group sli details get item: {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % ("process dc cluster group details", _data, exc))
+                else:
+                    self.logger.info(f"process dc cluster group sli details got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        dc_cg = result.json()
+                        self.logger.debug(json.dumps(dc_cg, indent=2))
+
+                        if urls_sli[future_to_ds[future]] in self.data['site']:
+                            if "dc_cluster_group" not in self.data['site'][urls_sli[future_to_ds[future]]]:
+                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'] = dict()
+
+                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
+                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
+                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
+
+
+
     def process_hw_info(self):
         """
         Process site hardware info and add data to site data.
