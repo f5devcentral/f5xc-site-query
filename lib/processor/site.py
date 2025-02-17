@@ -8,17 +8,10 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
-SMS_VERSION = "v1"
-
 
 class Site(Base):
     def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
-        self._sites = list()
-
-    @property
-    def sites(self):
-        return self._sites
 
     def run(self) -> dict | None:
         """
@@ -33,7 +26,8 @@ class Site(Base):
 
         if _sites:
             self.logger.debug(json.dumps(_sites.json(), indent=2))
-            self._sites = [site for site in _sites.json()['items'] if self.site == site['name']] if self.site else _sites.json()['items']
+            sites = [site for site in _sites.json()['items'] if self.site == site['name']] if self.site else _sites.json()['items']
+            self.process_site(sites)
 
             for processor in c.SITE_OBJECT_PROCESSORS:
                 getattr(self, f"process_{processor}")()
@@ -55,19 +49,18 @@ class Site(Base):
 
             return self.data
 
-    def process_site(self):
+    def process_site(self, sites: list = None) -> dict | None:
         """
         Process general site details and add data to specific site.
         Details including for instance enhanced firewall policies, network interfaces, etc.
-        :return:
+        :return: structure with label information being added
         """
 
-        pp = pprint.PrettyPrinter()
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
 
         # Build urls for site
-        for site in self.sites:
+        for site in sites:
             urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -87,50 +80,52 @@ class Site(Base):
 
                     if result:
                         r = result.json()
-                        pp.pprint(r)
                         self.logger.debug(json.dumps(r, indent=2))
 
                         if urls[future_to_ds[future]] in self.data['site']:
                             self.data['site'][urls[future_to_ds[future]]]['kind'] = r['system_metadata']['owner_view']["kind"]
                             self.data['site'][urls[future_to_ds[future]]]['metadata'] = r['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['spec'] = r['spec']
+                            self.data['site'][urls[future_to_ds[future]]]['status'] = r['spec']
 
                             if r['metadata']['name'] in self.data['site']:
                                 self.logger.info(f"process sites add label information to site {r['metadata']['name']}")
                                 self.data['site'][urls[future_to_ds[future]]]['labels'] = r['metadata']['labels']
 
-    def process_sms(self):
+        return self.data
+
+    def process_sms(self) -> dict | None:
         """
         Process sms specific site details and add data to specific site.
         Details including for instance enhanced firewall policies, network interfaces, etc.
-        :return:
+        :return: structure with label information being added
         """
 
-        pp = pprint.PrettyPrinter()
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
 
         # Build urls for site
-        for site in self.sites:
-            if SMS_VERSION == "v1":
-                urls[self.build_url(c.URI_F5XC_SMS_V1.format(namespace="system", name=site['name']))] = site['name']
-            elif SMS_VERSION == "v2":
-                urls[self.build_url(c.URI_F5XC_SMS_V2.format(namespace="system", name=site['name']))] = site['name']
+        for site, values in self.data['site'].items():
+            if values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V1:
+                urls[self.build_url(c.URI_F5XC_SMS_V1.format(namespace="system", name=site))] = site
+
+            elif values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V2:
+                urls[self.build_url(c.URI_F5XC_SMS_V2.format(namespace="system", name=site))] = site
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info(f"Prepare sms {SMS_VERSION} site details query...")
+            self.logger.info(f"Prepare sms site details query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
 
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
 
                 try:
-                    self.logger.info(f"process smv {SMS_VERSION} site details get item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process sms site details get item: {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
                     self.logger.info('%s: %r generated an exception: %s' % ("process sms site details", _data, exc))
                 else:
-                    self.logger.info(f"process sms {SMS_VERSION} site details got item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process sms site details got item: {future_to_ds[future]} ...")
 
                     if result:
                         r = result.json()
@@ -143,10 +138,12 @@ class Site(Base):
                             self.data['site'][urls[future_to_ds[future]]]['sms']['metadata'] = r['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['sms']['spec'] = r['spec']
 
-    def process_efp(self):
+        return self.data
+
+    def process_efp(self) -> dict | None:
         """
         Process Secure Mesh site enhanced firewall policies details and add data to specific site.
-        :return:
+        :return: structure with label information being added
         """
 
         # Build enhanced firewall policy urls for given site
@@ -185,10 +182,12 @@ class Site(Base):
                             self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']]['metadata'] = efp['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']]['spec'] = efp['spec']
 
-    def process_fpp(self):
+        return self.data
+
+    def process_fpp(self) -> dict | None:
         """
         Process Secure Mesh site forward proxy policy details and add data to specific site.
-        :return:
+        :return: structure with label information being added
         """
 
         # Build forward proxy policy urls for given site
@@ -228,12 +227,14 @@ class Site(Base):
                             self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['metadata'] = fpp['metadata']
                             self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['spec'] = fpp['spec']
 
-    def process_dc_cluster_group(self):
+        return self.data
+
+    def process_dc_cluster_group(self) -> dict | None:
         """
         Process Secure Mesh site dc cluster group details and add data to specific site.
-        :return:
+        :return: structure with label information being added
         """
-        pp = pprint.PrettyPrinter()
+
         # Build dc cluster group urls for given site
         urls_slo = dict()
         urls_sli = dict()
@@ -307,18 +308,45 @@ class Site(Base):
                             self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
                             self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
 
+        return self.data
 
+    def process_node_interfaces(self) -> dict | None:
+        """
+        Process node interface information according to site kind and add data to site data.
+        :return: structure with interface information being added
+        """
 
-    def process_hw_info(self):
+        self.logger.info("Process node interfaces...")
+        for site, values in self.data['site'].items():
+            if values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V1 or values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V2:
+                if "custom_network_config" in values['sms']['spec'].keys():
+                    if "interface_list" in values['sms']['spec']['custom_network_config'].keys():
+                        for node in values['sms']['spec']["master_node_configuration"]:
+                            if "nodes" not in self.data['site'][site]:
+                                self.data['site'][site]['nodes'] = dict()
+
+                            if node['name'] not in self.data['site'][site]['nodes'].keys():
+                                self.data['site'][site]['nodes'][node['name']] = dict()
+
+                            if "interfaces" not in self.data['site'][site]['nodes'][node['name']].keys():
+                                self.data['site'][site]['nodes'][node['name']]['interfaces'] = dict()
+
+                            print(values['sms']['spec']['custom_network_config']['interface_list']['interfaces'])
+
+                            self.data['site'][site]['nodes'][node['name']]['interfaces'] = values['sms']['spec']['custom_network_config']['interface_list']['interfaces']
+
+        return self.data
+
+    def process_hw_info(self) -> dict | None:
         """
         Process site hardware info and add data to site data.
-        :return:
+        :return: structure with label information being added
         """
 
         # Build ce node hardware info urls for given site
         urls = dict()
-        for site in self.sites:
-            urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
+        for site in self.data['site'].keys():
+            urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site))] = site
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             self.logger.info("Prepare site hardware info query...")
@@ -345,5 +373,9 @@ class Site(Base):
                                         if "nodes" not in self.data['site'][urls[future_to_ds[future]]].keys():
                                             self.data['site'][urls[future_to_ds[future]]]['nodes'] = dict()
 
-                                        self.data['site'][urls[future_to_ds[future]]]['nodes'][node['node_info']['hostname']] = dict()
+                                        if node['node_info']['hostname'] not in self.data['site'][urls[future_to_ds[future]]]['nodes']:
+                                            self.data['site'][urls[future_to_ds[future]]]['nodes'][node['node_info']['hostname']] = dict()
+
                                         self.data['site'][urls[future_to_ds[future]]]['nodes'][node['node_info']['hostname']]['hw_info'] = node['hw_info']
+
+        return self.data
