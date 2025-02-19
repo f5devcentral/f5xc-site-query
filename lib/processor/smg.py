@@ -1,3 +1,4 @@
+import pprint
 import concurrent.futures
 import json
 from logging import Logger
@@ -11,32 +12,71 @@ from lib.processor.base import Base
 class SiteMeshGroup(Base):
     def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
-        self.lbs = list()
-        self._site_mesh_groups = list()
 
-    @property
-    def site_mesh_groups(self):
-        return self._site_mesh_groups
-
-    def run(self) -> dict:
+    def run(self) -> dict | None:
         """
         Add site mesh groups to site if site mesh group refers to a site. Obtains specific site mesh group by name.
         :return: structure with site mesh group information being added
         """
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare site mesh groups query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in self.urls}
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
+        pp = pprint.PrettyPrinter()
+        urls_smg = dict()
+        urls_vs = dict()
 
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    self.logger.info('%r generated an exception: %s' % (_data, exc))
-                else:
-                    self.site_mesh_groups.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+        _smgs = self.get(self.build_url(c.URI_F5XC_SITE_MESH_GROUPS.format(namespace="system")))
 
+        if _smgs:
+            self.logger.debug(json.dumps(_smgs.json(), indent=2))
+
+            for smg in _smgs.json()['items']:
+                urls_smg[self.build_url(c.URI_F5XC_SITE_MESH_GROUP.format(namespace="system", name=smg['name']))] = smg['name']
+
+            site_mesh_groups = self.execute(name="site mesh group", urls=urls_smg)
+            for smg in site_mesh_groups:
+                urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace="shared", name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata']['name']
+
+            # Remove virtual sites without 'site_selector' key
+            virtual_sites = [vs for vs in self.execute(name="virtual site", urls=urls_vs) if 'site_selector' in vs['data']['spec']]
+            for site in self.data["site"].keys():
+                #Store virtual sites current site is a member of
+                site_is_member_of_virtual_sites = set()
+                # Need to evaluate site_selector expression in virtual site data
+                # Split expression into key, operator, value parts. If value is a comma separated list of items split these
+                # Compare site label and key with virtual site expression key and value. Supported comparators are "equal" and "in"
+                for vs in virtual_sites:
+                    _expressions = [exp.split(" ", 2) for exp in vs['data']["spec"]["site_selector"]["expressions"]]
+                    expressions = list()
+
+                    for item in _expressions:
+                        #If virtual site site_selector expression is a comma separated list of items split these
+                        if item[2].startswith("(") and item[2].endswith(")"):
+                            val = [a.strip("() ") for a in item[2].split(",")]
+                            expressions.append({"key": item[0], "operator": item[1], "value": val})
+                        else:
+                            expressions.append({"key": item[0], "operator": item[1], "value": item[2]})
+
+                    for label, value in self.data["site"][site]["labels"].items():
+                        for expression in expressions:
+                            if label == expression["key"] and value == expression["value"]:
+                                site_is_member_of_virtual_sites.add(vs["data"]["metadata"]["name"])
+                            elif label == expression["key"] and value in expression["value"]:
+                                site_is_member_of_virtual_sites.add(vs["data"]["metadata"]["name"])
+
+                # Add virtual sites current site is a member of below new key 'vsites'
+                if "vsites" not in self.data["site"][site].keys():
+                    self.data["site"][site]["vsites"] = list(site_is_member_of_virtual_sites)
+
+                if "smg" not in self.data["site"][site].keys():
+                    self.data["site"][site]["smg"] = dict()
+                #Add secure mesh site to site data
+                # If secure mesh site virtual site name is in list of virtual sites this site is a member of
+                for smg in site_mesh_groups:
+                    if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:
+                        self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]] = dict()
+                        self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["metadata"] = smg["data"]["metadata"]
+                        self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["spec"] = smg["data"]["spec"]
+
+        """
         def process():
             try:
                 site_mesh_group_name = r["metadata"]["name"]
@@ -91,6 +131,7 @@ class SiteMeshGroup(Base):
                     if result:
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
+                        pp.pprint(r)
                         site_mesh_groups = r['spec'].get('site_mesh_group', [])
 
                         for site_mesh_group in site_mesh_groups:
@@ -115,5 +156,6 @@ class SiteMeshGroup(Base):
                                                         break
                                                 else:
                                                     process()
+        """
 
         return self.data

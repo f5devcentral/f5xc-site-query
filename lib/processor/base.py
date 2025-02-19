@@ -1,5 +1,8 @@
+import concurrent.futures
+import lib.const as c
 from abc import abstractmethod
 from logging import Logger
+from typing import Any
 
 from requests import Response, Session
 
@@ -35,6 +38,19 @@ class Base(object):
     def logger(self):
         return self._logger
 
+    def get_key_from_site_kind(self, site: str = None) -> str | None:
+        """
+        Returns key name according to site kind/type. Key name is used to create new key below site data structure.
+        :param site: site name
+        :return: key name
+        """
+
+        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 or self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+            return c.SITE_OBJECT_TYPE_SMS
+        else:
+            # F5XC_SITE_TYPE_AWS_TGW, F5XC_SITE_TYPE_AWS_VPC, F5XC_SITE_TYPE_AZURE_VNET, F5XC_SITE_TYPE_GCP_VPC
+            return c.SITE_OBJECT_TYPE_LEGACY
+
     def get(self, url: str = None) -> Response | bool:
         """
         Run HTTP GET on a given url
@@ -56,6 +72,27 @@ class Base(object):
         :return: url string
         """
         return "{}{}".format(self.api_url, uri)
+
+    def execute(self, name: str = None, urls: dict[str, Any] = None) -> list | None:
+        resp = list()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            self.logger.info(f"Prepare {name} query...")
+
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+                self.logger.info(f"process {name} get item: {future_to_ds[future]} ...")
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % (f"process {name}", _data, exc))
+                else:
+                    self.logger.info(f"process {name} got item: {future_to_ds[future]} ...")
+                    if data:
+                        resp.append({"site": urls[future_to_ds[future]], "data": data.json()})
+
+            return resp
 
     @abstractmethod
     def run(self) -> dict:

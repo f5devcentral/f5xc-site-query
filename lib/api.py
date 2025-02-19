@@ -14,7 +14,11 @@ from requests import Response
 import lib.const as c
 from lib.info import HwInfo
 from lib.processor.bgp import Bgp
+from lib.processor.lb import Lb
+from lib.processor.origin_pools import OriginPool
+from lib.processor.proxy import Proxy
 from lib.processor.site import Site
+from lib.processor.smg import SiteMeshGroup
 
 
 class Api(object):
@@ -268,6 +272,7 @@ class Api(object):
         lb_urls = list()
         proxy_urls = list()
         origin_pool_urls = list()
+        smg_urls = list()
 
         for namespace in self.data["namespaces"]:
             proxy_urls.append(self.build_url(c.URI_F5XC_PROXIES.format(namespace=namespace)))
@@ -280,27 +285,23 @@ class Api(object):
         self.logger.debug("PROXY_URLS: %s", proxy_urls)
         self.logger.debug("ORIGIN_POOL_URLS: %s", origin_pool_urls)
 
-        #lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        #lb.run()
-
-        """
-        proxy = Proxy(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        proxy.run()
-        """
-
-        #origin_pool = OriginPool(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        #origin_pool.run()
-
-        """
-        site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        site_mesh_group.run()
-        """
-
-        bgp = Bgp(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        bgp.run()
-
         site = Site(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         site.run()
+
+        # lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        # lb.run()
+
+        # proxy = Proxy(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        # proxy.run()
+
+        # origin_pool = OriginPool(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        # origin_pool.run()
+
+        # bgp = Bgp(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        # bgp.run()
+
+        site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        site_mesh_group.run()
 
         return self.data
 

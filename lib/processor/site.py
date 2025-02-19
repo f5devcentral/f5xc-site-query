@@ -15,9 +15,15 @@ class Site(Base):
 
     def run(self) -> dict | None:
         """
-        Get list of sites and process labels. Only add labels to sites that are referenced by a LB/origin_pool/proxys object.
+        Get list of sites and process labels.
         Store the sites with only origin pools and without origin pools or load balancers.
-        Check if the site has origin pools only (and no load balancer). Get site details hw info.
+        Check if the site has origin pools only (and no load balancer).
+        Get site details:
+            - site mesh group
+            - dc cluster group
+            - member of virtual sites
+            - enhanced firewall policies
+            - hardware info
         :return: structure with label information being added
         """
 
@@ -27,13 +33,16 @@ class Site(Base):
         if _sites:
             self.logger.debug(json.dumps(_sites.json(), indent=2))
             sites = [site for site in _sites.json()['items'] if self.site == site['name']] if self.site else _sites.json()['items']
-            self.process_site(sites)
 
-            for processor in c.SITE_OBJECT_PROCESSORS:
-                getattr(self, f"process_{processor}")()
+            if sites:
+                self.process_site(sites=sites)
 
+                for processor in c.SITE_OBJECT_PROCESSORS:
+                    getattr(self, f"process_{processor}")()
+
+            """
             sites_with_origin_pools_only = []
-
+            
             for site_name, site_data in self.data['site'].items():
                 if "namespaces" in site_data.keys():
                     for n_name, n_data in site_data['namespaces'].items():
@@ -46,6 +55,7 @@ class Site(Base):
 
             self.data["orphaned_sites"] = [k for k, v in self.data['site'].items() if 'labels' not in v.keys()]
             self.logger.info(f"process sites <{len(self.data['orphaned_sites'])}> sites without labels (orphaned)")
+            """
 
             return self.data
 
@@ -63,87 +73,77 @@ class Site(Base):
         for site in sites:
             urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare general site details query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+        _sites = self.execute(name="general site details", urls=urls)
+        for site in _sites:
+            self.data['site'][site["site"]] = dict()
+            self.data['site'][site["site"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
+            self.data['site'][site["site"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
+            self.data['site'][site["site"]]['metadata'] = site['data']['metadata']
+            self.data['site'][site["site"]]['spec'] = site['data']['spec']
 
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
-
-                try:
-                    self.logger.info(f"process general site details get item: {future_to_ds[future]} ...")
-                    result = future.result()
-                except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process general site details", _data, exc))
-                else:
-                    self.logger.info(f"process general site details got item: {future_to_ds[future]} ...")
-
-                    if result:
-                        r = result.json()
-                        self.logger.debug(json.dumps(r, indent=2))
-
-                        if urls[future_to_ds[future]] in self.data['site']:
-                            self.data['site'][urls[future_to_ds[future]]]['kind'] = r['system_metadata']['owner_view']["kind"]
-                            self.data['site'][urls[future_to_ds[future]]]['main_node_count'] = len(r['spec']['main_nodes'])
-                            self.data['site'][urls[future_to_ds[future]]]['metadata'] = r['metadata']
-                            self.data['site'][urls[future_to_ds[future]]]['spec'] = r['spec']
-
-                            if r['metadata']['name'] in self.data['site']:
-                                self.logger.info(f"process sites add label information to site {r['metadata']['name']}")
-                                self.data['site'][urls[future_to_ds[future]]]['labels'] = r['metadata']['labels']
+            if site['site'] in self.data['site']:
+                self.logger.info(f"process sites add label information to site {site['site']}")
+                self.data['site'][site["site"]]['labels'] = site['data']['metadata']['labels']
 
         return self.data
 
-    def process_sms(self) -> dict | None:
+    def process_site_details(self) -> dict | None:
         """
-        Process sms specific site details and add data to specific site.
+        Get site type specific details and add data to site data.
         Details including for instance enhanced firewall policies, network interfaces, etc.
         :return: structure with label information being added
         """
 
+        pp = pprint.PrettyPrinter()
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
 
         # Build urls for site
         for site, values in self.data['site'].items():
-            if values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V1:
-                urls[self.build_url(c.URI_F5XC_SMS_V1.format(namespace="system", name=site))] = site
-
-            elif values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V2:
-                urls[self.build_url(c.URI_F5XC_SMS_V2.format(namespace="system", name=site))] = site
+            if 'kind' in values.keys():
+                urls[self.build_url(c.SITE_TYPE_TO_URI_MAP[values['kind']].format(namespace="system", name=site))] = site
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info(f"Prepare sms site details query...")
+            self.logger.info(f"Prepare site details query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
 
             for future in concurrent.futures.as_completed(future_to_ds):
                 _data = future_to_ds[future]
 
                 try:
-                    self.logger.info(f"process sms site details get item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process site details get item: {future_to_ds[future]} ...")
                     result = future.result()
                 except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process sms site details", _data, exc))
+                    self.logger.info('%s: %r generated an exception: %s' % ("process site details", _data, exc))
                 else:
-                    self.logger.info(f"process sms site details got item: {future_to_ds[future]} ...")
+                    self.logger.info(f"process site details got item: {future_to_ds[future]} ...")
 
                     if result:
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
 
                         if urls[future_to_ds[future]] in self.data['site']:
-                            if "sms" not in self.data['site'][urls[future_to_ds[future]]].keys():
-                                self.data['site'][urls[future_to_ds[future]]]['sms'] = dict()
+                            if self.get_key_from_site_kind(urls[future_to_ds[future]]) not in self.data['site'][urls[future_to_ds[future]]].keys():
+                                self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])] = dict()
 
-                            self.data['site'][urls[future_to_ds[future]]]['sms']['metadata'] = r['metadata']
-                            self.data['site'][urls[future_to_ds[future]]]['sms']['spec'] = r['spec']
-                            self.data['site'][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+                            self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['metadata'] = r['metadata']
+                            self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'] = r['spec']
+
+                            if "worker_nodes" in r['spec'].keys():
+                                self.data['site'][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+
+                            # check if sms or legacy object type
+                            if self.get_key_from_site_kind(urls[future_to_ds[future]]) == c.SITE_OBJECT_TYPE_LEGACY:
+                                # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                                nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
+                                # Set main node counter
+                                self.data['site'][urls[future_to_ds[future]]]['main_node_count'] = len(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['az_nodes'])
 
         return self.data
 
     def process_efp(self) -> dict | None:
         """
-        Process Secure Mesh site enhanced firewall policies details and add data to specific site.
+        Process enhanced firewall policies details and add data to specific site.
         :return: structure with label information being added
         """
 
@@ -152,36 +152,34 @@ class Site(Base):
 
         # Get efp name by iterating existing sms data
         for site in self.data['site'].keys():
-            if "custom_network_config" in self.data["site"][site]["sms"]["spec"].keys():
-                if "active_enhanced_firewall_policies" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
-                    for efp in self.data["site"][site]["sms"]["spec"]['custom_network_config']['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
-                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data["site"][site]["sms"]['metadata']['name']
+            if "kind" in self.data['site'][site].keys():
+                if self.data['site'][site]['kind'] != "":
+                    # check if sms or legacy object type
+                    if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
+                        if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                            if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                                    urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare enhanced firewall policy details query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+                    elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
+                        # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                        nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
 
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
+                        if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                            for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                                urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-                try:
-                    self.logger.info(f"process enhanced firewall policy details get item: {future_to_ds[future]} ...")
-                    result = future.result()
-                except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process site details", _data, exc))
-                else:
-                    self.logger.info(f"process enhanced firewall policy details got item: {future_to_ds[future]} ...")
+        if urls:
+            efps = self.execute(name="enhanced firewall policy details", urls=urls)
 
-                    if result:
-                        efp = result.json()
-                        self.logger.debug(json.dumps(efp, indent=2))
-                        if urls[future_to_ds[future]] in self.data['site']:
-                            if "efp" not in self.data['site'][urls[future_to_ds[future]]]:
-                                self.data['site'][urls[future_to_ds[future]]]['efp'] = dict()
+            for efp in efps:
+                if efp["site"] in self.data['site']:
+                    if "efp" not in self.data['site'][efp["site"]]:
+                        self.data['site'][efp["site"]]['efp'] = dict()
 
-                            self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']] = dict()
-                            self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']]['metadata'] = efp['metadata']
-                            self.data['site'][urls[future_to_ds[future]]]['efp'][efp['metadata']['name']]['spec'] = efp['spec']
+                    self.data['site'][efp["site"]]['efp'][efp['data']['metadata']['name']] = dict()
+                    self.data['site'][efp["site"]]['efp'][efp['data']['metadata']['name']]['metadata'] = efp['data']['metadata']
+                    self.data['site'][efp["site"]]['efp'][efp['data']['metadata']['name']]['spec'] = efp['data']['spec']
 
         return self.data
 
@@ -190,50 +188,63 @@ class Site(Base):
         Process Secure Mesh site forward proxy policy details and add data to specific site.
         :return: structure with label information being added
         """
-
+        pp = pprint.PrettyPrinter()
         # Build forward proxy policy urls for given site
         urls = dict()
 
         # Get efp name by iterating existing sms data
         for site in self.data['site'].keys():
-            if "custom_network_config" in self.data["site"][site]["sms"]["spec"].keys():
-                if "active_forward_proxy_policies" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
-                    for fpp in self.data["site"][site]["sms"]["spec"]['custom_network_config']['active_forward_proxy_policies']['forward_proxy_policies']:
-                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data["site"][site]["sms"]['metadata']['name']
+            if "kind" in self.data['site'][site].keys():
+                if self.data['site'][site]['kind'] != "":
+                    # check if sms or legacy object type
+                    if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
+                        if "custom_network_config" in self.data['site'][site]["sms"]["spec"].keys():
+                            if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_forward_proxy_policies']['forward_proxy_policies']:
+                                    urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare forward proxy policy details query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+                    elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
+                        # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                        nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
 
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
+                        if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                            for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_forward_proxy_policies']['forward_proxy_policies']:
+                                urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-                try:
-                    self.logger.info(f"process forward proxy policy details get item: {future_to_ds[future]} ...")
-                    result = future.result()
-                except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process forward proxy policy details", _data, exc))
-                else:
-                    self.logger.info(f"process forward proxy policy details got item: {future_to_ds[future]} ...")
+        if urls:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+                self.logger.info("Prepare forward proxy policy details query...")
+                future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
 
-                    if result:
-                        fpp = result.json()
-                        self.logger.debug(json.dumps(fpp, indent=2))
+                for future in concurrent.futures.as_completed(future_to_ds):
+                    _data = future_to_ds[future]
 
-                        if urls[future_to_ds[future]] in self.data['site']:
-                            if "fpp" not in self.data['site'][urls[future_to_ds[future]]]:
-                                self.data['site'][urls[future_to_ds[future]]]['fpp'] = dict()
+                    try:
+                        self.logger.info(f"process forward proxy policy details get item: {future_to_ds[future]} ...")
+                        result = future.result()
+                    except Exception as exc:
+                        self.logger.info('%s: %r generated an exception: %s' % ("process forward proxy policy details", _data, exc))
+                    else:
+                        self.logger.info(f"process forward proxy policy details got item: {future_to_ds[future]} ...")
 
-                            self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']] = dict()
-                            self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['metadata'] = fpp['metadata']
-                            self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['spec'] = fpp['spec']
+                        if result:
+                            fpp = result.json()
+                            self.logger.debug(json.dumps(fpp, indent=2))
+
+                            if urls[future_to_ds[future]] in self.data['site']:
+                                if "fpp" not in self.data['site'][urls[future_to_ds[future]]]:
+                                    self.data['site'][urls[future_to_ds[future]]]['fpp'] = dict()
+
+                                self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']] = dict()
+                                self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['metadata'] = fpp['metadata']
+                                self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['spec'] = fpp['spec']
 
         return self.data
 
     def process_dc_cluster_group(self) -> dict | None:
         """
-        Process Secure Mesh site dc cluster group details and add data to specific site.
-        :return: structure with label information being added
+        Process dc cluster group details and add data to specific site.
+        :return: structure with dc cluster group information being added
         """
 
         # Build dc cluster group urls for given site
@@ -242,72 +253,87 @@ class Site(Base):
 
         # Get dc cluster group name by iterating existing sms data. Check for SLO and SLI interface if DC cluster group set.
         for site in self.data['site'].keys():
-            if "custom_network_config" in self.data["site"][site]["sms"]["spec"].keys():
-                if "slo_config" in self.data["site"][site]["sms"]["spec"]['custom_network_config'].keys():
-                    if "dc_cluster_group" in self.data["site"][site]["sms"]["spec"]['custom_network_config']["slo_config"].keys():
-                        name = self.data["site"][site]["sms"]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
-                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data["site"][site]["sms"]['metadata']['name']
-                elif "sli_config" in self.data["site"][site]["sms"]["spec"]['custom_network_config']:
-                    if "dc_cluster_group" in self.data["site"][site]["sms"]["spec"]['custom_network_config']["sli_config"].keys():
-                        name = self.data["site"][site]["sms"]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
-                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data["site"][site]["sms"]['metadata']['name']
+            if "kind" in self.data['site'][site].keys():
+                if self.data['site'][site]['kind'] != "":
+                    # check if sms or legacy object type
+                    if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
+                        if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                            if "slo_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config'].keys():
+                                if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["slo_config"].keys():
+                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
+                                    urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                            elif "sli_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["sli_config"].keys():
+                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
+                                    urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare dc cluster group slo details query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in urls_slo.keys()}
+                    elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
+                        # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                        nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
 
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
+                        if "dc_cluster_group_outside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                            name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_outside_vn']['name']
+                            urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif "dc_cluster_group_inside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                            name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_inside_vn']['name']
+                            urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-                try:
-                    self.logger.info(f"process dc cluster group slo details get item: {future_to_ds[future]} ...")
-                    result = future.result()
-                    print(result)
-                except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process dc cluster group details", _data, exc))
-                else:
-                    self.logger.info(f"process dc cluster group slo details got item: {future_to_ds[future]} ...")
+        if urls_slo:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+                self.logger.info("Prepare dc cluster group slo details query...")
+                future_to_ds = {executor.submit(self.get, url=url): url for url in urls_slo.keys()}
 
-                    if result:
-                        dc_cg = result.json()
-                        self.logger.debug(json.dumps(dc_cg, indent=2))
+                for future in concurrent.futures.as_completed(future_to_ds):
+                    _data = future_to_ds[future]
 
-                        if urls_slo[future_to_ds[future]] in self.data['site']:
-                            if "dc_cluster_group" not in self.data['site'][urls_slo[future_to_ds[future]]]:
-                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'] = dict()
+                    try:
+                        self.logger.info(f"process dc cluster group slo details get item: {future_to_ds[future]} ...")
+                        result = future.result()
+                    except Exception as exc:
+                        self.logger.info('%s: %r generated an exception: %s' % ("process dc cluster group details", _data, exc))
+                    else:
+                        self.logger.info(f"process dc cluster group slo details got item: {future_to_ds[future]} ...")
 
-                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
-                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo'] = dict()
-                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['metadata'] = dc_cg['metadata']
-                            self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['spec'] = dc_cg['spec']
+                        if result:
+                            dc_cg = result.json()
+                            self.logger.debug(json.dumps(dc_cg, indent=2))
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare dc cluster group sli details query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in urls_sli.keys()}
+                            if urls_slo[future_to_ds[future]] in self.data['site']:
+                                if "dc_cluster_group" not in self.data['site'][urls_slo[future_to_ds[future]]]:
+                                    self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'] = dict()
 
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
+                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo'] = dict()
+                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['metadata'] = dc_cg['metadata']
+                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['spec'] = dc_cg['spec']
+        if urls_sli:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+                self.logger.info("Prepare dc cluster group sli details query...")
+                future_to_ds = {executor.submit(self.get, url=url): url for url in urls_sli.keys()}
 
-                try:
-                    self.logger.info(f"process dc cluster group sli details get item: {future_to_ds[future]} ...")
-                    result = future.result()
-                except Exception as exc:
-                    self.logger.info('%s: %r generated an exception: %s' % ("process dc cluster group details", _data, exc))
-                else:
-                    self.logger.info(f"process dc cluster group sli details got item: {future_to_ds[future]} ...")
+                for future in concurrent.futures.as_completed(future_to_ds):
+                    _data = future_to_ds[future]
 
-                    if result:
-                        dc_cg = result.json()
-                        self.logger.debug(json.dumps(dc_cg, indent=2))
+                    try:
+                        self.logger.info(f"process dc cluster group sli details get item: {future_to_ds[future]} ...")
+                        result = future.result()
+                    except Exception as exc:
+                        self.logger.info('%s: %r generated an exception: %s' % ("process dc cluster group details", _data, exc))
+                    else:
+                        self.logger.info(f"process dc cluster group sli details got item: {future_to_ds[future]} ...")
 
-                        if urls_sli[future_to_ds[future]] in self.data['site']:
-                            if "dc_cluster_group" not in self.data['site'][urls_sli[future_to_ds[future]]]:
-                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'] = dict()
+                        if result:
+                            dc_cg = result.json()
+                            self.logger.debug(json.dumps(dc_cg, indent=2))
 
-                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
-                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
-                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
-                            self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
+                            if urls_sli[future_to_ds[future]] in self.data['site']:
+                                if "dc_cluster_group" not in self.data['site'][urls_sli[future_to_ds[future]]]:
+                                    self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'] = dict()
+
+                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
+                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
+                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
 
         return self.data
 
@@ -318,11 +344,13 @@ class Site(Base):
         """
 
         self.logger.info("Process node interfaces...")
+
         for site, values in self.data['site'].items():
-            if values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V1 or values['kind'] == c.F5XC_SITE_SITE_TYPE_SMS_V2:
-                if "custom_network_config" in values['sms']['spec'].keys():
-                    if "interface_list" in values['sms']['spec']['custom_network_config'].keys():
-                        for node in values['sms']['spec']["master_node_configuration"]:
+            # check if sms or legacy object type
+            if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
+                if "custom_network_config" in values[self.get_key_from_site_kind(site)]['spec'].keys():
+                    if "interface_list" in values[self.get_key_from_site_kind(site)]['spec']['custom_network_config'].keys():
+                        for node in values[self.get_key_from_site_kind(site)]['spec']["master_node_configuration"]:
                             if "nodes" not in self.data['site'][site]:
                                 self.data['site'][site]['nodes'] = dict()
 
@@ -332,20 +360,34 @@ class Site(Base):
                             if "interfaces" not in self.data['site'][site]['nodes'][node['name']].keys():
                                 self.data['site'][site]['nodes'][node['name']]['interfaces'] = dict()
 
-                            print(values['sms']['spec']['custom_network_config']['interface_list']['interfaces'])
+                            self.data['site'][site]['nodes'][node['name']]['interfaces'] = values[self.get_key_from_site_kind(site)]['spec']['custom_network_config']['interface_list']['interfaces']
 
-                            self.data['site'][site]['nodes'][node['name']]['interfaces'] = values['sms']['spec']['custom_network_config']['interface_list']['interfaces']
+            elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
+                # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
+                for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
+
+                    if "nodes" not in self.data['site'][site]:
+                        self.data['site'][site]['nodes'] = dict()
+                        self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
+
+                        if nic_setup == "ingress_egress_gw":
+                            self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
 
         return self.data
 
     def process_hw_info(self) -> dict | None:
         """
         Process site hardware info and add data to site data.
+        process_hw_info only supports sms object based sites
         :return: structure with label information being added
         """
 
         # Build ce node hardware info urls for given site
         urls = dict()
+
         for site in self.data['site'].keys():
             urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site))] = site
 
