@@ -1,27 +1,44 @@
-URI_F5XC_NAMESPACE = "/web/namespaces"
-URI_F5XC_SITES = "/config/namespaces/system/sites"
+URI_F5XC_BGP = "/config/namespaces/{namespace}/bgps/{name}"
+URI_F5XC_BGPS = "/config/namespaces/{namespace}/bgps"
 URI_F5XC_SITE = "/config/namespaces/{namespace}/sites/{name}"
+URI_F5XC_SITES = "/config/namespaces/system/sites"
 URI_F5XC_SMS_V1 = "/config/namespaces/{namespace}/securemesh_sites/{name}"
 URI_F5XC_SMS_V2 = "/config/namespaces/{namespace}/securemesh_site_v2s/{name}"
-URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
-URI_F5XC_ORIGIN_POOLS = "/config/namespaces/{namespace}/origin_pools"
 URI_F5XC_PROXIES = "/config/namespaces/{namespace}/proxys"
-URI_F5XC_BGPS = "/config/namespaces/{namespace}/bgps"
-URI_F5XC_BGP = "/config/namespaces/{namespace}/bgps/{name}"
-URI_F5XC_SITE_MESH_GROUP = "/config/namespaces/{namespace}/site_mesh_group/{name}"
+URI_F5XC_NAMESPACE = "/web/namespaces"
+URI_F5XC_CLOUD_LINK = "/config/namespaces/{namespace}/cloud_links/{name}"
+URI_F5XC_SITE_AWS_VPC = "/config/namespaces/{namespace}/aws_vpc_sites/{name}"
+URI_F5XC_SITE_AWS_TGW = "/config/namespaces/{namespace}/aws_tgw_sites/{name}"
+URI_F5XC_SITE_GCP_VPC = "/config/namespaces/{namespace}/gcp_vpc_sites/{name}"
+URI_F5XC_VIRTUAL_SITE = "/config/namespaces/{namespace}/virtual_sites/{name}"
+URI_F5XC_ORIGIN_POOLS = "/config/namespaces/{namespace}/origin_pools"
+URI_F5XC_CLOUD_CONNECT = "/config/namespaces/{namespace}/cloud_connects/{name}"
+URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
+URI_F5XC_SITE_AZURE_VNET = "/config/namespaces/{namespace}/azure_vnet_sites/{name}"
+URI_F5XC_SITE_MESH_GROUP = "/config/namespaces/{namespace}/site_mesh_groups/{name}"
 URI_F5XC_SITE_MESH_GROUPS = "/config/namespaces/{namespace}/site_mesh_groups"
 URI_F5XC_DC_CLUSTER_GROUP = "/config/namespaces/{namespace}/dc_cluster_groups/{name}"
 URI_F5XC_ENHANCED_FW_POLICY = "/config/namespaces/{namespace}/enhanced_firewall_policys/{name}"
 URI_F5XC_ENHANCED_FW_POLICIES = "/config/namespaces/{namespace}/enhanced_firewall_policys"
 URI_F5XC_FORWARD_PROXY_POLICY = "/config/namespaces/{namespace}/forward_proxy_policys/{name}"
 F5XC_SITE_TYPES = ["site", "virtual_site"]
-F5XC_SITE_SITE_TYPE_SMS_V1 = "securemesh_site"
-F5XC_SITE_SITE_TYPE_SMS_V2 = "securemesh_site_v2"
-F5XC_SITE_SITE_TYPE_AWS_VPC = "aws_vcp_site"
-F5XC_SITE_SITE_TYPE_AWS_TGW = "aws_tgw_site"
-F5XC_SITE_SITE_TYPE_AZURE_VNET = "azure_vnet_site"
-F5XC_SITE_SITE_TYPE_GCP_VPC = "gcp_vpc_site"
+F5XC_SITE_TYPE_SMS_V1 = "securemesh_site"
+F5XC_SITE_TYPE_SMS_V2 = "securemesh_site_v2"
+F5XC_SITE_TYPE_AWS_VPC = "aws_vpc_site"
+F5XC_SITE_TYPE_AWS_TGW = "aws_tgw_site"
+F5XC_SITE_TYPE_GCP_VPC = "gcp_vpc_site"
+F5XC_SITE_TYPE_AZURE_VNET = "azure_vnet_site"
 F5XC_NODE_PRIMARY = "k8s-master-primary"
 F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers", "udp_loadbalancers"]
 F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'private_name']
-SITE_OBJECT_PROCESSORS = ["sms", "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
+SITE_OBJECT_TYPE_SMS = "sms"
+SITE_OBJECT_TYPE_LEGACY = "legacy"
+SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
+SITE_TYPE_TO_URI_MAP = {
+    F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
+    F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,
+    F5XC_SITE_TYPE_AWS_VPC: URI_F5XC_SITE_AWS_VPC,
+    F5XC_SITE_TYPE_AWS_TGW: URI_F5XC_SITE_AWS_TGW,
+    F5XC_SITE_TYPE_GCP_VPC: URI_F5XC_SITE_GCP_VPC,
+    F5XC_SITE_TYPE_AZURE_VNET: URI_F5XC_SITE_AZURE_VNET
+}
