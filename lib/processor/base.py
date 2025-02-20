@@ -38,12 +38,31 @@ class Base(object):
     def logger(self):
         return self._logger
 
+    def get_site_nic_mode(self, site: str = None) -> str | None:
+        """
+        Check if interface mode key exists in given data. Return site interface mode which is Single NIC or Dual NIC.
+        "ingress_gw_ar" and "ingress_egress_ar" not supported. If mode is unknown return None
+        :param site: the site name
+        :return: return interface mode string
+        """
+
+        if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+            return "ingress_gw"
+        elif "ingress_egress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+            return "ingress_egress_gw"
+        else:
+            self.logger.debug(f"Unsupported interface mode for site {site} found")
+            return None
+
     def get_key_from_site_kind(self, site: str = None) -> str | None:
         """
         Returns key name according to site kind/type. Key name is used to create new key below site data structure.
         :param site: site name
         :return: key name
         """
+
+        if "kind" not in self.data['site'][site].keys():
+            print("NO KIND:", site)
 
         if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 or self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
             return c.SITE_OBJECT_TYPE_SMS

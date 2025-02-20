@@ -1,5 +1,6 @@
 import concurrent.futures
 import json
+import pprint
 from logging import Logger
 
 from requests import Session
@@ -26,6 +27,8 @@ class Lb(Base):
         Add load balancer to site if load balancer refers to a site. Obtains specific load balancer by name.
         :return: structure with load balancer information being added
         """
+
+        pp = pprint.PrettyPrinter()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             self.logger.info("Prepare load balancer query...")
@@ -128,7 +131,10 @@ class Lb(Base):
                                     for site_type in site_info.keys():
                                         if site_type in c.F5XC_SITE_TYPES:
                                             if self.site:
+                                                # print(self.site, site_info[site_type][site_type]['name'])
+                                                ## pp.pprint(site_info)
                                                 if self.site == site_info[site_type][site_type]['name']:
+                                                    #print("KEYS:", site_info.keys())
                                                     self.must_break = True
                                                     process()
                                                     break
