@@ -287,8 +287,8 @@ class Api(object):
         site = Site(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         site.run()
 
-        #lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        #lb.run()
+        lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        lb.run()
 
         # proxy = Proxy(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         # proxy.run()
