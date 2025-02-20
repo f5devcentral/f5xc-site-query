@@ -1,3 +1,4 @@
+import pprint
 import concurrent.futures
 import json
 from logging import Logger
@@ -8,10 +9,23 @@ import lib.const as c
 from lib.processor.base import Base
 
 
-class OriginPool(Base):
-    def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
-        super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
-        self.lbs = list()
+class Originpool(Base):
+    def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
+        """
+
+        :param session:
+        :param api_url:
+        :param data:
+        :param site:
+        :param workers:
+        :param logger:
+        """
+        super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
+
+        for namespace in self.data["namespaces"]:
+            self.urls.append(self.build_url(c.URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)))
+
+        self.logger.debug("ORIGIN_POOL_URLS: %s", self.urls)
         self._origin_pools = list()
 
     @property
@@ -36,14 +50,17 @@ class OriginPool(Base):
                 else:
                     self.origin_pools.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
-
-
         def process():
             try:
                 origin_pool_name = r["metadata"]["name"]
+                if origin_pool_name == "test":
+                    pp = pprint.PrettyPrinter()
+                    pp.pprint(r)
                 namespace = r["metadata"]["namespace"]
                 if site_name not in self.data[site_type].keys():
                     self.data[site_type][site_name] = dict()
+                    self.data[site_type][site_name]['namespaces'] = dict()
+                if 'namespaces' not in self.data[site_type][site_name].keys():
                     self.data[site_type][site_name]['namespaces'] = dict()
                 if namespace not in self.data[site_type][site_name]['namespaces'].keys():
                     self.data[site_type][site_name]['namespaces'][namespace] = dict()
@@ -108,12 +125,14 @@ class OriginPool(Base):
                                             site_name = site_data.get('name')
 
                                             if site_name:
-                                                if self.site:
-                                                    if self.site == site_name:
-                                                        self.must_break = True
+                                                # Not processing sites which are in failed state
+                                                if site_name not in self.data["failed"]:
+                                                    if self.site:
+                                                        if self.site == site_name:
+                                                            self.must_break = True
+                                                            process()
+                                                            break
+                                                    else:
                                                         process()
-                                                        break
-                                                else:
-                                                    process()
 
         return self.data

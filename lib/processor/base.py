@@ -9,15 +9,19 @@ import lib.const as c
 
 
 class Base(object):
-    def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
+    def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         self._session = session
         self.api_url = api_url
         self._site = site
-        self.urls = urls
+        self._urls = list()
         self._data = data
         self._workers = workers
         self._logger = logger
         self.must_break = False
+
+    @property
+    def urls(self):
+        return self._urls
 
     @property
     def data(self):
@@ -61,9 +65,6 @@ class Base(object):
         :param site: site name
         :return: key name
         """
-
-        if "kind" not in self.data['site'][site].keys():
-            print("NO KIND:", site)
 
         if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 or self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
             return c.SITE_OBJECT_TYPE_SMS

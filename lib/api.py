@@ -13,12 +13,7 @@ from requests import Response
 
 import lib.const as c
 from lib.info import HwInfo
-from lib.processor.bgp import Bgp
-from lib.processor.lb import Lb
-from lib.processor.origin_pools import OriginPool
-from lib.processor.proxy import Proxy
-from lib.processor.site import Site
-from lib.processor.smg import SiteMeshGroup
+from lib.loader import load_module
 
 
 class Api(object):
@@ -44,17 +39,7 @@ class Api(object):
     write_json_file(name=None)
         writes data to json file
     run()
-        run the queries and build ds
-    process_load_balancers()
-        get and process load balancers
-    process_proxies()
-        get and process proxies
-    process_origin_pools()
-        get and process origin pools
-    process_sites()
-        get and process sites
-    process_site_details()
-        get site details
+        run the specific processor and build ds
     compare()
         compare any previous data set with current data set
     """
@@ -269,38 +254,21 @@ class Api(object):
         :return:
         """
 
-        lb_urls = list()
-        proxy_urls = list()
-        origin_pool_urls = list()
+        _processors = dict()
+        _processor = None
 
-        for namespace in self.data["namespaces"]:
-            proxy_urls.append(self.build_url(c.URI_F5XC_PROXIES.format(namespace=namespace)))
-            origin_pool_urls.append(self.build_url(c.URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)))
-
-            for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                lb_urls.append(self.build_url(c.URI_F5XC_LOAD_BALANCER.format(namespace=namespace, lb_type=lb_type)))
-
-        self.logger.debug("LB_URLS: %s", lb_urls)
-        self.logger.debug("PROXY_URLS: %s", proxy_urls)
-        self.logger.debug("ORIGIN_POOL_URLS: %s", origin_pool_urls)
-
-        site = Site(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        site.run()
-
-        lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        lb.run()
-
-        # proxy = Proxy(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        # proxy.run()
-
-        # origin_pool = OriginPool(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        # origin_pool.run()
+        for index, processor in enumerate(c.API_PROCESSORS):
+            self.logger.info(f"Loading processor <{processor}>...")
+            package = load_module(c.PROCESSOR_PACKAGE, processor.lower())
+            _processor = getattr(package, processor.capitalize())(session=self.session, api_url=self.api_url, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+            _processors[processor] = _processor
+            _processor.run()
 
         # bgp = Bgp(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         # bgp.run()
 
-        #site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        #site_mesh_group.run()
+        # site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        # site_mesh_group.run()
 
         return self.data
 

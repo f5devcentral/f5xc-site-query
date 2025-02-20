@@ -51,6 +51,10 @@ export f5xc_api_token="............................"
 Alternatively you can set command line options instead when running the script.
 
 ## Usage
+Site-query tool will only take site objects into account which have:
+
+- Site 
+
 
 ```
 $ ./get-sites.py 
