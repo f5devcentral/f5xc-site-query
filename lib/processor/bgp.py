@@ -86,14 +86,16 @@ class Bgp(Base):
                                         break
                                     else:
                                         if site_type in c.F5XC_SITE_TYPES:
-                                            # Only processing sites which are not in failed state
-                                            if r['spec']['where'][site_type]["ref"][0]['name'] not in self.data["failed"]:
-                                                if self.site:
-                                                    if self.site == r['spec']['where'][site_type]["ref"][0]['name']:
-                                                        self.must_break = True
+                                            # Referenced site must exist
+                                            if r['spec']['where'][site_type]["ref"][0]['name'] in self.data[site_type]:
+                                                # Only processing sites which are not in failed state
+                                                if r['spec']['where'][site_type]["ref"][0]['name'] not in self.data["failed"]:
+                                                    if self.site:
+                                                        if self.site == r['spec']['where'][site_type]["ref"][0]['name']:
+                                                            self.must_break = True
+                                                            process()
+                                                            break
+                                                    else:
                                                         process()
-                                                        break
-                                                else:
-                                                    process()
 
         return self.data

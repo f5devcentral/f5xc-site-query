@@ -264,9 +264,6 @@ class Api(object):
             _processors[processor] = _processor
             _processor.run()
 
-        # bgp = Bgp(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        # bgp.run()
-
         # site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         # site_mesh_group.run()
 

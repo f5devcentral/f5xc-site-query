@@ -53,9 +53,6 @@ class Originpool(Base):
         def process():
             try:
                 origin_pool_name = r["metadata"]["name"]
-                if origin_pool_name == "test":
-                    pp = pprint.PrettyPrinter()
-                    pp.pprint(r)
                 namespace = r["metadata"]["namespace"]
                 if site_name not in self.data[site_type].keys():
                     self.data[site_type][site_name] = dict()
