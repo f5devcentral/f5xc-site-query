@@ -272,7 +272,6 @@ class Api(object):
         lb_urls = list()
         proxy_urls = list()
         origin_pool_urls = list()
-        smg_urls = list()
 
         for namespace in self.data["namespaces"]:
             proxy_urls.append(self.build_url(c.URI_F5XC_PROXIES.format(namespace=namespace)))
@@ -288,8 +287,8 @@ class Api(object):
         site = Site(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         site.run()
 
-        # lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        # lb.run()
+        #lb = Lb(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        #lb.run()
 
         # proxy = Proxy(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         # proxy.run()
@@ -300,8 +299,8 @@ class Api(object):
         # bgp = Bgp(session=self.session, api_url=self.api_url, urls=lb_urls, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
         # bgp.run()
 
-        site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        site_mesh_group.run()
+        #site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+        #site_mesh_group.run()
 
         return self.data
 

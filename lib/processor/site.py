@@ -65,25 +65,79 @@ class Site(Base):
         Details including for instance enhanced firewall policies, network interfaces, etc.
         :return: structure with label information being added
         """
-
+        pp = pprint.PrettyPrinter()
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
-
+        # Stores sites with failed state
+        failed = dict()
         # Build urls for site
         for site in sites:
             urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
 
         _sites = self.execute(name="general site details", urls=urls)
         for site in _sites:
-            self.data['site'][site["site"]] = dict()
-            self.data['site'][site["site"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
-            self.data['site'][site["site"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
-            self.data['site'][site["site"]]['metadata'] = site['data']['metadata']
-            self.data['site'][site["site"]]['spec'] = site['data']['spec']
+            if site['data']['system_metadata']["owner_view"]:
+                if site['data']['system_metadata']["owner_view"]["kind"]:
 
-            if site['site'] in self.data['site']:
-                self.logger.info(f"process sites add label information to site {site['site']}")
-                self.data['site'][site["site"]]['labels'] = site['data']['metadata']['labels']
+                    def get_site_status() -> (bool, str):
+                        """
+                        Get site state. If site state not "APPLIED" add site to failed site list
+                        APPLY_ERRORED, DESTROY_ERRORED,TIMED_OUT, ...
+                        :return: Tuple (if state is APPLIED return True else False, site state string)
+                        """
+                        for _state in site["data"]["status"]:
+                            if "deployment" in _state:
+                                if _state["deployment"]:
+                                    if _state["deployment"]["apply_status"]:
+                                        if "apply_state" in _state["deployment"]["apply_status"]:
+                                            if _state["deployment"]["apply_status"]["apply_state"] == "APPLIED":
+                                                return True, _state["deployment"]["apply_status"]["apply_state"]
+                                            else:
+                                                print(_state["deployment"]["apply_status"]["apply_state"])
+                                                failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["apply_state"]
+                                                return False, _state["deployment"]["apply_status"]["apply_state"]
+
+                                        elif "infra_state" in _state["deployment"]["apply_status"]:
+                                            if _state["deployment"]["apply_status"]["infra_state"] == "APPLIED":
+                                                return True, _state["deployment"]["apply_status"]["infra_state"]
+                                            else:
+                                                print(_state["deployment"]["apply_status"]["infra_state"])
+                                                failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["infra_state"]
+                                                return False, _state["deployment"]["apply_status"]["infra_state"]
+
+                                        elif "destroy_state" in _state["deployment"]["apply_status"]:
+                                            if _state["deployment"]["apply_status"]["destroy_state"] == "DESTROYED":
+                                                return True, _state["deployment"]["apply_status"]["destroy_state"]
+                                            else:
+                                                print(_state["deployment"]["apply_status"]["destroy_state"])
+                                                failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["destroy_state"]
+                                                return False, _state["deployment"]["apply_status"]["destroy_state"]
+
+                        return False, None
+
+                    # Process sites which state is True aka "APPLIED"
+                    state, msg = get_site_status()
+                    if state:
+                        self.data['site'][site["site"]] = dict()
+                        self.data['site'][site["site"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
+                        self.data['site'][site["site"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
+                        self.data['site'][site["site"]]['metadata'] = site['data']['metadata']
+                        self.data['site'][site["site"]]['spec'] = site['data']['spec']
+
+                        if site['site'] in self.data['site']:
+                            self.logger.info(f"process sites add label information to site {site['site']}")
+                            self.data['site'][site["site"]]['labels'] = site['data']['metadata']['labels']
+            else:
+                if "untyped" not in self.data:
+                    self.data['untyped'] = list()
+
+                self.data["untyped"].append(site['data']["metadata"]["name"])
+
+        # Add failed site dict to data
+        if "failed" not in self.data:
+            self.data['failed'] = failed
+
+        print("failed:", self.data['failed'])
 
         return self.data
 
@@ -135,9 +189,12 @@ class Site(Base):
                             # check if sms or legacy object type
                             if self.get_key_from_site_kind(urls[future_to_ds[future]]) == c.SITE_OBJECT_TYPE_LEGACY:
                                 # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
-                                nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
-                                # Set main node counter
-                                self.data['site'][urls[future_to_ds[future]]]['main_node_count'] = len(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['az_nodes'])
+                                nic_setup = self.get_site_nic_mode(site=urls[future_to_ds[future]])
+
+                                if nic_setup:
+                                    # Set main node counter
+                                    if "az_nodes" in self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]["spec"][nic_setup]:
+                                        self.data['site'][urls[future_to_ds[future]]]['main_node_count'] = len(self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]["spec"][nic_setup]['az_nodes'])
 
         return self.data
 
@@ -162,12 +219,22 @@ class Site(Base):
                                     urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
-                        # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
-                        nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
+                        # If AWS TGW does not provide interface mode
+                        if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                            if "tgw_security" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                                # Check if tgw_security is not None
+                                if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                    if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                        for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                                            urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        else:
+                            # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                            nic_setup = self.get_site_nic_mode(site=site)
 
-                        if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
-                            for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
-                                urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                            if nic_setup:
+                                if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                                    for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace="system", name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls:
             efps = self.execute(name="enhanced firewall policy details", urls=urls)
@@ -192,7 +259,7 @@ class Site(Base):
         # Build forward proxy policy urls for given site
         urls = dict()
 
-        # Get efp name by iterating existing sms data
+        # Get fpp name by iterating existing sms data
         for site in self.data['site'].keys():
             if "kind" in self.data['site'][site].keys():
                 if self.data['site'][site]['kind'] != "":
@@ -204,12 +271,22 @@ class Site(Base):
                                     urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
-                        # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
-                        nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
+                        # If AWS TGW does not provide interface mode
+                        if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                            if "tgw_security" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                                # Check if tgw_security is not None
+                                if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                    if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                        for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]['active_forward_proxy_policies']['forward_proxy_policies']:
+                                            urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
-                        if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                            for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_forward_proxy_policies']['forward_proxy_policies']:
-                                urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        else:
+                            # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                            nic_setup = self.get_site_nic_mode(site=site)
+                            if nic_setup:
+                                if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_forward_proxy_policies']['forward_proxy_policies']:
+                                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace="system", name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -268,15 +345,27 @@ class Site(Base):
                                     urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
-                        # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
-                        nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
-
-                        if "dc_cluster_group_outside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
-                            name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_outside_vn']['name']
-                            urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                        elif "dc_cluster_group_inside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
-                            name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_inside_vn']['name']
-                            urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        # If AWS TGW does not provide interface mode
+                        if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                            if "vn_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                                # Check if vn_config is not None
+                                if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]:
+                                    if "dc_cluster_group_outside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"].keys():
+                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]['dc_cluster_group_outside_vn']['name']
+                                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                    elif "dc_cluster_group_inside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"].keys():
+                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]['dc_cluster_group_inside_vn']['name']
+                                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        else:
+                            # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                            nic_setup = self.get_site_nic_mode(site=site)
+                            if nic_setup:
+                                if "dc_cluster_group_outside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_outside_vn']['name']
+                                    urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                elif "dc_cluster_group_inside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_inside_vn']['name']
+                                    urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace="system", name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls_slo:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -363,18 +452,36 @@ class Site(Base):
                             self.data['site'][site]['nodes'][node['name']]['interfaces'] = values[self.get_key_from_site_kind(site)]['spec']['custom_network_config']['interface_list']['interfaces']
 
             elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
-                # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
-                nic_setup = "ingress_gw" if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"] else "ingress_egress_gw"
-                for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
+                if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                    if "tgw_info" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                        print("we should add interface info for tgw")
+                else:
+                    # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
+                    nic_setup = self.get_site_nic_mode(site=site)
 
-                    if "nodes" not in self.data['site'][site]:
-                        self.data['site'][site]['nodes'] = dict()
-                        self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
-                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
+                    """
+                    if nic_setup:
+                        for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
 
-                        if nic_setup == "ingress_egress_gw":
-                            self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
+                            if "nodes" not in self.data['site'][site]:
+                                self.data['site'][site]['nodes'] = dict()
+                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+
+                                if "local_subnet" in node:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["local_subnet"]
+
+                                if "outside_subnet" in node:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
+
+                                if nic_setup == "ingress_egress_gw":
+                                    if "inside_subnet" not in node:
+                                        print(site, nic_setup)
+                                        pp = pprint.PrettyPrinter()
+                                        pp.pprint(node)
+
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
+                    """
 
         return self.data
 
