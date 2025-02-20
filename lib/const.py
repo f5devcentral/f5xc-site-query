@@ -15,6 +15,7 @@ URI_F5XC_SITE_AWS_TGW = "/config/namespaces/{namespace}/aws_tgw_sites/{name}"
 URI_F5XC_SITE_GCP_VPC = "/config/namespaces/{namespace}/gcp_vpc_sites/{name}"
 URI_F5XC_VIRTUAL_SITE = "/config/namespaces/{namespace}/virtual_sites/{name}"
 URI_F5XC_ORIGIN_POOLS = "/config/namespaces/{namespace}/origin_pools"
+URI_F5XC_VIRTUAL_SITES = "/config/namespaces/{namespace}/virtual_sites"
 URI_F5XC_CLOUD_CONNECT = "/config/namespaces/{namespace}/cloud_connects/{name}"
 URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
 URI_F5XC_SITE_VOLT_STACK = "/config/namespaces/{namespace}/voltstack_sites/{name}"
@@ -45,7 +46,7 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 #
 # Site query
 #
-API_PROCESSORS = ["site", "lb", "proxy", "originpool", "bgp", "smg"]
+API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg"]
 PROCESSOR_PACKAGE = "lib.processor"
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"

@@ -8,8 +8,6 @@ import lib.const as c
 from lib.processor.base import Base
 
 
-URL_TYPE = None
-
 class Site(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         """
@@ -49,23 +47,6 @@ class Site(Base):
 
                 for processor in c.SITE_OBJECT_PROCESSORS:
                     getattr(self, f"process_{processor}")()
-
-            """
-            sites_with_origin_pools_only = []
-            
-            for site_name, site_data in self.data['site'].items():
-                if "namespaces" in site_data.keys():
-                    for n_name, n_data in site_data['namespaces'].items():
-                        # Check if the site has origin pools only
-                        if len(n_data.keys()) == 1 and 'origin_pools' in n_data.keys():
-                            sites_with_origin_pools_only.append(site_name)
-
-            self.data["sites_with_origin_pools_only"] = sites_with_origin_pools_only
-            self.logger.info(f"process sites <{len(sites_with_origin_pools_only)}> sites with origin pools only")
-
-            self.data["orphaned_sites"] = [k for k, v in self.data['site'].items() if 'labels' not in v.keys()]
-            self.logger.info(f"process sites <{len(self.data['orphaned_sites'])}> sites without labels (orphaned)")
-            """
 
             return self.data
 
@@ -158,6 +139,87 @@ class Site(Base):
             self.data['failed'] = failed
 
         return self.data
+    """
+    def process_virtual_site(self) -> dict | None:
+        # Stores site urls build from URI_F5XC_SITE
+        urls = dict()
+        # Stores sites with failed state
+        failed = dict()
+        # Build urls for site
+
+        _virtual_sites = self.get(self.build_url(c.URI_F5XC_SITE.format(namespace="shared")))
+
+        for virtual_site in _virtual_sites:
+            urls[self.build_url(c.URI_F5XC_SITE.format(namespace="system", name=site['name']))] = site['name']
+
+        _sites = self.execute(name="general site details", urls=urls)
+        for site in _sites:
+            if site['data']['system_metadata']["owner_view"]:
+                if site['data']['system_metadata']["owner_view"]["kind"]:
+
+                    def get_site_status(site_kind: str = None) -> (bool, str):
+                        
+
+                        if site_kind == c.F5XC_SITE_TYPE_SMS_V1 or site_kind == c.F5XC_SITE_TYPE_SMS_V2:
+                            if site["data"]["spec"]["site_state"] == "ONLINE":
+                                return True, site["data"]["spec"]["site_state"]
+                            else:
+                                failed[site['data']['metadata']['name']] = site["data"]["spec"]["site_state"]
+                                return False, site["data"]["spec"]["site_state"]
+                        else:
+                            for _state in site["data"]["status"]:
+                                if "deployment" in _state:
+                                    if _state["deployment"]:
+                                        if _state["deployment"]["apply_status"]:
+                                            if "apply_state" in _state["deployment"]["apply_status"]:
+                                                if _state["deployment"]["apply_status"]["apply_state"] == "APPLIED":
+                                                    return True, _state["deployment"]["apply_status"]["apply_state"]
+                                                else:
+                                                    failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["apply_state"]
+                                                    return False, _state["deployment"]["apply_status"]["apply_state"]
+
+                                            elif "infra_state" in _state["deployment"]["apply_status"]:
+                                                if _state["deployment"]["apply_status"]["infra_state"] == "APPLIED":
+                                                    return True, _state["deployment"]["apply_status"]["infra_state"]
+                                                else:
+                                                    failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["infra_state"]
+                                                    return False, _state["deployment"]["apply_status"]["infra_state"]
+
+                                            elif "destroy_state" in _state["deployment"]["apply_status"]:
+                                                if _state["deployment"]["apply_status"]["destroy_state"] == "DESTROYED":
+                                                    return True, _state["deployment"]["apply_status"]["destroy_state"]
+                                                else:
+                                                    failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["destroy_state"]
+                                                    return False, _state["deployment"]["apply_status"]["destroy_state"]
+
+                            failed[site['data']['metadata']['name']] = None
+                            return False, None
+
+                    # Process sites which state is True aka "APPLIED"
+                    state, msg = get_site_status(site_kind=site['data']['system_metadata']['owner_view']["kind"])
+
+                    if state:
+                        self.data['site'][site["site"]] = dict()
+                        self.data['site'][site["site"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
+                        self.data['site'][site["site"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
+                        self.data['site'][site["site"]]['metadata'] = site['data']['metadata']
+                        self.data['site'][site["site"]]['spec'] = site['data']['spec']
+
+                        if site['site'] in self.data['site']:
+                            self.logger.info(f"process sites add label information to site {site['site']}")
+                            self.data['site'][site["site"]]['labels'] = site['data']['metadata']['labels']
+            else:
+                if "untyped" not in self.data:
+                    self.data['untyped'] = list()
+
+                self.data["untyped"].append(site['data']["metadata"]["name"])
+
+        # Add failed site dict to data
+        if "failed" not in self.data:
+            self.data['failed'] = failed
+
+        return self.data
+    """
 
     def process_site_details(self) -> dict | None:
         """
