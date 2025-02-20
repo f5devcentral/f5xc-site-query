@@ -9,20 +9,31 @@ from lib.processor.base import Base
 
 
 class Proxy(Base):
-    def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
-        super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
-        self.lbs = list()
-        self._proxies = list()
+    def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
+        """
 
-    @property
-    def proxies(self):
-        return self._proxies
+        :param session:
+        :param api_url:
+        :param data:
+        :param site:
+        :param workers:
+        :param logger:
+        """
+
+        super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
+
+        for namespace in self.data["namespaces"]:
+            self.urls.append(self.build_url(c.URI_F5XC_PROXIES.format(namespace=namespace)))
+
+        self.logger.debug("PROXY_URLS: %s", self.urls)
 
     def run(self) -> dict:
         """
         Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
         :return: structure with proxies information being added
         """
+
+        proxies = list()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             self.logger.info("Prepare proxies query...")
@@ -35,7 +46,7 @@ class Proxy(Base):
                 except Exception as exc:
                     self.logger.info('%r generated an exception: %s' % (_data, exc))
                 else:
-                    self.proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+                    proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
 
         def process():
             try:
@@ -65,7 +76,7 @@ class Proxy(Base):
 
         urls = list()
 
-        for item in self.proxies:
+        for item in proxies:
             for url, proxies in item.items():
                 for proxy in proxies:
                     _url = "{}/{}".format(url, proxy['name'])
@@ -100,12 +111,14 @@ class Proxy(Base):
                             else:
                                 for site_type in site_info.keys():
                                     if site_type in c.F5XC_SITE_TYPES:
-                                        if self.site:
-                                            if self.site == site_info[site_type][site_type]['name']:
-                                                self.must_break = True
+                                        # Not processing sites which are in failed state
+                                        if site_info[site_type][site_type]['name'] not in self.data["failed"]:
+                                            if self.site:
+                                                if self.site == site_info[site_type][site_type]['name']:
+                                                    self.must_break = True
+                                                    process()
+                                                    break
+                                            else:
                                                 process()
-                                                break
-                                        else:
-                                            process()
 
         return self.data

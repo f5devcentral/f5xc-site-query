@@ -7,10 +7,20 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+URL_TYPE = None
 
 class SiteMeshGroup(Base):
-    def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
-        super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
+    def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
+        """
+
+        :param session:
+        :param api_url:
+        :param data:
+        :param site:
+        :param workers:
+        :param logger:
+        """
+        super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
 
     def run(self) -> dict | None:
         """
@@ -18,7 +28,6 @@ class SiteMeshGroup(Base):
         :return: structure with site mesh group information being added
         """
 
-        pp = pprint.PrettyPrinter()
         urls_smg = dict()
         urls_vs = dict()
 

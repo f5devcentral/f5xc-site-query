@@ -8,9 +8,20 @@ import lib.const as c
 from lib.processor.base import Base
 
 
+URL_TYPE = None
+
 class Site(Base):
-    def __init__(self, session: Session = None, api_url: str = None, urls: list = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
-        super().__init__(session=session, api_url=api_url, urls=urls, data=data, site=site, workers=workers, logger=logger)
+    def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
+        """
+
+        :param session:
+        :param api_url:
+        :param data:
+        :param site:
+        :param workers:
+        :param logger:
+        """
+        super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
 
     def run(self) -> dict | None:
         """
@@ -78,41 +89,54 @@ class Site(Base):
             if site['data']['system_metadata']["owner_view"]:
                 if site['data']['system_metadata']["owner_view"]["kind"]:
 
-                    def get_site_status() -> (bool, str):
+                    def get_site_status(site_kind: str = None) -> (bool, str):
                         """
-                        Get site state. If site state not "APPLIED" add site to failed site list
-                        APPLY_ERRORED, DESTROY_ERRORED,TIMED_OUT, ...
-                        :return: Tuple (if state is APPLIED return True else False, site state string)
+                        Get site state according to the site kind. SecureMesh object based sites expose site state in 'site_state' variable below spec key
+                        Whereas legacy object based sites expose site state below 'status' key.
+                        If site state not "ONLINE" for SecureMesh object based sites and "APPLIED" for legacy object based sites add site to failed site list
+                        Error states: APPLY_ERRORED, DESTROY_ERRORED,TIMED_OUT, ...
+                        :param site_kind: Site kind is used to determine if SecureMesh object based site or legacy object based site
+                        :return: Tuple (if state is APPLIED or ONLINE return True else False, site state string)
                         """
-                        for _state in site["data"]["status"]:
-                            if "deployment" in _state:
-                                if _state["deployment"]:
-                                    if _state["deployment"]["apply_status"]:
-                                        if "apply_state" in _state["deployment"]["apply_status"]:
-                                            if _state["deployment"]["apply_status"]["apply_state"] == "APPLIED":
-                                                return True, _state["deployment"]["apply_status"]["apply_state"]
-                                            else:
-                                                failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["apply_state"]
-                                                return False, _state["deployment"]["apply_status"]["apply_state"]
 
-                                        elif "infra_state" in _state["deployment"]["apply_status"]:
-                                            if _state["deployment"]["apply_status"]["infra_state"] == "APPLIED":
-                                                return True, _state["deployment"]["apply_status"]["infra_state"]
-                                            else:
-                                                failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["infra_state"]
-                                                return False, _state["deployment"]["apply_status"]["infra_state"]
+                        if site_kind == c.F5XC_SITE_TYPE_SMS_V1 or site_kind == c.F5XC_SITE_TYPE_SMS_V2:
+                            if site["data"]["spec"]["site_state"] == "ONLINE":
+                                return True, site["data"]["spec"]["site_state"]
+                            else:
+                                failed[site['data']['metadata']['name']] = site["data"]["spec"]["site_state"]
+                                return False, site["data"]["spec"]["site_state"]
+                        else:
+                            for _state in site["data"]["status"]:
+                                if "deployment" in _state:
+                                    if _state["deployment"]:
+                                        if _state["deployment"]["apply_status"]:
+                                            if "apply_state" in _state["deployment"]["apply_status"]:
+                                                if _state["deployment"]["apply_status"]["apply_state"] == "APPLIED":
+                                                    return True, _state["deployment"]["apply_status"]["apply_state"]
+                                                else:
+                                                    failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["apply_state"]
+                                                    return False, _state["deployment"]["apply_status"]["apply_state"]
 
-                                        elif "destroy_state" in _state["deployment"]["apply_status"]:
-                                            if _state["deployment"]["apply_status"]["destroy_state"] == "DESTROYED":
-                                                return True, _state["deployment"]["apply_status"]["destroy_state"]
-                                            else:
-                                                failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["destroy_state"]
-                                                return False, _state["deployment"]["apply_status"]["destroy_state"]
+                                            elif "infra_state" in _state["deployment"]["apply_status"]:
+                                                if _state["deployment"]["apply_status"]["infra_state"] == "APPLIED":
+                                                    return True, _state["deployment"]["apply_status"]["infra_state"]
+                                                else:
+                                                    failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["infra_state"]
+                                                    return False, _state["deployment"]["apply_status"]["infra_state"]
 
-                        return False, None
+                                            elif "destroy_state" in _state["deployment"]["apply_status"]:
+                                                if _state["deployment"]["apply_status"]["destroy_state"] == "DESTROYED":
+                                                    return True, _state["deployment"]["apply_status"]["destroy_state"]
+                                                else:
+                                                    failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["destroy_state"]
+                                                    return False, _state["deployment"]["apply_status"]["destroy_state"]
+
+                            failed[site['data']['metadata']['name']] = None
+                            return False, None
 
                     # Process sites which state is True aka "APPLIED"
-                    state, msg = get_site_status()
+                    state, msg = get_site_status(site_kind=site['data']['system_metadata']['owner_view']["kind"])
+                    #print(state, msg)
                     if state:
                         self.data['site'][site["site"]] = dict()
                         self.data['site'][site["site"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
@@ -447,8 +471,6 @@ class Site(Base):
             elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                 if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
                     if "tgw_info" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
-                        print("we should add interface info for tgw")
-                        print(site)
                         # TGW is always multi NIC hence no nic_setup check
                         for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["aws_parameters"]["az_nodes"]):
                             if "nodes" not in self.data['site'][site]:
