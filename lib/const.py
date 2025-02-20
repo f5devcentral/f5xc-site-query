@@ -50,7 +50,7 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "node_interfaces"] #, "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
+SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,
