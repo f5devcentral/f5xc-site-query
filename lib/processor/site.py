@@ -136,7 +136,7 @@ class Site(Base):
 
                     # Process sites which state is True aka "APPLIED"
                     state, msg = get_site_status(site_kind=site['data']['system_metadata']['owner_view']["kind"])
-                    #print(state, msg)
+
                     if state:
                         self.data['site'][site["site"]] = dict()
                         self.data['site'][site["site"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]

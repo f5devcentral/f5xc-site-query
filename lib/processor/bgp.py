@@ -86,7 +86,7 @@ class Bgp(Base):
                                         break
                                     else:
                                         if site_type in c.F5XC_SITE_TYPES:
-                                            # Not processing sites which are in failed state
+                                            # Only processing sites which are not in failed state
                                             if r['spec']['where'][site_type]["ref"][0]['name'] not in self.data["failed"]:
                                                 if self.site:
                                                     if self.site == r['spec']['where'][site_type]["ref"][0]['name']:

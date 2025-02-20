@@ -125,14 +125,16 @@ class Originpool(Base):
                                             site_name = site_data.get('name')
 
                                             if site_name:
-                                                # Not processing sites which are in failed state
-                                                if site_name not in self.data["failed"]:
-                                                    if self.site:
-                                                        if self.site == site_name:
-                                                            self.must_break = True
+                                                # Referenced site must exist
+                                                if site_name in self.data[site_type]:
+                                                    # Only processing sites which are not in failed state
+                                                    if site_name not in self.data["failed"]:
+                                                        if self.site:
+                                                            if self.site == site_name:
+                                                                self.must_break = True
+                                                                process()
+                                                                break
+                                                        else:
                                                             process()
-                                                            break
-                                                    else:
-                                                        process()
 
         return self.data
