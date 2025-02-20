@@ -93,7 +93,6 @@ class Site(Base):
                                             if _state["deployment"]["apply_status"]["apply_state"] == "APPLIED":
                                                 return True, _state["deployment"]["apply_status"]["apply_state"]
                                             else:
-                                                print(_state["deployment"]["apply_status"]["apply_state"])
                                                 failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["apply_state"]
                                                 return False, _state["deployment"]["apply_status"]["apply_state"]
 
@@ -101,7 +100,6 @@ class Site(Base):
                                             if _state["deployment"]["apply_status"]["infra_state"] == "APPLIED":
                                                 return True, _state["deployment"]["apply_status"]["infra_state"]
                                             else:
-                                                print(_state["deployment"]["apply_status"]["infra_state"])
                                                 failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["infra_state"]
                                                 return False, _state["deployment"]["apply_status"]["infra_state"]
 
@@ -109,7 +107,6 @@ class Site(Base):
                                             if _state["deployment"]["apply_status"]["destroy_state"] == "DESTROYED":
                                                 return True, _state["deployment"]["apply_status"]["destroy_state"]
                                             else:
-                                                print(_state["deployment"]["apply_status"]["destroy_state"])
                                                 failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["destroy_state"]
                                                 return False, _state["deployment"]["apply_status"]["destroy_state"]
 
@@ -136,8 +133,6 @@ class Site(Base):
         # Add failed site dict to data
         if "failed" not in self.data:
             self.data['failed'] = failed
-
-        print("failed:", self.data['failed'])
 
         return self.data
 
@@ -455,14 +450,43 @@ class Site(Base):
                 if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
                     if "tgw_info" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
                         print("we should add interface info for tgw")
+                        print(site)
+                        # TGW is always multi NIC hence no nic_setup check
+                        for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["aws_parameters"]["az_nodes"]):
+                            if "nodes" not in self.data['site'][site]:
+                                self.data['site'][site]['nodes'] = dict()
+                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+
+                                if "outside_subnet" in node:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
+
+                                if "workload_subnet" in node:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
+
+                elif self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_GCP_VPC:
+                    nic_setup = self.get_site_nic_mode(site=site)
+                    if nic_setup:
+                        for idx in range(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["node_number"]):
+                            if "nodes" not in self.data['site'][site]:
+                                self.data['site'][site]['nodes'] = dict()
+                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+
+                            if "inside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_network"]
+                                if "inside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_subnet"]
+
+                            if "outside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_network"]
+                                if "outside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_subnet"]
                 else:
                     # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
                     nic_setup = self.get_site_nic_mode(site=site)
-
-                    """
                     if nic_setup:
                         for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
-
                             if "nodes" not in self.data['site'][site]:
                                 self.data['site'][site]['nodes'] = dict()
                                 self.data['site'][site]['nodes'][f"node{idx}"] = dict()
@@ -475,13 +499,11 @@ class Site(Base):
                                     self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
 
                                 if nic_setup == "ingress_egress_gw":
-                                    if "inside_subnet" not in node:
-                                        print(site, nic_setup)
-                                        pp = pprint.PrettyPrinter()
-                                        pp.pprint(node)
+                                    if "inside_subnet" in node:
+                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
+                                    elif "workload_subnet" in node:
+                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
-                    """
 
         return self.data
 
