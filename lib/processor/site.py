@@ -1,6 +1,5 @@
 import concurrent.futures
 import json
-import pprint
 from logging import Logger
 
 from requests import Session
@@ -65,7 +64,7 @@ class Site(Base):
         Details including for instance enhanced firewall policies, network interfaces, etc.
         :return: structure with label information being added
         """
-        pp = pprint.PrettyPrinter()
+
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
         # Stores sites with failed state
@@ -143,7 +142,6 @@ class Site(Base):
         :return: structure with label information being added
         """
 
-        pp = pprint.PrettyPrinter()
         # Stores site urls build from URI_F5XC_SITE
         urls = dict()
 
@@ -250,7 +248,7 @@ class Site(Base):
         Process Secure Mesh site forward proxy policy details and add data to specific site.
         :return: structure with label information being added
         """
-        pp = pprint.PrettyPrinter()
+
         # Build forward proxy policy urls for given site
         urls = dict()
 
@@ -503,7 +501,6 @@ class Site(Base):
                                         self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
                                     elif "workload_subnet" in node:
                                         self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
-
 
         return self.data
 

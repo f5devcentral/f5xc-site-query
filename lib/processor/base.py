@@ -1,10 +1,11 @@
 import concurrent.futures
-import lib.const as c
 from abc import abstractmethod
 from logging import Logger
 from typing import Any
 
 from requests import Response, Session
+
+import lib.const as c
 
 
 class Base(object):

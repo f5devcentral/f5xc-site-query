@@ -1,7 +1,6 @@
 #
 # URIs
 #
-
 URI_F5XC_BGP = "/config/namespaces/{namespace}/bgps/{name}"
 URI_F5XC_BGPS = "/config/namespaces/{namespace}/bgps"
 URI_F5XC_SITE = "/config/namespaces/{namespace}/sites/{name}"
@@ -30,7 +29,6 @@ URI_F5XC_FORWARD_PROXY_POLICY = "/config/namespaces/{namespace}/forward_proxy_po
 #
 # F5XC objects
 #
-
 F5XC_SITE_TYPES = ["site", "virtual_site"]  # "virtual_site_with_vip"
 F5XC_SITE_VOLT_STACK = "voltstack_site"
 F5XC_SITE_TYPE_SMS_V1 = "securemesh_site"
@@ -47,7 +45,7 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 #
 # Site query
 #
-
+API_PROCESSORS = ["site", "lb"]
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
 SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
