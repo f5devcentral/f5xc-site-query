@@ -55,6 +55,7 @@ class Proxy(Base):
                 namespace = r["metadata"]["namespace"]
                 if site_name not in self.data[site_type].keys():
                     self.data[site_type][site_name] = dict()
+                if "namespaces" not in self.data[site_type][site_name]:
                     self.data[site_type][site_name]['namespaces'] = dict()
                 if namespace not in self.data[site_type][site_name]['namespaces'].keys():
                     self.data[site_type][site_name]['namespaces'][namespace] = dict()
