@@ -139,14 +139,16 @@ class Lb(Base):
                                 else:
                                     for site_type in site_info.keys():
                                         if site_type in c.F5XC_SITE_TYPES:
-                                            # Not processing sites which are in failed state
-                                            if site_info[site_type][site_type]['name'] not in self.data["failed"]:
-                                                if self.site:
-                                                    if self.site == site_info[site_type][site_type]['name']:
-                                                        self.must_break = True
+                                            # Referenced site must exist
+                                            if site_info[site_type][site_type]['name'] in self.data[site_type]:
+                                                # Only processing sites which are not in failed state
+                                                if site_info[site_type][site_type]['name'] not in self.data["failed"]:
+                                                    if self.site:
+                                                        if self.site == site_info[site_type][site_type]['name']:
+                                                            self.must_break = True
+                                                            process()
+                                                            break
+                                                    else:
                                                         process()
-                                                        break
-                                                else:
-                                                    process()
 
         return self.data

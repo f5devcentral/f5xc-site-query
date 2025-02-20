@@ -76,7 +76,7 @@ class SiteMeshGroup(Base):
 
                 if "smg" not in self.data["site"][site].keys():
                     self.data["site"][site]["smg"] = dict()
-                #Add secure mesh site to site data
+                # Add secure mesh site to site data
                 # If secure mesh site virtual site name is in list of virtual sites this site is a member of
                 for smg in site_mesh_groups:
                     if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:

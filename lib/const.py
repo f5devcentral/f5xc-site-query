@@ -45,7 +45,7 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 #
 # Site query
 #
-API_PROCESSORS = ["site", "lb", "proxy", "originPool"]
+API_PROCESSORS = ["site", "lb", "proxy", "originpool", "bgp"]
 PROCESSOR_PACKAGE = "lib.processor"
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
