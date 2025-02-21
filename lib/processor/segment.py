@@ -31,7 +31,7 @@ class Segment(Base):
         def process():
             try:
                 for site in self.data["site"]:
-                    if site == site_name:
+                    if site == attachment["site"]:
                         segment_name = segment["data"]["metadata"]["name"]
                         if 'segment' not in self.data["site"][site].keys():
                             self.data["site"][site]["segments"] = dict()
@@ -69,15 +69,14 @@ class Segment(Base):
                     if self.must_break:
                         break
                     else:
-                        for attachment in segment["data"]["spec"]["attachments"]:
-                            site_name = attachment["site"]
+                        for idx, attachment in enumerate(segment["data"]["spec"]["attachments"]):
 
                             # Referenced site must exist
-                            if site_name in self.data["site"]:
+                            if attachment["site"] in self.data["site"]:
                                 # Only processing sites which are not in failed state
-                                if site_name not in self.data["failed"]:
+                                if attachment["site"] not in self.data["failed"]:
                                     if self.site:
-                                        if self.site == site_name:
+                                        if self.site == attachment["site"]:
                                             self.must_break = True
                                             process()
                                             break
