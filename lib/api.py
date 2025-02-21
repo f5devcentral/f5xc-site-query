@@ -76,8 +76,7 @@ class Api(object):
             if response:
                 self.logger.debug(json.dumps(response.json(), indent=2))
                 namespaces = response.json()
-                self._data['namespaces'] = list()
-                self._data['namespaces'].append([item['name'] for item in namespaces['items']])
+                self._data['namespaces'] = [item['name'] for item in namespaces['items']]
                 self.logger.info(f"Processing {len(self.data['namespaces'])} available namespaces")
             else:
                 sys.exit(1)
@@ -88,7 +87,7 @@ class Api(object):
 
             if response:
                 self.logger.debug(json.dumps(response.json(), indent=2))
-                self.data['namespaces'].append(namespace)
+                self._data['namespaces'] = [namespace]
             else:
                 sys.exit(1)
 
