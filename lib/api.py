@@ -56,7 +56,9 @@ class Api(object):
         """
 
         self._logger = _logger
-        self._data = {key: dict() for key in c.F5XC_SITE_TYPES}
+        self._data = dict()
+        for key in c.F5XC_SITE_TYPES:
+            self._data[key] = dict()
         self._api_url = api_url
         self._api_token = api_token
         self._site = site
@@ -73,8 +75,9 @@ class Api(object):
 
             if response:
                 self.logger.debug(json.dumps(response.json(), indent=2))
-                json_items = response.json()
-                self.data['namespaces'] = [item['name'] for item in json_items['items']]
+                namespaces = response.json()
+                self._data['namespaces'] = list()
+                self._data['namespaces'].append([item['name'] for item in namespaces['items']])
                 self.logger.info(f"Processing {len(self.data['namespaces'])} available namespaces")
             else:
                 sys.exit(1)
@@ -85,7 +88,7 @@ class Api(object):
 
             if response:
                 self.logger.debug(json.dumps(response.json(), indent=2))
-                self.data['namespaces'] = [namespace]
+                self.data['namespaces'].append(namespace)
             else:
                 sys.exit(1)
 
@@ -263,9 +266,6 @@ class Api(object):
             _processor = getattr(package, processor.capitalize())(session=self.session, api_url=self.api_url, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
             _processors[processor] = _processor
             _processor.run()
-
-        # site_mesh_group = SiteMeshGroup(session=self.session, api_url=self.api_url, urls=None, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-        # site_mesh_group.run()
 
         return self.data
 
