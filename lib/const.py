@@ -18,6 +18,7 @@ URI_F5XC_ORIGIN_POOLS = "/config/namespaces/{namespace}/origin_pools"
 URI_F5XC_VIRTUAL_SITES = "/config/namespaces/{namespace}/virtual_sites"
 URI_F5XC_CLOUD_CONNECT = "/config/namespaces/{namespace}/cloud_connects/{name}"
 URI_F5XC_LOAD_BALANCER = "/config/namespaces/{namespace}/{lb_type}"
+URI_F5XC_CLOUD_CONNECTS = "/config/namespaces/{namespace}/cloud_connects"
 URI_F5XC_SITE_VOLT_STACK = "/config/namespaces/{namespace}/voltstack_sites/{name}"
 URI_F5XC_SITE_AZURE_VNET = "/config/namespaces/{namespace}/azure_vnet_sites/{name}"
 URI_F5XC_SITE_MESH_GROUP = "/config/namespaces/{namespace}/site_mesh_groups/{name}"
@@ -39,18 +40,21 @@ F5XC_SITE_TYPE_AWS_TGW = "aws_tgw_site"
 F5XC_SITE_TYPE_GCP_VPC = "gcp_vpc_site"
 F5XC_SITE_TYPE_AZURE_VNET = "azure_vnet_site"
 F5XC_NODE_PRIMARY = "k8s-master-primary"
+F5XC_NAMESPACE_SYSTEM = "system"
+F5XC_NAMESPACE_SHARED = "shared"
 F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers", "udp_loadbalancers"]
 F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'private_name']
+F5XC_CLOUD_CONNECT_TYPES = ["azure_vnet_site", "aws_tgw_site"]
 F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 
 #
 # Site query
 #
-API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg"]
+API_PROCESSORS = ["site", "cloudconnect"]  # "vs", "lb", "proxy", "originpool", "bgp", "smg"
 PROCESSOR_PACKAGE = "lib.processor"
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
+SITE_OBJECT_PROCESSORS = ["site_details", "node_interfaces", "hw_info"]  # "efp", "fpp", "dc_cluster_group",
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,

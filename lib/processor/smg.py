@@ -30,17 +30,17 @@ class Smg(Base):
         urls_smg = dict()
         urls_vs = dict()
 
-        _smgs = self.get(self.build_url(c.URI_F5XC_SITE_MESH_GROUPS.format(namespace="system")))
+        _smgs = self.get(self.build_url(c.URI_F5XC_SITE_MESH_GROUPS.format(namespace=c.F5XC_NAMESPACE_SYSTEM)))
 
         if _smgs:
             self.logger.debug(json.dumps(_smgs.json(), indent=2))
 
             for smg in _smgs.json()['items']:
-                urls_smg[self.build_url(c.URI_F5XC_SITE_MESH_GROUP.format(namespace="system", name=smg['name']))] = smg['name']
+                urls_smg[self.build_url(c.URI_F5XC_SITE_MESH_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=smg['name']))] = smg['name']
 
             site_mesh_groups = self.execute(name="site mesh group", urls=urls_smg)
             for smg in site_mesh_groups:
-                urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace="shared", name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata']['name']
+                urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=c.F5XC_NAMESPACE_SHARED, name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata']['name']
 
             # Remove virtual sites without 'site_selector' key
             virtual_sites = [vs for vs in self.execute(name="virtual site", urls=urls_vs) if 'site_selector' in vs['data']['spec']]

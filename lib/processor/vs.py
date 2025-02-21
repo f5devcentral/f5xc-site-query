@@ -28,8 +28,8 @@ class Vs(Base):
         :return: structure with virtual sites information being added
         """
 
-        self.logger.info(f"process virtual sites get all virtual sites from {self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace="shared"))}")
-        _virtual_sites = self.get(self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace="shared")))
+        self.logger.info(f"process virtual sites get all virtual sites from {self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace=c.F5XC_NAMESPACE_SHARED))}")
+        _virtual_sites = self.get(self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace=c.F5XC_NAMESPACE_SHARED)))
 
         if _virtual_sites:
             self.logger.debug(json.dumps(_virtual_sites.json(), indent=2))
@@ -40,7 +40,7 @@ class Vs(Base):
                 urls = dict()
                 # Build urls for site
                 for vs in virtual_sites:
-                    urls[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace="shared", name=vs['name']))] = vs['name']
+                    urls[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=c.F5XC_NAMESPACE_SHARED, name=vs['name']))] = vs['name']
 
                 _virtual_sites = self.execute(name="virtual site details", urls=urls)
                 for vs in _virtual_sites:

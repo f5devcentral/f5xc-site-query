@@ -111,7 +111,7 @@ class Base(object):
                 else:
                     self.logger.info(f"process {name} got item: {future_to_ds[future]} ...")
                     if data:
-                        resp.append({"site": urls[future_to_ds[future]], "data": data.json()})
+                        resp.append({"object": urls[future_to_ds[future]], "data": data.json()})
 
             return resp
 
