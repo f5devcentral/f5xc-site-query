@@ -7,8 +7,6 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
-URL_TYPE = None
-
 
 class Bgp(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
@@ -51,8 +49,8 @@ class Bgp(Base):
                 self.logger.info("system_metadata:", r['system_metadata'])
                 self.logger.info("Exception:", e)
 
-        self.logger.info(f"process bpg get all bgp objects from {self.build_url(c.URI_F5XC_BGPS).format(namespace="system")}")
-        _bgps = self.get(self.build_url(c.URI_F5XC_BGPS).format(namespace="system"))
+        self.logger.info(f"process bpg get all bgp objects from {self.build_url(c.URI_F5XC_BGPS).format(namespace=c.F5XC_NAMESPACE_SYSTEM)}")
+        _bgps = self.get(self.build_url(c.URI_F5XC_BGPS).format(namespace=c.F5XC_NAMESPACE_SYSTEM))
 
         if _bgps:
             self.logger.debug(json.dumps(_bgps.json(), indent=2))
@@ -60,7 +58,7 @@ class Bgp(Base):
             urls = dict()
 
             for bgp in bgps:
-                urls[self.build_url(c.URI_F5XC_BGP.format(namespace="system", name=bgp['name']))] = bgp['name']
+                urls[self.build_url(c.URI_F5XC_BGP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=bgp['name']))] = bgp['name']
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
                 self.logger.info("Prepare bgp query...")
