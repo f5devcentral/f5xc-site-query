@@ -48,7 +48,7 @@ class Cloudconnect(Base):
                 self.logger.info("system_metadata:", cloud_connector["data"]['system_metadata'])
                 self.logger.info("Exception:", e)
 
-        self.logger.info(f"process bpg get all cloud connect objects from {self.build_url(c.URI_F5XC_CLOUD_CONNECTS).format(namespace=c.F5XC_NAMESPACE_SYSTEM)}")
+        self.logger.info(f"process cloud connect objects get all cloud connect objects from {self.build_url(c.URI_F5XC_CLOUD_CONNECTS).format(namespace=c.F5XC_NAMESPACE_SYSTEM)}")
         _ccs = self.get(self.build_url(c.URI_F5XC_CLOUD_CONNECTS).format(namespace=c.F5XC_NAMESPACE_SYSTEM))
 
         if _ccs:
