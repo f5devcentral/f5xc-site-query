@@ -1,5 +1,6 @@
 import concurrent.futures
 import json
+import pprint
 from logging import Logger
 
 from requests import Session
@@ -139,7 +140,7 @@ class Site(Base):
             self.data['failed'] = failed
 
         return self.data
-   
+
     def process_site_details(self) -> dict | None:
         """
         Get site type specific details and add data to site data.
@@ -239,13 +240,13 @@ class Site(Base):
             efps = self.execute(name="enhanced firewall policy details", urls=urls)
 
             for efp in efps:
-                if efp["site"] in self.data['site']:
-                    if "efp" not in self.data['site'][efp["site"]]:
-                        self.data['site'][efp["site"]]['efp'] = dict()
+                if efp["object"] in self.data['site']:
+                    if "efp" not in self.data['site'][efp["object"]]:
+                        self.data['site'][efp["object"]]['efp'] = dict()
 
-                    self.data['site'][efp["site"]]['efp'][efp['data']['metadata']['name']] = dict()
-                    self.data['site'][efp["site"]]['efp'][efp['data']['metadata']['name']]['metadata'] = efp['data']['metadata']
-                    self.data['site'][efp["site"]]['efp'][efp['data']['metadata']['name']]['spec'] = efp['data']['spec']
+                    self.data['site'][efp["object"]]['efp'][efp['data']['metadata']['name']] = dict()
+                    self.data['site'][efp["object"]]['efp'][efp['data']['metadata']['name']]['metadata'] = efp['data']['metadata']
+                    self.data['site'][efp["object"]]['efp'][efp['data']['metadata']['name']]['spec'] = efp['data']['spec']
 
         return self.data
 
@@ -424,6 +425,35 @@ class Site(Base):
                                 self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
                                 self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
                                 self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
+
+        return self.data
+
+    def process_cloudlink(self) -> dict | None:
+        """
+        Process cloudlink details and add data to specific site.
+        Processing cloudlink is part of processing site object since site object provided ref to cloudlink group object.
+        :return: structure with cloudlink information being added
+        """
+        for site, values in self.data['site'].items():
+            if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                pass
+
+        return self.data
+
+    def process_spokes(self) -> dict | None:
+        for site, values in self.data['site'].items():
+            if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
+                if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                    if "vpc_attachments" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                        if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]:
+                            if "vpc_list" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]:
+                                if len(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]["vpc_list"]) > 0:
+                                    self.data['site'][site]["spoke"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]
+                elif self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
+                    nic_setup = self.get_site_nic_mode(site=site)
+                    if nic_setup:
+                        if "hub" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                            self.data['site'][site]["spoke"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["hub"]
 
         return self.data
 
