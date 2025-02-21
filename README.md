@@ -1,4 +1,4 @@
-# f5xc-site-query concurrent version
+# f5xc-site-query
 
 ## Overview
 
@@ -8,27 +8,71 @@ Helper tool get-sites.py queries application objects (HTTP and TCP Load Balancer
 The generated get-sites.json file helps to answer questions like
 
 a) What application objects are assigned to a site or virtual site and in what namespace
-
 b) Who created an application object
-
 c) Are there sites that only serve origin pools
-
 d) Are there application objects assigned to non-existent sites
 
 ## Requirements
 
-- Python >= 3.13
+| Name                                                                              | Version  |
+|-----------------------------------------------------------------------------------|----------|
+|                                                                                   |          |
+| <a name="requirement_python"></a> [python](https://www.python.org/downloads/)     | \>= 3.13 |
+| <a name="requirement_git"></a> [git](https://git-scm.com/)                        | \>= 8.0  |
+| <a name="requirement_pipx"></a> [pipx](https://pipx.pypa.io/stable/installation/) | latest   |
+
+### OS Platform
+
+| Name            | Status      |
+|-----------------|-------------|
+| Linux           | supported   |
+| Mac OS (Sonoma) | supported   |
+| Windows         | unsupported |
 
 ## Installation
 
-1. Create a Python Virtual Environment:
-   `python3 -m venv myenv`
+- Check python version
 
-2. Source the new environment:
-   `source myenv/bin/activate`
+```bash
+python3 --version
+--> Python 3.13.1
+```
 
-3. Install required python modules:
-   `python3 -m pip install -r requirements.txt`
+- Clone repository
+
+```bash
+git clone https://github.com/f5devcentral/f5xc-site-query
+```
+
+- Install pipx
+
+```bash
+python3 -m pip install pipx-in-pipx --user
+```
+
+- Install poetry
+
+```bash
+pipx install poetry
+```
+
+- Create a Python Virtual Environment:
+
+```bash
+python3 -m venv myenv
+```
+
+- Source the new environment:
+
+```bash
+source myenv/bin/activate
+```
+
+- Install required python modules:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
 
 ## Credentials
 
