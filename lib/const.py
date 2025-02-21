@@ -54,7 +54,7 @@ API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg", "clou
 PROCESSOR_PACKAGE = "lib.processor"
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-SITE_OBJECT_PROCESSORS = ["site_details", "node_interfaces", "hw_info"]  # "efp", "fpp", "dc_cluster_group",
+SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "node_interfaces", "hw_info"]
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,

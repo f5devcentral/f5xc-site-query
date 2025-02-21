@@ -199,6 +199,7 @@ class Site(Base):
     def process_efp(self) -> dict | None:
         """
         Process enhanced firewall policies details and add data to specific site.
+        Processing efp is part of site object since site object provided ref to efp object.
         :return: structure with label information being added
         """
 
@@ -251,6 +252,7 @@ class Site(Base):
     def process_fpp(self) -> dict | None:
         """
         Process Secure Mesh site forward proxy policy details and add data to specific site.
+        Processing fpp is part of site object since site object provided ref to fpp object.
         :return: structure with label information being added
         """
 
@@ -319,6 +321,7 @@ class Site(Base):
     def process_dc_cluster_group(self) -> dict | None:
         """
         Process dc cluster group details and add data to specific site.
+        Processing dc cluster group is part of site object since site object provided ref to dc cluster group object.
         :return: structure with dc cluster group information being added
         """
 
