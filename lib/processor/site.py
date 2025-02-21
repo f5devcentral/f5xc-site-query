@@ -68,6 +68,7 @@ class Site(Base):
 
         _sites = self.execute(name="general site details", urls=urls)
         for site in _sites:
+            # Only process sites with a "kind" key set. Sites without "kind" key are malformed
             if site['data']['system_metadata']["owner_view"]:
                 if site['data']['system_metadata']["owner_view"]["kind"]:
 
