@@ -53,11 +53,11 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 #
 # Site query
 #
-API_PROCESSORS = ["site", "segment"] #"vs", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect"
+API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-SITE_OBJECT_PROCESSORS = ["site_details", "spokes"] #"efp", "fpp", "dc_cluster_group" #"cloudlink", "node_interfaces", "hw_info"
+SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info","spokes"]
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,
