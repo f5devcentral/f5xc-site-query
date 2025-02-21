@@ -44,8 +44,8 @@ class Vs(Base):
 
                 _virtual_sites = self.execute(name="virtual site details", urls=urls)
                 for vs in _virtual_sites:
-                    self.data['virtual_site'][vs["site"]] = dict()
-                    self.data['virtual_site'][vs["site"]]['metadata'] = vs['data']['metadata']
-                    self.data['virtual_site'][vs["site"]]['spec'] = vs['data']['spec']
+                    self.data['virtual_site'][vs["object"]] = dict()
+                    self.data['virtual_site'][vs["object"]]['metadata'] = vs['data']['metadata']
+                    self.data['virtual_site'][vs["object"]]['spec'] = vs['data']['spec']
 
             return self.data
