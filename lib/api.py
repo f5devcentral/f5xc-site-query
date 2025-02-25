@@ -4,15 +4,19 @@ authors: cklewar
 
 import csv
 import json
+import operator
 import os
 import sys
+from functools import reduce
 from logging import Logger
 
+import jsondiff
 import requests
+from jsondiff import diff
+from prettytable import PrettyTable, TableStyle
 from requests import Response
 
 import lib.const as c
-from lib.info import HwInfo
 from lib.loader import load_module
 
 
@@ -268,27 +272,79 @@ class Api(object):
 
         return self.data
 
-    def compare(self, file: str = None) -> dict[str, bool] | bool:
+    def compare(self, old_file: str = None, new_file: str = None) -> dict[str, bool] | bool:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
-        :param file: file name data loaded to compare with
+        :param new_file: file name data loaded to compare with
+        :param old_file: file name data loaded to compare with
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
-        self.logger.info(f"{self.compare.__name__} started with data from {os.path.basename(file)} and current api run...")
-        data = self.read_json_file(file)
+        self.logger.info(f"{self.compare.__name__} started with data from previous run: {os.path.basename(old_file)} and data from latest run {os.path.basename(new_file)}")
+        data_old = self.read_json_file(old_file)
+        data_new = self.read_json_file(new_file)
 
-        if self.site in self.data['orphaned_sites'] or self.site in data['orphaned_sites']:
-            self.logger.info(f"{self.compare.__name__} site {self.site} cannot be compared since orphaned site...")
-            return False
+        def generic_items(dict_or_list):
+            if type(dict_or_list) is dict:
+                return dict_or_list.items()
+            if type(dict_or_list) is list:
+                return enumerate(dict_or_list)
 
-        elif self.site not in self.data['site'] or self.site not in data['site']:
-            self.logger.info(f"{self.compare.__name__} site {self.site} cannot be compared. Site not found  in existing data...")
-            return False
+        def get_by_path(root: dict = None, items: list = None):
+            """Access a nested object in root by item sequence."""
+            return reduce(operator.getitem, items, root)
 
-        else:
-            hw_info_a = HwInfo(**data['site'][self.site]['hw_info'])
-            hw_info_b = HwInfo(**self.data['site'][self.site]['hw_info'])
-            self.logger.info(f"{self.compare.__name__} done with results: {hw_info_a == hw_info_b}")
+        def get_keys(parent_key, dictionary):
+            r = []
 
-            return hw_info_a == hw_info_b
+            for key, _v in generic_items(dictionary):
+                if type(key) == jsondiff.symbols.Symbol:
+                    get_keys(parent_key, _v)
+                else:
+                    if type(_v) is dict:
+                        new_keys = get_keys(key, _v)
+                        for inner_key in new_keys:
+                            r.append(f'{key}/{inner_key}')
+                    elif type(_v) is list:
+                        new_keys = get_keys(key, _v)
+                        for inner_key in new_keys:
+                            r.append(f'{key}/{_v[inner_key]}')
+                    else:
+                        r.append(key)
+
+            return r
+
+        def get_keys_schema(parent_key, dictionary, r):
+            for key, _v in generic_items(dictionary):
+                if type(key) == jsondiff.symbols.Symbol:
+                    if type(_v) is list:
+                        for item in _v:
+                            r.append((parent_key, item))
+                elif type(_v) is dict:
+                    get_keys_schema(key, _v, r)
+                elif type(_v) is list:
+                    get_keys_schema(key, _v, r)
+
+            return r
+
+        result = []
+        compared = diff(data_old['site'][self.site], data_new['site'][self.site], syntax="compact")
+        k1 = get_keys(None, compared)
+        k2 = get_keys_schema(None, compared, result)
+
+        table = PrettyTable()
+        table.set_style(TableStyle.SINGLE_BORDER)
+        table.field_names = ["item", "value"]
+
+        for k in k1:
+            value = get_by_path(compared, [k for k in k.split("/")])
+            table.add_row([k, value])
+            table.add_divider()
+
+        for k in k2:
+            table.add_row([k[0], k[1]])
+            table.add_divider()
+
+        print(table)
+
+        return True

@@ -15,7 +15,9 @@ dependencies = [
     "requests>=2.32.3",
     "urllib3>=2.3.0",
     "coloredlogs~=15.0.1",
-    "tox>=4.24.1"
+    "tox>=4.24.1",
+    "prettytable>=3.14.0",
+    "jsondiff>=2.2.1"
 ]
 
 [build-system]
