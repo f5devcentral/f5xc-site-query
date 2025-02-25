@@ -1,5 +1,6 @@
 import concurrent.futures
 import json
+import time
 from logging import Logger
 
 from requests import Session
@@ -60,26 +61,17 @@ class Cloudconnect(Base):
                 urls[self.build_url(c.URI_F5XC_CLOUD_CONNECT.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=cc['name']))] = cc['name']
 
             cloud_connectors = self.execute(name="cloud connector details", urls=urls)
-            self.logger.debug(json.dumps(cloud_connectors, indent=2))
 
             if cloud_connectors:
                 for cloud_connector in cloud_connectors:
-                    if self.must_break:
-                        break
-                    else:
-                        connector_type = [key for key in c.F5XC_CLOUD_CONNECT_TYPES if key in cloud_connector["data"]["spec"]][0]
-                        site = cloud_connector["data"]["spec"][connector_type]["site"]["name"]
+                    connector_type = [key for key in c.F5XC_CLOUD_CONNECT_TYPES if key in cloud_connector["data"]["spec"]][0]
+                    site = cloud_connector["data"]["spec"][connector_type]["site"]["name"]
 
-                        # Referenced site must exist
-                        if site in self.data["site"]:
-                            # Only processing sites which are not in failed state
-                            if site not in self.data["failed"]:
-                                if self.site:
-                                    if self.site == site:
-                                        self.must_break = True
-                                        process()
-                                        break
+                    # Referenced site must exist
+                    if site in self.data["site"]:
+                        # Only processing sites which are not in failed state
+                        if site not in self.data["failed"]:
+                            if self.site:
+                                process()
 
-                                else:
-                                    process()
         return self.data

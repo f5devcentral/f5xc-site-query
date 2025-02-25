@@ -75,11 +75,11 @@ def main():
     q = Api(_logger=logger, api_url=api_url, api_token=api_token, namespace=args.namespace, site=args.site, workers=args.workers)
 
     if args.query:
-        q.run()
-        q.write_json_file(args.file)
-        q.compare(args.diff_file) if args.diff_file else None
-        data = q.compare(args.diff_file) if args.diff_file else None
-        q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+        #q.run()
+        #q.write_json_file(args.file)
+        # q.compare(args.diff_file) if args.diff_file else None
+        data = q.compare(old_file=args.diff_file, new_file=args.file) if args.diff_file else None
+        #q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
