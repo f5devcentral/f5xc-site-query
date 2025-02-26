@@ -41,6 +41,7 @@ F5XC_SITE_TYPE_SMS_V2 = "securemesh_site_v2"
 F5XC_SITE_TYPE_AWS_VPC = "aws_vpc_site"
 F5XC_SITE_TYPE_AWS_TGW = "aws_tgw_site"
 F5XC_SITE_TYPE_GCP_VPC = "gcp_vpc_site"
+F5XC_SITE_TYPE_APP_STACK = "appstack"
 F5XC_SITE_TYPE_AZURE_VNET = "azure_vnet_site"
 F5XC_NODE_PRIMARY = "k8s-master-primary"
 F5XC_NAMESPACE_SYSTEM = "system"
@@ -55,7 +56,7 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 #
 API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
-CSV_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group"]
+CSV_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes"]
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
 SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
