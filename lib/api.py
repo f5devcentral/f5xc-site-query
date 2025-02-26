@@ -193,17 +193,16 @@ class Api(object):
         else:
             self.logger.info(json.dumps(self.data, indent=2))
 
-    def write_csv_inventory(self, json_file: str = None, csv_file: str = None):
+    def build_inventory(self, json_file: str = None) -> PrettyTable | None:
         """
         Write site inventory to CSV file
         :param json_file: json input data
-        :param csv_file: output csv file
-        :return:
+        :return: inventory data
         """
 
-        self.logger.info(f"{self.write_csv_inventory.__name__} started...")
+        self.logger.info(f"{self.build_inventory.__name__} started...")
 
-        data = self.read_json_file("./json/all-ns.json")
+        data = self.read_json_file(json_file)
         table = PrettyTable()
         table.set_style(TableStyle.SINGLE_BORDER)
         table.field_names = ["No", "Type", "Value", "Subtype", "SubValue"]
@@ -231,6 +230,11 @@ class Api(object):
                                 # Skip SMv2 since no interface information available. process_node_interfaces() in site needs to be extended to support this
                                 if site_data["kind"] != c.F5XC_SITE_TYPE_SMS_V2:
                                     table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
+                                    if "hw_info" in attrs:
+                                        table.add_row([record_no, "node", node, "os", attrs["hw_info"]["os"]["vendor"]])
+                                    else:
+                                        pass
+                                        #print(site, attrs)
                         elif key == "namespaces":
                             for namespace, attrs in value.items():
                                 for ns_item, ns_item_value  in attrs.items():
@@ -257,9 +261,9 @@ class Api(object):
                 else:
                     process()
 
-        print(table)
+        self.logger.info(f"{self.build_inventory.__name__} -> Done")
 
-        self.logger.info(f"{self.write_csv_inventory.__name__} -> Done")
+        return table
 
     def run(self) -> dict:
         """
