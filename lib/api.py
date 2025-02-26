@@ -159,6 +159,22 @@ class Api(object):
             self.logger.info(f"Reading file {name} failed with error: {e}")
             return None
 
+    def write_json_file(self, name: str = None):
+        """
+        Write json to file
+        :param name: The file name to write json into
+        :return:
+        """
+        if name not in ['stdout', '-', '']:
+            try:
+                with open(name, 'w') as fd:
+                    fd.write(json.dumps(self.data, indent=2))
+                    self.logger.info(f"{len(self.data['site'])} {'sites' if len(self.data['site']) > 1 else 'site'} and {len(self.data['virtual_site'])} virtual {'sites' if len(self.data['virtual_site']) > 1 else 'site'} written to {name}")
+            except OSError as e:
+                self.logger.info(f"Writing file {name} failed with error: {e}")
+        else:
+            self.logger.info(json.dumps(self.data, indent=2))
+
     def write_string_file(self, name: str = None, data: str = None):
         """
         Write string to file
@@ -177,21 +193,69 @@ class Api(object):
         else:
             self.logger.info(json.dumps(self.data, indent=2))
 
-    def write_json_file(self, name: str = None):
+    def write_csv_inventory(self, json_file: str = None, csv_file: str = None):
         """
-        Write json to file
-        :param name: The file name to write json into
+        Write site inventory to CSV file
+        :param json_file: json input data
+        :param csv_file: output csv file
         :return:
         """
-        if name not in ['stdout', '-', '']:
-            try:
-                with open(name, 'w') as fd:
-                    fd.write(json.dumps(self.data, indent=2))
-                    self.logger.info(f"{len(self.data['site'])} {'sites' if len(self.data['site']) > 1 else 'site'} and {len(self.data['virtual_site'])} virtual {'sites' if len(self.data['virtual_site']) > 1 else 'site'} written to {name}")
-            except OSError as e:
-                self.logger.info(f"Writing file {name} failed with error: {e}")
-        else:
-            self.logger.info(json.dumps(self.data, indent=2))
+
+        self.logger.info(f"{self.write_csv_inventory.__name__} started...")
+
+        data = self.read_json_file("./json/all-ns.json")
+        table = PrettyTable()
+        table.set_style(TableStyle.SINGLE_BORDER)
+        table.field_names = ["No", "Type", "Value", "Subtype", "SubValue"]
+        table.title = "Inventory"
+        table.padding_width = 1
+
+        def process():
+            record_no = 1
+            table.add_row(["{}".format(site), "", "", "", ""])
+            for key, value in site_data.items():
+                if isinstance(value, str):
+                    table.add_row([record_no, key, value, "", ""])
+                elif isinstance(value, int):
+                    table.add_row([record_no, key, value, "", ""])
+                elif isinstance(value, dict):
+                    if key in c.CSV_EXPORT_KEYS:
+                        if key == "spoke":
+                            if site_data["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
+                                # TODO add azure support
+                                pass
+                            elif site_data["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                                table.add_row([record_no, key, len(value["vpc_list"]), "", ""])
+                        elif key == "nodes":
+                            for node, attrs in value.items():
+                                # Skip SMv2 since no interface information available. process_node_interfaces() in site needs to be extended to support this
+                                if site_data["kind"] != c.F5XC_SITE_TYPE_SMS_V2:
+                                    table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
+                        else:
+                            for name in value:
+                                table.add_row([record_no, key, name, "", ""])
+                elif isinstance(value, list):
+                    if len(value) > 0:
+                        table.add_row([record_no, key, value, "", ""])
+                record_no += 1
+
+            table.add_divider()
+
+        for site, site_data in data['site'].items():
+            if self.must_break:
+                break
+            else:
+                if self.site:
+                    if self.site == site:
+                        self.must_break = True
+                        process()
+                        break
+                else:
+                    process()
+
+        print(table)
+
+        self.logger.info(f"{self.write_csv_inventory.__name__} -> Done")
 
     def run(self) -> dict:
         """
@@ -215,54 +279,6 @@ class Api(object):
             _processor.run()
 
         return self.data
-
-    def write_csv_inventory(self, json_file: str = None, csv_file: str = None):
-        """
-        Write site inventory to CSV file
-        :param json_file: json input data
-        :param csv_file: output csv file
-        :return:
-        """
-
-        self.logger.info(f"{self.write_csv_inventory.__name__} started...")
-
-        data = self.read_json_file("./json/all-ns.json")
-
-        table = PrettyTable()
-        table.set_style(TableStyle.SINGLE_BORDER)
-        table.field_names = ["No", "Type", "Value"]
-        table.title = "Inventory"
-        table.padding_width = 1
-        record_no = 1
-
-        for site, data in data['site'].items():
-            table.add_row(["{}".format(site), "", ""])
-            for key, value in data.items():
-                if isinstance(value, str):
-                    table.add_row([record_no, key, value])
-                elif isinstance(value, int):
-                    table.add_row([record_no, key, value])
-                elif isinstance(value, dict):
-                    if key in c.CSV_EXPORT_KEYS:
-                        if key == "spoke":
-                            if data["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
-                                # TODO add azure support
-                                pass
-                            elif data["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                                table.add_row([record_no, key, len(value["vpc_list"])])
-                        else:
-                            for name in value:
-                                table.add_row([record_no, key, name])
-                elif isinstance(value, list):
-                    if len(value) > 0:
-                        table.add_row([record_no, key, value])
-                record_no += 1
-            record_no = 1
-            table.add_divider()
-
-        print(table)
-
-        self.logger.info(f"{self.write_csv_inventory.__name__} -> Done")
 
     def compare(self, old_file: str = None, new_file: str = None) -> PrettyTable | None:
         """
