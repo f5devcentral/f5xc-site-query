@@ -231,6 +231,10 @@ class Api(object):
                                 # Skip SMv2 since no interface information available. process_node_interfaces() in site needs to be extended to support this
                                 if site_data["kind"] != c.F5XC_SITE_TYPE_SMS_V2:
                                     table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
+                        elif key == "namespaces":
+                            for namespace, attrs in value.items():
+                                for ns_item, ns_item_value  in attrs.items():
+                                    table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0]])
                         else:
                             for name in value:
                                 table.add_row([record_no, key, name, "", ""])
