@@ -2,11 +2,11 @@
 authors: cklewar
 """
 
-import csv
 import json
 import os
 import sys
 from logging import Logger
+from typing import Any
 
 import jsondiff
 import requests
@@ -38,6 +38,12 @@ class Api(object):
     -------
     build_url(uri=None)
         builds api url based on uri
+    get(url: str = None)
+        http get request
+    read_json_file(name: str = None)
+        read json data from file name
+    write_string_file(name=None, data=None)
+        writes data string to file
     write_json_file(name=None)
         writes data to json file
     run()
@@ -121,6 +127,14 @@ class Api(object):
     def workers(self):
         return self._workers
 
+    def build_url(self, uri: str = None) -> str:
+        """
+        Build url from api url + resource uri
+        :param uri: the resource uri
+        :return: url string
+        """
+        return "{}{}".format(self.api_url, uri)
+
     def get(self, url: str = None) -> Response | bool:
         """
         Run HTTP GET on a given url
@@ -135,13 +149,33 @@ class Api(object):
 
         return r if r else False
 
-    def build_url(self, uri: str = None) -> str:
+    def read_json_file(self, name: str = None) -> Any | None:
+        try:
+            with open(name, 'r') as fd:
+                data = json.load(fp=fd)
+                self.logger.info(f"{len(data['site'])} {'sites' if len(data['site']) > 1 else 'site'} and {len(data['virtual_site'])} virtual {'sites' if len(data['virtual_site']) > 1 else 'site'} read from {name}")
+                return data
+        except OSError as e:
+            self.logger.info(f"Reading file {name} failed with error: {e}")
+            return None
+
+    def write_string_file(self, name: str = None, data: str = None):
         """
-        Build url from api url + resource uri
-        :param uri: the resource uri
-        :return: url string
+        Write string to file
+        :param name:
+        :param data:
+        :return:
         """
-        return "{}{}".format(self.api_url, uri)
+
+        if name not in ['stdout', '-', '']:
+            try:
+                with open(name, 'w') as fd:
+                    fd.write(data)
+                    self.logger.info(f"wrote {len(data.encode('utf-8'))} bytes to file {name}")
+            except OSError as e:
+                self.logger.info(f"Writing file {name} failed with error: {e}")
+        else:
+            self.logger.info(json.dumps(self.data, indent=2))
 
     def write_json_file(self, name: str = None):
         """
@@ -158,94 +192,6 @@ class Api(object):
                 self.logger.info(f"Writing file {name} failed with error: {e}")
         else:
             self.logger.info(json.dumps(self.data, indent=2))
-
-    def write_csv_file(self, name: str = None, data: dict[any] = None):
-        """
-        Flatten JSON data. Write flattened data to CSV
-        :param name:
-        :param data:
-        :return:
-        """
-
-        with open(name, 'w', newline='') as fd:
-            fieldnames = ["site"] + [k for k in data.keys()]
-            writer = csv.DictWriter(fd, fieldnames=fieldnames)
-
-            writer.writeheader()
-            writer.writerow({'site': self.site, 'os': data['os'], 'cpu': data['cpu'], 'memory': data['memory'], 'storage': data['storage'], 'network': data['network']})
-
-    def write_csv_inventory(self, json_file: str = None, csv_file: str = None):
-        """
-        Write site inventory to CSV file
-        :param json_file: json input data
-        :param csv_file: output csv file
-        :return:
-        """
-
-        self.logger.info(f"{self.write_csv_inventory.__name__} started...")
-
-        def process():
-            for k, v in attrs['namespaces'].items():
-                for k1, v1 in v.items():
-                    for k2, v2 in v1.items():
-                        if k1 == "loadbalancer":
-                            for k3, v3 in v2.items():
-                                if "spec" in v3.keys():
-                                    if "advertise_custom" in v3['spec'].keys():
-                                        _row = {"type": k1, "subtype_a": k2, "subtype_b": 'Advertise Policy Custom', "object_name": k3}
-                                        rows.append(_row)
-
-                        elif k1 == "origin_pools":
-                            _row = {"type": k1, "subtype_a": "N/A", "subtype_b": 'N/A', "object_name": k2}
-                            rows.append(_row)
-
-                        elif k1 == "proxys":
-                            if "spec" in v2.keys():
-                                proxy_type = "dynamic_proxy" if v2['spec'].get("dynamic_proxy") else "http_proxy" if v2['spec'].get("http_proxy") else "unknown"
-                                advertise_where_types = list()
-
-                                for item in v2['spec']['site_virtual_sites']['advertise_where']:
-                                    advertise_where_type = 'site' if item.get('site') else 'virtual_site'
-                                    advertise_where_types.append(advertise_where_type)
-
-                                _row = {"type": "proxy", "subtype_a": proxy_type, "subtype_b": f"Advertise Policies [{'/'.join(advertise_where_types).capitalize()}]", "object_name": k2}
-                                rows.append(_row)
-                        else:
-                            print(f"unknown type {k1}")
-            _row = {"type": 20 * "#", "subtype_a": 20 * "#", "subtype_b": 40 * "#", "object_name": 40 * "#"}
-            rows.append(_row)
-
-        fieldnames = ["type", "subtype_a", "subtype_b", "object_name"]
-        data = self.read_json_file(json_file)
-        rows = list()
-
-        for site, attrs in data['site'].items():
-            row = {"type": "site", "subtype_a": "N/A", "subtype_b": "N/A", "object_name": site}
-            rows.append(row)
-            process()
-
-        for site, attrs in data['virtual_site'].items():
-            row = {"type": "virtual_site", "subtype_a": "N/A", "subtype_b": "N/A", "object_name": site}
-            rows.append(row)
-            process()
-
-        with open(csv_file, 'w', newline='') as fd:
-            writer = csv.DictWriter(fd, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for row in rows:
-                writer.writerow(row)
-
-        self.logger.info(f"{self.write_csv_inventory.__name__} -> Done")
-
-    def read_json_file(self, name: str = None) -> dict:
-        try:
-            with open(name, 'r') as fd:
-                data = json.load(fp=fd)
-                self.logger.info(f"{len(data['site'])} {'sites' if len(data['site']) > 1 else 'site'} and {len(data['virtual_site'])} virtual {'sites' if len(data['virtual_site']) > 1 else 'site'} read from {name}")
-                return data
-        except OSError as e:
-            self.logger.info(f"Reading file {name} failed with error: {e}")
 
     def run(self) -> dict:
         """
@@ -270,12 +216,59 @@ class Api(object):
 
         return self.data
 
-    def compare(self, old_file: str = None, new_file: str = None, diff_table=False) -> dict[any] | bool:
+    def write_csv_inventory(self, json_file: str = None, csv_file: str = None):
+        """
+        Write site inventory to CSV file
+        :param json_file: json input data
+        :param csv_file: output csv file
+        :return:
+        """
+
+        self.logger.info(f"{self.write_csv_inventory.__name__} started...")
+
+        data = self.read_json_file("./json/all-ns.json")
+
+        table = PrettyTable()
+        table.set_style(TableStyle.SINGLE_BORDER)
+        table.field_names = ["No", "Type", "Value"]
+        table.title = "Inventory"
+        table.padding_width = 1
+        record_no = 1
+
+        for site, data in data['site'].items():
+            table.add_row(["{}".format(site), "", ""])
+            for key, value in data.items():
+                if isinstance(value, str):
+                    table.add_row([record_no, key, value])
+                elif isinstance(value, int):
+                    table.add_row([record_no, key, value])
+                elif isinstance(value, dict):
+                    if key in c.CSV_EXPORT_KEYS:
+                        if key == "spoke":
+                            if data["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
+                                # TODO add azure support
+                                pass
+                            elif data["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                                table.add_row([record_no, key, len(value["vpc_list"])])
+                        else:
+                            for name in value:
+                                table.add_row([record_no, key, name])
+                elif isinstance(value, list):
+                    if len(value) > 0:
+                        table.add_row([record_no, key, value])
+                record_no += 1
+            record_no = 1
+            table.add_divider()
+
+        print(table)
+
+        self.logger.info(f"{self.write_csv_inventory.__name__} -> Done")
+
+    def compare(self, old_file: str = None, new_file: str = None) -> PrettyTable | None:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
         :param new_file: file name data loaded to compare with
         :param old_file: file name data loaded to compare with
-        :param diff_table:
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
@@ -285,124 +278,124 @@ class Api(object):
 
         compared = diff(data_old['site'][self.site], data_new['site'][self.site], syntax="compact")
 
-        if diff_table:
-            def generic_items(dict_or_list):
-                if isinstance(dict_or_list, dict):
-                    return dict_or_list.items()
-                if isinstance(dict_or_list, list):
-                    return enumerate(dict_or_list)
+        def generic_items(dict_or_list):
+            if isinstance(dict_or_list, dict):
+                return dict_or_list.items()
+            if isinstance(dict_or_list, list):
+                return enumerate(dict_or_list)
 
-            def get_by_path(root: dict = None, items: list = None, resp: list = None):
-                """
-                Access a nested object in root by item sequence.
-                :param root:
-                :param items:
-                :param resp:
-                :return:
-                """
+        def get_by_path(root: dict = None, items: list = None, resp: list = None):
+            """
+            Access a nested object in root by item sequence.
+            :param root:
+            :param items:
+            :param resp:
+            :return:
+            """
 
-                if items:
-                    while len(items) > 0:
-                        item = items[0]
-                        items.pop(0)
+            if items:
+                while len(items) > 0:
+                    item = items[0]
+                    items.pop(0)
 
-                        if isinstance(root, list):
-                            print("WE GOT LIST")
-                        elif isinstance(root, dict):
-                            new_root = root.get(int(item)) if item.isdigit() else root.get(item)
+                    if isinstance(root, list):
+                        self.logger.debug(f"LIST: {root}")
+                    elif isinstance(root, dict):
+                        new_root = root.get(int(item)) if item.isdigit() else root.get(item)
 
-                            if new_root:
-                                if isinstance(new_root, str):
-                                    self.logger.debug(f"STRING: {new_root}")
-                                    resp.append(new_root)
-                                elif isinstance(new_root, int):
-                                    self.logger.debug(f"INT: {new_root}")
-                                    resp.append(new_root)
-                                elif isinstance(root, list):
-                                    print("WE GOT LIST")
-                                    self.logger.debug(f"LIST: {new_root}")
-                                elif isinstance(root, dict):
-                                    self.logger.debug(f"DICT: {new_root}")
-                                    get_by_path(new_root, items, resp)
-                                else:
-                                    self.logger.debug(f"Unknown: {type(root)}")
+                        if new_root:
+                            if isinstance(new_root, str):
+                                self.logger.debug(f"STRING: {new_root}")
+                                resp.append(new_root)
+                            elif isinstance(new_root, int):
+                                self.logger.debug(f"INT: {new_root}")
+                                resp.append(new_root)
+                            elif isinstance(root, list):
+                                self.logger.debug(f"LIST: {new_root}")
+                            elif isinstance(root, dict):
+                                self.logger.debug(f"DICT: {new_root}")
+                                get_by_path(new_root, items, resp)
                             else:
-                                self.logger.debug(f"new root item: {item}, {type(item)}")
-                                self.logger.debug(f"root: {root}")
-                                self.logger.debug(f"root.get(): {root.get(0)}")
+                                self.logger.debug(f"Unknown: {type(root)}")
                         else:
-                            self.logger.debug(f"Unknown: {root}")
-
-                return resp
-
-            def get_keys(parent_key, dictionary):
-                """
-
-                :param parent_key:
-                :param dictionary:
-                :return:
-                """
-                r = []
-
-                for key, _v in generic_items(dictionary):
-                    if type(key) is jsondiff.symbols.Symbol:
-                        get_keys(parent_key, _v)
+                            self.logger.debug(f"new root item: {item}, {type(item)}")
+                            self.logger.debug(f"root: {root}")
+                            self.logger.debug(f"root.get(): {root.get(0)}")
                     else:
-                        if type(_v) is dict:
-                            new_keys = get_keys(key, _v)
-                            for inner_key in new_keys:
-                                r.append(f'{key}/{inner_key}')
-                        elif type(_v) is list:
-                            new_keys = get_keys(key, _v)
-                            for inner_key in new_keys:
-                                r.append(f'{key}/{_v[inner_key]}')
-                        else:
-                            r.append(key)
+                        self.logger.debug(f"Unknown: {root}")
 
-                return r
+            return resp
 
-            def get_keys_schema(parent_key, dictionary, r):
-                """
+        def get_keys(parent_key, dictionary):
+            """
 
-                :param parent_key:
-                :param dictionary:
-                :param r:
-                :return:
-                """
+            :param parent_key:
+            :param dictionary:
+            :return:
+            """
+            r = []
 
-                for key, _v in generic_items(dictionary):
-                    if type(key) is jsondiff.symbols.Symbol:
-                        if isinstance(_v, list):
-                            for item in _v:
-                                r.append((parent_key, item))
-                    elif isinstance(_v, dict):
-                        get_keys_schema(key, _v, r)
-                    elif isinstance(_v, list):
-                        get_keys_schema(key, _v, r)
-                        r.append((key, _v))
+            for key, _v in generic_items(dictionary):
+                if type(key) is jsondiff.symbols.Symbol:
+                    get_keys(parent_key, _v)
+                else:
+                    if type(_v) is dict:
+                        new_keys = get_keys(key, _v)
+                        for inner_key in new_keys:
+                            r.append(f'{key}/{inner_key}')
+                    elif type(_v) is list:
+                        new_keys = get_keys(key, _v)
+                        for inner_key in new_keys:
+                            r.append(f'{key}/{_v[inner_key]}')
                     else:
-                        self.logger.debug(f"unknown item: {key}, {type(_v)}")
-                return r
+                        r.append(key)
 
-            result = []
+            return r
 
-            k1 = get_keys(None, compared)
-            k2 = get_keys_schema(None, compared, result)
+        def get_keys_schema(parent_key, dictionary, r):
+            """
 
-            table = PrettyTable()
-            table.set_style(TableStyle.SINGLE_BORDER)
-            table.field_names = ["item", "value"]
+            :param parent_key:
+            :param dictionary:
+            :param r:
+            :return:
+            """
 
-            for k in k1:
-                response = list()
-                r1 = get_by_path(compared, [k for k in k.split("/")], response)
-                table.add_row([k, r1[0]])
-                table.add_divider()
+            for key, _v in generic_items(dictionary):
+                if type(key) is jsondiff.symbols.Symbol:
+                    if isinstance(_v, list):
+                        for item in _v:
+                            r.append((parent_key, item))
+                elif isinstance(_v, dict):
+                    get_keys_schema(key, _v, r)
+                elif isinstance(_v, list):
+                    get_keys_schema(key, _v, r)
+                    r.append((key, _v))
+                else:
+                    self.logger.debug(f"unknown item: {key}, {type(_v)}")
+            return r
 
-            for k in k2:
-                table.add_row([k[0], k[1]])
-                table.add_divider()
+        result = []
 
-            self.logger.info(f"\n\n{table}\n")
+        k1 = get_keys(None, compared)
+        k2 = get_keys_schema(None, compared, result)
 
-        return compared
+        table = PrettyTable()
+        table.set_style(TableStyle.SINGLE_BORDER)
+        table.field_names = ["item", "diff"]
+
+        if self.site:
+            table.padding_width = 1
+            table.title = self.site
+
+        for k in k1:
+            response = list()
+            r1 = get_by_path(compared, [k for k in k.split("/")], response)
+            table.add_row([k, r1[0]])
+            table.add_divider()
+
+        for k in k2:
+            table.add_row([k[0], k[1]])
+            table.add_divider()
+
+        return table

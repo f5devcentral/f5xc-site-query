@@ -572,15 +572,16 @@ class Site(Base):
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
                         if urls[future_to_ds[future]] in self.data['site']:
+                            idx = 0
                             for node in r['status']:
                                 if node['node_info']:
                                     if c.F5XC_NODE_PRIMARY in node['node_info']['role']:
                                         if "nodes" not in self.data['site'][urls[future_to_ds[future]]].keys():
                                             self.data['site'][urls[future_to_ds[future]]]['nodes'] = dict()
-
-                                        if node['node_info']['hostname'] not in self.data['site'][urls[future_to_ds[future]]]['nodes']:
-                                            self.data['site'][urls[future_to_ds[future]]]['nodes'][node['node_info']['hostname']] = dict()
-
-                                        self.data['site'][urls[future_to_ds[future]]]['nodes'][node['node_info']['hostname']]['hw_info'] = node['hw_info']
+                                        if f"node{idx}" not in self.data['site'][urls[future_to_ds[future]]]['nodes']:
+                                            self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"] = dict()
+                                        
+                                        self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"]['hw_info'] = node['hw_info']
+                                        idx = idx + 1
 
         return self.data
