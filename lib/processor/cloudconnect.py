@@ -1,6 +1,4 @@
-import concurrent.futures
 import json
-import time
 from logging import Logger
 
 from requests import Session

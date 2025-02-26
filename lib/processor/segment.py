@@ -1,6 +1,5 @@
 import json
 from logging import Logger
-from os import sched_getparam
 
 from requests import Session
 
