@@ -279,14 +279,11 @@ class Api(object):
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
-        self.logger.info(f"{self.compare.__name__} started with data from previous run: {os.path.basename(old_file)} and data from latest run {os.path.basename(new_file)}")
+        self.logger.info(f"{self.compare.__name__} started with data from previous run: <{os.path.basename(old_file)}> and data from latest run <{os.path.basename(new_file)}>")
         data_old = self.read_json_file(old_file)
         data_new = self.read_json_file(new_file)
 
         compared = diff(data_old['site'][self.site], data_new['site'][self.site], syntax="compact")
-        import pprint
-        pp = pprint.PrettyPrinter()
-        pp.pprint(compared)
 
         if diff_table:
             def generic_items(dict_or_list):
@@ -391,9 +388,6 @@ class Api(object):
 
             k1 = get_keys(None, compared)
             k2 = get_keys_schema(None, compared, result)
-
-            print("K1:", k1)
-            print("K2:", k2)
 
             table = PrettyTable()
             table.set_style(TableStyle.SINGLE_BORDER)
