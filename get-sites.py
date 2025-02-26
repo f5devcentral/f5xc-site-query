@@ -26,14 +26,16 @@ def main():
 
     # Add arguments
     parser.add_argument('-a', '--apiurl', type=str, help='F5 XC API URL', required=False, default="")
-    parser.add_argument('-c', '--csv-file', help='write inventory info to csv file', required=False, default="")
+    parser.add_argument('-c', '--compare', help='compare new site with old site', action='store_true')
     parser.add_argument('-f', '--file', type=str, help='read/write api data to/from json file', required=False, default=Path(__file__).stem + '.json')
     parser.add_argument('-n', '--namespace', type=str, help='namespace (not setting this option will process all namespaces)', required=False, default="")
     parser.add_argument('-q', '--query', help='run site query', action='store_true')
     parser.add_argument('-s', '--site', type=str, help='site to be processed', required=False, default="")
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default="")
     parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing (default 10)', required=False, default=10)
+    parser.add_argument('--csv-file', help='write inventory info to csv file', required=False, default="")
     parser.add_argument('--diff-file', type=str, help='compare to site', required=False, default="")
+    parser.add_argument('--diff-table', help='print table with differences between new and old site', action='store_true')
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
     parser.add_argument('--log-file', help='write log info to file', action='store_true')
@@ -75,14 +77,18 @@ def main():
     q = Api(_logger=logger, api_url=api_url, api_token=api_token, namespace=args.namespace, site=args.site, workers=args.workers)
 
     if args.query:
-        #q.run()
-        #q.write_json_file(args.file)
-        # q.compare(args.diff_file) if args.diff_file else None
-        data = q.compare(old_file=args.diff_file, new_file=args.file) if args.diff_file else None
-        #q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+        q.run()
+        q.write_json_file(args.file)
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
+
+    if args.compare:
+        if args.diff_file:
+            data = q.compare(old_file=args.diff_file, new_file=args.file, diff_table=args.diff_table)
+            q.write_csv_file(args.csv_file, data) if args.csv_file and data else None
+        else:
+            logger.info("Compared needs --diff option provided")
 
     q.write_csv_inventory(json_file=args.file, csv_file=args.csv_file) if args.csv_file and args.file else None
     logger.info(f"Application {os.path.basename(__file__)} finished")

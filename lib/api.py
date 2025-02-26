@@ -4,10 +4,8 @@ authors: cklewar
 
 import csv
 import json
-import operator
 import os
 import sys
-from functools import reduce
 from logging import Logger
 
 import jsondiff
@@ -161,7 +159,7 @@ class Api(object):
         else:
             self.logger.info(json.dumps(self.data, indent=2))
 
-    def write_csv_file(self, name: str = None, data: dict[str, bool] = None):
+    def write_csv_file(self, name: str = None, data: dict[any] = None):
         """
         Flatten JSON data. Write flattened data to CSV
         :param name:
@@ -257,7 +255,7 @@ class Api(object):
             - process_origin_pools for each namespace
             - process site labels only if referenced by a load balancer/ origin pool / proxy
             - process site details to get hw info
-        :return:
+        :return: processed data
         """
 
         _processors = dict()
@@ -272,11 +270,12 @@ class Api(object):
 
         return self.data
 
-    def compare(self, old_file: str = None, new_file: str = None) -> dict[str, bool] | bool:
+    def compare(self, old_file: str = None, new_file: str = None, diff_table=False) -> dict[any] | bool:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
         :param new_file: file name data loaded to compare with
         :param old_file: file name data loaded to compare with
+        :param diff_table:
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
@@ -284,67 +283,132 @@ class Api(object):
         data_old = self.read_json_file(old_file)
         data_new = self.read_json_file(new_file)
 
-        def generic_items(dict_or_list):
-            if type(dict_or_list) is dict:
-                return dict_or_list.items()
-            if type(dict_or_list) is list:
-                return enumerate(dict_or_list)
-
-        def get_by_path(root: dict = None, items: list = None):
-            """Access a nested object in root by item sequence."""
-            return reduce(operator.getitem, items, root)
-
-        def get_keys(parent_key, dictionary):
-            r = []
-
-            for key, _v in generic_items(dictionary):
-                if type(key) == jsondiff.symbols.Symbol:
-                    get_keys(parent_key, _v)
-                else:
-                    if type(_v) is dict:
-                        new_keys = get_keys(key, _v)
-                        for inner_key in new_keys:
-                            r.append(f'{key}/{inner_key}')
-                    elif type(_v) is list:
-                        new_keys = get_keys(key, _v)
-                        for inner_key in new_keys:
-                            r.append(f'{key}/{_v[inner_key]}')
-                    else:
-                        r.append(key)
-
-            return r
-
-        def get_keys_schema(parent_key, dictionary, r):
-            for key, _v in generic_items(dictionary):
-                if type(key) == jsondiff.symbols.Symbol:
-                    if type(_v) is list:
-                        for item in _v:
-                            r.append((parent_key, item))
-                elif type(_v) is dict:
-                    get_keys_schema(key, _v, r)
-                elif type(_v) is list:
-                    get_keys_schema(key, _v, r)
-
-            return r
-
-        result = []
         compared = diff(data_old['site'][self.site], data_new['site'][self.site], syntax="compact")
-        k1 = get_keys(None, compared)
-        k2 = get_keys_schema(None, compared, result)
+        import pprint
+        pp = pprint.PrettyPrinter()
+        pp.pprint(compared)
 
-        table = PrettyTable()
-        table.set_style(TableStyle.SINGLE_BORDER)
-        table.field_names = ["item", "value"]
+        if diff_table:
+            def generic_items(dict_or_list):
+                if isinstance(dict_or_list, dict):
+                    return dict_or_list.items()
+                if isinstance(dict_or_list, list):
+                    return enumerate(dict_or_list)
 
-        for k in k1:
-            value = get_by_path(compared, [k for k in k.split("/")])
-            table.add_row([k, value])
-            table.add_divider()
+            def get_by_path(root: dict = None, items: list = None, resp: list = None):
+                """
+                Access a nested object in root by item sequence.
+                :param root:
+                :param items:
+                :param resp:
+                :return:
+                """
 
-        for k in k2:
-            table.add_row([k[0], k[1]])
-            table.add_divider()
+                if items:
+                    while len(items) > 0:
+                        item = items[0]
+                        items.pop(0)
 
-        print(table)
+                        if isinstance(root, list):
+                            print("WE GOT LIST")
+                        elif isinstance(root, dict):
+                            new_root = root.get(int(item)) if item.isdigit() else root.get(item)
 
-        return True
+                            if new_root:
+                                if isinstance(new_root, str):
+                                    self.logger.debug(f"STRING: {new_root}")
+                                    resp.append(new_root)
+                                elif isinstance(new_root, int):
+                                    self.logger.debug(f"INT: {new_root}")
+                                    resp.append(new_root)
+                                elif isinstance(root, list):
+                                    print("WE GOT LIST")
+                                    self.logger.debug(f"LIST: {new_root}")
+                                elif isinstance(root, dict):
+                                    self.logger.debug(f"DICT: {new_root}")
+                                    get_by_path(new_root, items, resp)
+                                else:
+                                    self.logger.debug(f"Unknown: {type(root)}")
+                            else:
+                                self.logger.debug(f"new root item: {item}, {type(item)}")
+                                self.logger.debug(f"root: {root}")
+                                self.logger.debug(f"root.get(): {root.get(0)}")
+                        else:
+                            self.logger.debug(f"Unknown: {root}")
+
+                return resp
+
+            def get_keys(parent_key, dictionary):
+                """
+
+                :param parent_key:
+                :param dictionary:
+                :return:
+                """
+                r = []
+
+                for key, _v in generic_items(dictionary):
+                    if type(key) is jsondiff.symbols.Symbol:
+                        get_keys(parent_key, _v)
+                    else:
+                        if type(_v) is dict:
+                            new_keys = get_keys(key, _v)
+                            for inner_key in new_keys:
+                                r.append(f'{key}/{inner_key}')
+                        elif type(_v) is list:
+                            new_keys = get_keys(key, _v)
+                            for inner_key in new_keys:
+                                r.append(f'{key}/{_v[inner_key]}')
+                        else:
+                            r.append(key)
+
+                return r
+
+            def get_keys_schema(parent_key, dictionary, r):
+                """
+
+                :param parent_key:
+                :param dictionary:
+                :param r:
+                :return:
+                """
+
+                for key, _v in generic_items(dictionary):
+                    if type(key) is jsondiff.symbols.Symbol:
+                        if isinstance(_v, list):
+                            for item in _v:
+                                r.append((parent_key, item))
+                    elif isinstance(_v, dict):
+                        get_keys_schema(key, _v, r)
+                    elif isinstance(_v, list):
+                        get_keys_schema(key, _v, r)
+                        r.append((key, _v))
+                    else:
+                        self.logger.debug(f"unknown item: {key}, {type(_v)}")
+                return r
+
+            result = []
+
+            k1 = get_keys(None, compared)
+            k2 = get_keys_schema(None, compared, result)
+
+            print("K1:", k1)
+            print("K2:", k2)
+
+            table = PrettyTable()
+            table.set_style(TableStyle.SINGLE_BORDER)
+            table.field_names = ["item", "value"]
+
+            for k in k1:
+                response = list()
+                r1 = get_by_path(compared, [k for k in k.split("/")], response)
+                table.add_row([k, r1[0]])
+                table.add_divider()
+
+            for k in k2:
+                table.add_row([k[0], k[1]])
+                table.add_divider()
+
+            self.logger.info(f"\n\n{table}\n")
+
+        return compared

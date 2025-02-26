@@ -1,6 +1,5 @@
 import concurrent.futures
 import json
-import pprint
 from logging import Logger
 
 from requests import Session
