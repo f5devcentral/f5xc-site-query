@@ -38,6 +38,7 @@ def main():
     parser.add_argument('--diff-table', help='print diff info to stdout', action='store_true')
     parser.add_argument('--diff-file-csv', help='write site diff info to csv file', required=False, default="")
     parser.add_argument('--inventory-table', help='print inventory info to stdout', action='store_true')
+    parser.add_argument('--inventory-file-csv', help='write inventory info to csv file', required=False, default="")
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
     parser.add_argument('--log-file', help='write log info to file', action='store_true')
@@ -91,9 +92,10 @@ def main():
             logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
             q.write_string_file(args.diff_file_csv, data.get_csv_string()) if args.diff_file_csv and data else None
         else:
-            logger.info("Compared needs --diff-file option set")
+            logger.info("Compare needs --diff-file option set")
 
     data = q.build_inventory(json_file=args.file) if args.build_inventory else None
+    q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None
     logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
