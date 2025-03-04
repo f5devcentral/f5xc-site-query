@@ -254,18 +254,19 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 
 ### Compare function
 
-This tool provides a comparison function to compare page information.
-The steps to compare site information are as follows:
+This tool provides a comparison function to compare site information.
+Given the old site called `siteA` and a newly created site called `siteB` one can compate those two sites to find any differences in configuration.
+Below steps illustrating how to run comparison function: 
 
-- Run query for `siteA` and write data to `out_site_a.json`
+- Run query for `siteA` and write data to `siteA.json`
     ```bash
     ./get-sites.py -f `./siteA.json` -q -s `siteA` --log-stdout
     ```
-- Run query for `siteB` and compare to `siteA` data
+- Run query for `siteB` and write data to `siteB.json`
     ```bash
     ./get-sites.py -f `./siteB.json` -q -s `siteB` --log-stdout
     ``` 
-- Run Compare for `siteA` and `siteB` table output
+- Run compare for `siteA` and `siteB` with table output
     ```bash
      ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
     ```
@@ -317,11 +318,9 @@ The steps to compare site information are as follows:
     │          dc_cluster_group          │                        ['pg-dccg']                        │        │
     └────────────────────────────────────┴───────────────────────────────────────────────────────────┴────────┘
     ```
-
 Above table shows differences for a couple items between site A and site B. Table presents items which are available in site A aka the old site and not available in the new site B.
-- 
 
-- Run Compare for `siteA` and `siteB` csv file ouput
+- Run Compare for `siteA` and `siteB` csv file output
     ```bash
      ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
     ```
