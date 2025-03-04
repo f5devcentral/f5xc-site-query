@@ -215,10 +215,15 @@ class Site(Base):
                 if self.data['site'][site]['kind'] != "":
                     # check if sms or legacy object type
                     if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                        if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
-                            if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
-                                for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                            if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                                for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
                                     urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                            if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                    for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
+                                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
