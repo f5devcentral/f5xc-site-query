@@ -88,34 +88,43 @@ Alternatively you can set command line options instead when running the script.
 
 `site-query` will only process site objects:
 
-- with state being __ONLINE__
-- with __kind__ key set
+- with state being __APPLIED__
+- which can be identified by the __kind__ key
 
 Referencing objects that reference a site object are only added to the site object if the referenced site also exists.
 
 ```
-$ ./get-sites.py 
-usage: get-sites.py [-h] [-a APIURL] [-c CSV_FILE] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
+./get-sites.py
+usage: get-sites.py [-h] [-a APIURL] [-c] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--old-site OLD_SITE] [--new-site NEW_SITE] [--old-site-file OLD_SITE_FILE] [--new-site-file NEW_SITE_FILE] [--build-inventory] [--diff-table]
+                    [--diff-file-csv DIFF_FILE_CSV] [--inventory-table] [--inventory-file-csv INVENTORY_FILE_CSV] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
 Get F5 XC Sites command line arguments
 
 options:
   -h, --help            show this help message and exit
-  -a APIURL, --apiurl APIURL
-                        F5 XC API URL
-  -c CSV_FILE, --csv-file CSV_FILE
-                        write inventory info to csv file
-  -f FILE, --file FILE  read/write api data to/from json file
-  -n NAMESPACE, --namespace NAMESPACE
+  -a, --apiurl APIURL   F5 XC API URL
+  -c, --compare         compare new site with old site
+  -f, --file FILE       read/write api data to/from json file
+  -n, --namespace NAMESPACE
                         namespace (not setting this option will process all namespaces)
   -q, --query           run site query
-  -s SITE, --site SITE  site to be processed
-  -t TOKEN, --token TOKEN
-                        F5 XC API Token
-  -w WORKERS, --workers WORKERS
+  -s, --site SITE       site to be processed
+  -t, --token TOKEN     F5 XC API Token
+  -w, --workers WORKERS
                         maximum number of worker for concurrent processing (default 10)
-  --diff-file DIFF_FILE
-                        compare to site
+  --old-site OLD_SITE   old site name to compare with
+  --new-site NEW_SITE   new site name to compare with
+  --old-site-file OLD_SITE_FILE
+                        new site file to compare with
+  --new-site-file NEW_SITE_FILE
+                        new site file to compare with
+  --build-inventory     build inventory and write it to file
+  --diff-table          print diff info to stdout
+  --diff-file-csv DIFF_FILE_CSV
+                        write site diff info to csv file
+  --inventory-table     print inventory info to stdout
+  --inventory-file-csv INVENTORY_FILE_CSV
+                        write inventory info to csv file
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
@@ -125,19 +134,19 @@ options:
 ### Example to get data from all namespaces:
 
 ```bash
-./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+./get-sites.py -f ./json/all-ns-prod.json -q --log-stdout
 ```
 
 ### Example to get data from specific namespace:
 
 ```bash
-./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-level INFO --log-stdout
+./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-stdout
 ```
 
 ### Example to get data for specific site:
 
 ```bash
-./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-level INFO --log-stdout
+./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-stdout
 ```
 
 The generated get-sites.json is now populated with application objects per namespace and site/virtual site and can be parsed
@@ -250,33 +259,101 @@ The steps to compare site information are as follows:
 
 - Run query for `siteA` and write data to `out_site_a.json`
     ```bash
-    ./get-sites.py -f `./out_site_a_json` -q -s `siteA` --log-level INFO --log-stdout
+    ./get-sites.py -f `./siteA.json` -q -s `siteA` --log-stdout
     ```
 - Run query for `siteB` and compare to `siteA` data
     ```bash
-    ./get-sites.py -f `./out_site_b.json` -q -s `siteB` --diff-file `./ou_site_a_json` --log-level INFO --log-stdout
+    ./get-sites.py -f `./siteB.json` -q -s `siteB` --log-stdout
     ``` 
+- Run Compare for `siteA` and `siteB` table output
+    ```bash
+     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
+    ```
 - Output
     ```bash
-    2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site written to ./get-sites-diff-b.json
-    2024-10-22 16:11:09,129 - INFO - compare started with data from get-sites-diff-a.json and current api run...
-    2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site read from ./get-sites-diff-a.json
-    2024-10-22 16:11:09,129 - INFO - compare done with results: {'os': True, 'cpu': True, 'memory': True, 'network': [True]}
+    ┌────────────────────────────────────┬───────────────────────────────────────────────────────────┬────────┐
+    │                path                │                           values                          │ action │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                kind                │                      securemesh_site                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │           metadata/name            │                           siteA                           │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │    metadata/labels/pg-vsite-all    │                            yes                            │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │         spec/vip_vrrp_mode         │                      VIP_VRRP_ENABLE                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       spec/main_nodes/0/name       │                      ip-192-168-0-16                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │   spec/main_nodes/0/slo_address    │                        192.168.0.16                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       spec/main_nodes/1/name       │                      ip-192-168-0-37                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │   spec/main_nodes/1/slo_address    │                        192.168.0.37                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       spec/main_nodes/2/name       │                      ip-192-168-0-88                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │   spec/main_nodes/2/slo_address    │                        192.168.0.88                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │ nodes/node0/hw_info/memory/size_mb │                           15786                           │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       nodes/node0/interfaces       │                      ['eth0', 'eth1']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │  nodes/node1/hw_info/memory/speed  │                            2666                           │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       nodes/node1/interfaces       │                      ['eth0', 'eth1']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       nodes/node2/interfaces       │                      ['eth0', 'eth1']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                bgp                 │         ['ves-io-bgp-ves-io-securemesh-site-siteA']       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │               vsites               │                     ['pg-visite-smg']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                smg                 │                     ['pg-visite-smg']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                efp                 │                   ['test123', 'test124']                  │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                fpp                 │                        ['pg-proxy']                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │          dc_cluster_group          │                        ['pg-dccg']                        │        │
+    └────────────────────────────────────┴───────────────────────────────────────────────────────────┴────────┘
     ```
 
-Above output shows there are no differences for hardware info items __cpu__, __memory__ and __network__
+Above table shows differences for a couple items between site A and site B. Table presents items which are available in site A aka the old site and not available in the new site B.
+- 
 
-### Create csv inventory file
+- Run Compare for `siteA` and `siteB` csv file ouput
+    ```bash
+     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
+    ```
 
-This tool offers the function to create a CSV inventory file. This file can be read in and further processed by applying filters to the generated data.
+### Export inventory
+
+This tool offers functions to create an inventory of a tenant. Supported inventory output formats are
+
+- CSV inventory file
+- Table stdout output
+
+#### CSV
 
 - Run query for specif site or specific namespace or for all data
     ```bash
-    ./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+    ./get-sites.py -f ./get-sites-all-ns.json -q --log-stdout
     ```
 - Run create CSV inventory file function
     ```bash
-    ./get-sites.py -f ./get-sites-all-ns.json -c inventory.csv --log-level INFO --log-stdout
+    ./get-sites.py -f ./json/all-ns.json --build-inventory --inventory-file-csv ./csv/inventory.csv --log-level INFO --log-stdout
+    ```
+
+#### Stdout
+
+- Run query for specif site or specific namespace or for all data
+    ```bash
+    ./get-sites.py -f ./all-ns.json -q --log-stdout
+    ```
+
+- Run create CSV inventory file function
+    ```bash
+    ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
     ```
 
 ## Support
