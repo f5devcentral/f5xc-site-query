@@ -126,9 +126,9 @@ class Site(Base):
                         self.data['site'][site["object"]]['metadata'] = site['data']['metadata']
                         self.data['site'][site["object"]]['spec'] = site['data']['spec']
 
-                        if site['object'] in self.data['site']:
-                            self.logger.info(f"process sites add label information to site {site['object']}")
-                            self.data['site'][site["object"]]['labels'] = site['data']['metadata']['labels']
+                        #if site['object'] in self.data['site']:
+                        #    self.logger.info(f"process sites add label information to site {site['object']}")
+                        #    self.data['site'][site["object"]]['labels'] = site['data']['metadata']['labels']
             else:
                 if "untyped" not in self.data:
                     self.data['untyped'] = list()

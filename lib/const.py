@@ -57,6 +57,7 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
 CSV_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces"]
+EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity"]
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
 SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
