@@ -4,9 +4,11 @@ authors: cklewar
 
 import json
 import os
+import re
 import sys
 from logging import Logger
 from typing import Any
+from xml.dom.minidom import ProcessingInstruction
 
 import jsondiff
 import requests
@@ -234,10 +236,10 @@ class Api(object):
                                         table.add_row([record_no, "node", node, "os", attrs["hw_info"]["os"]["vendor"]])
                                     else:
                                         pass
-                                        #print(site, attrs)
+                                        # print(site, attrs)
                         elif key == "namespaces":
                             for namespace, attrs in value.items():
-                                for ns_item, ns_item_value  in attrs.items():
+                                for ns_item, ns_item_value in attrs.items():
                                     table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0]])
                         else:
                             for name in value:
@@ -288,33 +290,42 @@ class Api(object):
 
         return self.data
 
-    def compare(self, old_file: str = None, new_file: str = None) -> PrettyTable | None:
+    def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
+        :param new_site: new site name to compare with
+        :param old_site: old site name to compare with
         :param new_file: file name data loaded to compare with
         :param old_file: file name data loaded to compare with
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
         self.logger.info(f"{self.compare.__name__} started with data from previous run: <{os.path.basename(old_file)}> and data from latest run <{os.path.basename(new_file)}>")
-        data_old = self.read_json_file(old_file)
-        data_new = self.read_json_file(new_file)
+        self.logger.info(f"Compare old site: {old_site} --> {old_file}")
+        self.logger.info(f"Compare new site: {new_site} --> {new_file}")
 
-        compared = diff(data_old['site'][self.site], data_new['site'][self.site], syntax="compact")
+        data_old = None
+        data_new = None
 
-        def generic_items(dict_or_list):
-            if isinstance(dict_or_list, dict):
-                return dict_or_list.items()
-            if isinstance(dict_or_list, list):
-                return enumerate(dict_or_list)
+        try:
+            data_old = self.read_json_file(old_file)
+            data_new = self.read_json_file(new_file)
 
-        def get_by_path(root: dict = None, items: list = None, resp: list = None):
+        except KeyError as ke:
+            self.logger.info(f"site not found error: {ke}")
+
+        self.logger.debug(f"DATA_OLD: {data_old}")
+        self.logger.debug(f"DATA_NEW: {data_new}")
+
+        compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
+
+        def get_by_path(root: dict | list = None, items: list = None, resp: list = None):
             """
-            Access a nested object in root by item sequence.
-            :param root:
-            :param items:
-            :param resp:
-            :return:
+            Traverse a nested object by a sequence of path items.
+            :param root: the dict or list of values to obtain values from leveraging a path
+            :param items: list of items building a path. traverse root according to path and get value
+            :param resp: list where processed items will be appended to
+            :return: list of items obtained by path
             """
 
             if items:
@@ -322,8 +333,8 @@ class Api(object):
                     item = items[0]
                     items.pop(0)
 
-                    if isinstance(root, list):
-                        self.logger.debug(f"LIST: {root}")
+                    if isinstance(root, list) and item.isdigit():
+                        get_by_path(root[int(item)], items, resp)
                     elif isinstance(root, dict):
                         new_root = root.get(int(item)) if item.isdigit() else root.get(item)
 
@@ -338,75 +349,92 @@ class Api(object):
                                 self.logger.debug(f"LIST: {new_root}")
                             elif isinstance(root, dict):
                                 self.logger.debug(f"DICT: {new_root}")
-                                get_by_path(new_root, items, resp)
+                                if len(items) == 0:
+                                    _tmp = root.get(item)
+
+                                    if type(_tmp) == list:
+                                        # If complete interface definition is missing add list of missing interfaces and not all the sub items.
+                                        if item == "interfaces":
+                                            ifaces = list()
+
+                                            for item in _tmp:
+                                                if "ethernet_interface" in item:
+                                                    ifaces.append(item["ethernet_interface"]["device"])
+
+                                            resp.append(ifaces)
+                                        else:
+                                            resp.append(_tmp)
+                                    elif type(_tmp) == dict:
+                                        resp.append(list(new_root.keys()))
+                                    else:
+                                        self.logger.debug(f"DICT: {new_root}")
+                                        resp.append(list(new_root.keys()))
+                                else:
+                                    get_by_path(new_root, items, resp)
                             else:
-                                self.logger.debug(f"Unknown: {type(root)}")
+                                self.logger.info(f"Unknown key: {type(root)}")
                         else:
-                            self.logger.debug(f"new root item: {item}, {type(item)}")
-                            self.logger.debug(f"root: {root}")
-                            self.logger.debug(f"root.get(): {root.get(0)}")
+                            self.logger.info(f"new root item: {item}, {type(item)}")
+                            self.logger.info(f"root: {root}")
+                            self.logger.info(f"root.get(): {root.get(item)}")
                     else:
                         self.logger.debug(f"Unknown: {root}")
 
             return resp
 
-        def get_keys(parent_key, dictionary):
+        def get_keys(parent_key, dictionary, resp):
             """
 
             :param parent_key:
             :param dictionary:
             :return:
             """
-            r = []
 
-            for key, _v in generic_items(dictionary):
-                if type(key) is jsondiff.symbols.Symbol:
-                    get_keys(parent_key, _v)
-                else:
-                    if type(_v) is dict:
-                        new_keys = get_keys(key, _v)
-                        for inner_key in new_keys:
-                            r.append(f'{key}/{inner_key}')
-                    elif type(_v) is list:
-                        new_keys = get_keys(key, _v)
-                        for inner_key in new_keys:
-                            r.append(f'{key}/{_v[inner_key]}')
-                    else:
-                        r.append(key)
+            if dictionary:
+                self.logger.debug(f"DICTIONARY: {dictionary}")
+                keys = list(dictionary.keys())
 
-            return r
+                while len(keys) > 0:
+                    key = keys[0]
+                    keys.pop(0)
 
-        def get_keys_schema(parent_key, dictionary, r):
-            """
+                    if key not in ["sms"]:
+                        if type(key) is jsondiff.symbols.Symbol:
+                            if key.label == "delete":
+                                self.logger.debug(f"DELETE: {parent_key} -- {key} -- {dictionary.get(key)}")
+                                for item in dictionary.get(key):
+                                    self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                    resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
+                            elif key.label == "replace":
+                                self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {dictionary.get(key)}")
+                                resp.append(f"{parent_key}" if parent_key else f"{key}")
+                            else:
+                                self.logger.debug(f"UNKNOWN KEY: {key}")
+                        elif isinstance(dictionary.get(key), list):
+                            self.logger.debug(f"LIST: {parent_key} -- {key} -- {dictionary.get(key)}")
+                            resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                        else:
+                            if isinstance(dictionary.get(key), str):
+                                if key not in c.EXCLUDE_COMPARE_ATTRIBUTES:
+                                    self.logger.debug(f"STRING: {parent_key} -- {key} -- {dictionary.get(key)}")
+                                    resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                            elif isinstance(dictionary.get(key), int):
+                                self.logger.debug(f"INT: {parent_key} -- {key} -- {dictionary.get(key)}")
+                                resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                            elif isinstance(dictionary.get(key), dict):
+                                self.logger.debug(f"DICT: {key} -- {type(key)} -- {dictionary.get(key)}")
+                                get_keys(f"{parent_key}/{key}", dictionary.get(key), resp) if parent_key else get_keys(key, dictionary.get(key), resp)
+                            else:
+                                self.logger.debug(f"UNKNOWN KEY: {key} -- {type(dictionary.get(key))}")
 
-            :param parent_key:
-            :param dictionary:
-            :param r:
-            :return:
-            """
+                return resp
 
-            for key, _v in generic_items(dictionary):
-                if type(key) is jsondiff.symbols.Symbol:
-                    if isinstance(_v, list):
-                        for item in _v:
-                            r.append((parent_key, item))
-                elif isinstance(_v, dict):
-                    get_keys_schema(key, _v, r)
-                elif isinstance(_v, list):
-                    get_keys_schema(key, _v, r)
-                    r.append((key, _v))
-                else:
-                    self.logger.debug(f"unknown item: {key}, {type(_v)}")
-            return r
-
-        result = []
-
-        k1 = get_keys(None, compared)
-        k2 = get_keys_schema(None, compared, result)
+        r = []
+        k1 = get_keys(None, compared, r)
 
         table = PrettyTable()
         table.set_style(TableStyle.SINGLE_BORDER)
-        table.field_names = ["item", "diff"]
+        table.field_names = ["path", "values", "action"]
 
         if self.site:
             table.padding_width = 1
@@ -414,12 +442,12 @@ class Api(object):
 
         for k in k1:
             response = list()
-            r1 = get_by_path(compared, [k for k in k.split("/")], response)
-            table.add_row([k, r1[0]])
-            table.add_divider()
+            r1 = get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
 
-        for k in k2:
-            table.add_row([k[0], k[1]])
-            table.add_divider()
+            if r1:
+                check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
+                if not any(check):
+                    table.add_row([k, r1[0], ""])
+                    table.add_divider()
 
         return table

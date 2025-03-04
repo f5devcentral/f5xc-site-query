@@ -33,8 +33,11 @@ def main():
     parser.add_argument('-s', '--site', type=str, help='site to be processed', required=False, default="")
     parser.add_argument('-t', '--token', type=str, help='F5 XC API Token', required=False, default="")
     parser.add_argument('-w', '--workers', type=int, help='maximum number of worker for concurrent processing (default 10)', required=False, default=10)
+    parser.add_argument('--old-site', help='old site name to compare with', required=False, default="")
+    parser.add_argument('--new-site', help='new site name to compare with', required=False, default="")
+    parser.add_argument('--old-site-file', help='new site file to compare with', required=False, default="")
+    parser.add_argument('--new-site-file', help='new site file to compare with', required=False, default="")
     parser.add_argument('--build-inventory', help='build inventory and write it to file', action="store_true")
-    parser.add_argument('--diff-file', type=str, help='compare to site', required=False, default="")
     parser.add_argument('--diff-table', help='print diff info to stdout', action='store_true')
     parser.add_argument('--diff-file-csv', help='write site diff info to csv file', required=False, default="")
     parser.add_argument('--inventory-table', help='print inventory info to stdout', action='store_true')
@@ -87,12 +90,12 @@ def main():
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')
 
     if args.compare:
-        if args.diff_file:
-            data = q.compare(old_file=args.diff_file, new_file=args.file)
+        if args.old_site_file and args.new_site_file and args.old_site and args.new_site:
+            data = q.compare(old_site=args.old_site, old_file=args.old_site_file, new_site=args.new_site, new_file=args.new_site_file)
             logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
             q.write_string_file(args.diff_file_csv, data.get_csv_string()) if args.diff_file_csv and data else None
         else:
-            logger.info("Compare needs --diff-file option set")
+            logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")
 
     data = q.build_inventory(json_file=args.file) if args.build_inventory else None
     q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None

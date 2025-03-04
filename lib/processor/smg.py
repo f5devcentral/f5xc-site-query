@@ -74,7 +74,7 @@ class Smg(Base):
                         else:
                             self.logger.info(f"Found unsupported selector expression: {expression}")
 
-                    for label, value in self.data["site"][site]["labels"].items():
+                    for label, value in self.data["site"][site]["metadata"]["labels"].items():
                         for expression in expressions:
                             if label == expression["key"] and value == expression["value"]:
                                 site_is_member_of_virtual_sites.add(vs["data"]["metadata"]["name"])
