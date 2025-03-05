@@ -374,9 +374,9 @@ class Api(object):
                             else:
                                 self.logger.info(f"Unknown key: {type(root)}")
                         else:
-                            self.logger.info(f"new root item: {item}, {type(item)}")
-                            self.logger.info(f"root: {root}")
-                            self.logger.info(f"root.get(): {root.get(item)}")
+                            self.logger.debug(f"new root item: {item}, {type(item)}")
+                            self.logger.debug(f"root: {root}")
+                            self.logger.debug(f"root.get(): {root.get(item)}")
                     else:
                         self.logger.debug(f"Unknown: {root}")
 

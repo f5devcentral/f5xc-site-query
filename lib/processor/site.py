@@ -126,7 +126,7 @@ class Site(Base):
                         self.data['site'][site["object"]]['metadata'] = site['data']['metadata']
                         self.data['site'][site["object"]]['spec'] = site['data']['spec']
 
-                        #if site['object'] in self.data['site']:
+                        # if site['object'] in self.data['site']:
                         #    self.logger.info(f"process sites add label information to site {site['object']}")
                         #    self.data['site'][site["object"]]['labels'] = site['data']['metadata']['labels']
             else:
@@ -273,10 +273,15 @@ class Site(Base):
                 if self.data['site'][site]['kind'] != "":
                     # check if sms or legacy object type
                     if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                        if "custom_network_config" in self.data['site'][site]["sms"]["spec"].keys():
-                            if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
-                                for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_forward_proxy_policies']['forward_proxy_policies']:
+                        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                            if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                                for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['active_forward_proxy_policies']['forward_proxy_policies']:
                                     urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                            if "custom_network_config" in self.data['site'][site]["sms"]["spec"].keys():
+                                if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                    for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_forward_proxy_policies']['forward_proxy_policies']:
+                                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
@@ -343,15 +348,23 @@ class Site(Base):
                 if self.data['site'][site]['kind'] != "":
                     # check if sms or legacy object type
                     if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                        if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
-                            if "slo_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config'].keys():
-                                if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["slo_config"].keys():
-                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
-                                    urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                            elif "sli_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
-                                if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["sli_config"].keys():
-                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
-                                    urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                            if "dc_cluster_group_slo" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['dc_cluster_group_slo']['name']
+                                urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                            elif "dc_cluster_group_sli" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['dc_cluster_group_sli']['name']
+                                urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                            if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                if "slo_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config'].keys():
+                                    if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["slo_config"].keys():
+                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
+                                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                elif "sli_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                    if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["sli_config"].keys():
+                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
+                                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
