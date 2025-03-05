@@ -256,7 +256,7 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 
 This tool provides a comparison function to compare site information.
 Given the old site called `siteA` and a newly created site called `siteB` one can compate those two sites to find any differences in configuration.
-Below steps illustrating how to run comparison function: 
+Below steps illustrating how to run comparison function:
 
 - Run query for `siteA` and write data to `siteA.json`
     ```bash
@@ -318,7 +318,11 @@ Below steps illustrating how to run comparison function:
     │          dc_cluster_group          │                        ['pg-dccg']                        │        │
     └────────────────────────────────────┴───────────────────────────────────────────────────────────┴────────┘
     ```
+
 Above table shows differences for a couple of items between __site A__ and __site B__. Table presents items which are available in site A aka the old site and not available in the new site B.
+
+> [!IMPORTANT]
+> Everytime a change in site data has been done `site query must be re run` to take those changes in consideration
 
 - Run Compare for `siteA` and `siteB` csv file output
     ```bash
