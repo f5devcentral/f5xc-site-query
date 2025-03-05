@@ -33,24 +33,7 @@ class Proxy(Base):
         :return: structure with proxies information being added
         """
 
-        #proxies = list()
-
         proxies = self.execute(name="proxies query", urls=self.urls)
-
-        """
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare proxies query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in self.urls}
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
-
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    self.logger.info('%r generated an exception: %s' % (_data, exc))
-                else:
-                    proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
-        """
 
         def process():
             try:
@@ -107,25 +90,19 @@ class Proxy(Base):
                     if result:
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
+
                         site_virtual_sites = r['spec'].get('site_virtual_sites', {})
                         advertise_where = site_virtual_sites.get('advertise_where', [])
 
                         for site_info in advertise_where:
-                            if self.must_break:
-                                break
-                            else:
-                                for site_type in site_info.keys():
-                                    if site_type in c.F5XC_SITE_TYPES:
-                                        # Referenced site must exist
-                                        if site_info[site_type][site_type]['name'] in self.data[site_type]:
-                                            # Only processing sites which are not in failed state
-                                            if site_info[site_type][site_type]['name'] not in self.data["failed"]:
-                                                if self.site:
-                                                    if self.site == site_info[site_type][site_type]['name']:
-                                                        self.must_break = True
-                                                        process()
-                                                        break
-                                                else:
+                            for site_type in site_info.keys():
+                                if site_type in c.F5XC_SITE_TYPES:
+                                    # Referenced site must exist
+                                    if site_info[site_type][site_type]['name'] in self.data[site_type]:
+                                        # Only processing sites which are not in failed state
+                                        if site_info[site_type][site_type]['name'] not in self.data["failed"]:
+                                            if self.site:
+                                                if self.site == site_info[site_type][site_type]['name']:
                                                     process()
 
         return self.data

@@ -350,7 +350,7 @@ class Api(object):
                                 self.logger.debug(f"DICT: {new_root}")
                                 if len(items) == 0:
                                     _tmp = root.get(item)
-
+                                    #print(item, _tmp)
                                     if type(_tmp) == list:
                                         # If complete interface definition is missing add list of missing interfaces and not all the sub items.
                                         if item == "interfaces":
@@ -361,16 +361,11 @@ class Api(object):
                                                     ifaces.append(item["ethernet_interface"]["device"])
 
                                             resp.append(ifaces)
+                                        elif item == "proxys":
+                                            print("ITEM:", item)
                                         else:
                                             resp.append(_tmp)
                                     elif type(_tmp) == dict:
-                                        # if item == "namespaces":
-                                        #    for namespace, values in _tmp.items():
-                                        #        if "loadbalancer" in values:
-                                        #            for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                        #                if values['loadbalancer'].get(lb_type.split("_")[0], None):
-                                        #                    print(list(values['loadbalancer'][lb_type.split("_")[0]].keys()))
-                                        #                   resp.append(list(values['loadbalancer'][lb_type.split("_")[0]].keys()))
                                         resp.append(list(new_root.keys()))
                                     else:
                                         self.logger.debug(f"DICT: {new_root}")
@@ -448,7 +443,6 @@ class Api(object):
 
         r = []
         k1 = get_keys(None, compared, r)
-        print("K1:", k1)
         table = PrettyTable()
         table.set_style(TableStyle.SINGLE_BORDER)
         table.field_names = ["path", "values", "action"]
@@ -460,7 +454,6 @@ class Api(object):
         for k in k1:
             response = list()
             r1 = get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
-            # print("R1", r1)
 
             if r1:
                 check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))

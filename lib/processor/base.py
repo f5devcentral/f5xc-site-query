@@ -114,10 +114,7 @@ class Base(object):
                         if isinstance(urls, dict):
                             resp.append({"object": urls[future_to_ds[future]], "data": data.json()})
                         elif isinstance(urls, list):
-                            #resp.append({"object": urls[future_to_ds[future]], "data": data.json()})
                             resp.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
-                            #print("DATA:", future_to_ds[future])
-                            #print("URLS:", urls)
 
             return resp
 
