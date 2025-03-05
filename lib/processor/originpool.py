@@ -25,11 +25,6 @@ class Originpool(Base):
             self.urls.append(self.build_url(c.URI_F5XC_ORIGIN_POOLS.format(namespace=namespace)))
 
         self.logger.debug("ORIGIN_POOL_URLS: %s", self.urls)
-        self._origin_pools = list()
-
-    @property
-    def origin_pools(self):
-        return self._origin_pools
 
     def run(self) -> dict:
         """
@@ -37,18 +32,7 @@ class Originpool(Base):
         :return: structure with origin pool information being added
         """
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-            self.logger.info("Prepare origin pools query...")
-            future_to_ds = {executor.submit(self.get, url=url): url for url in self.urls}
-            for future in concurrent.futures.as_completed(future_to_ds):
-                _data = future_to_ds[future]
-
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    self.logger.info('%r generated an exception: %s' % (_data, exc))
-                else:
-                    self.origin_pools.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+        _origin_pools = self.execute(name="origin pools", urls=self.urls)
 
         def process():
             try:
@@ -82,7 +66,7 @@ class Originpool(Base):
 
         urls = list()
 
-        for item in self.origin_pools:
+        for item in _origin_pools:
             for url, origin_pools in item.items():
                 for origin_pool in origin_pools:
                     _url = "{}/{}".format(url, origin_pool['name'])

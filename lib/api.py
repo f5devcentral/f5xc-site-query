@@ -364,6 +364,13 @@ class Api(object):
                                         else:
                                             resp.append(_tmp)
                                     elif type(_tmp) == dict:
+                                        # if item == "namespaces":
+                                        #    for namespace, values in _tmp.items():
+                                        #        if "loadbalancer" in values:
+                                        #            for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                        #                if values['loadbalancer'].get(lb_type.split("_")[0], None):
+                                        #                    print(list(values['loadbalancer'][lb_type.split("_")[0]].keys()))
+                                        #                   resp.append(list(values['loadbalancer'][lb_type.split("_")[0]].keys()))
                                         resp.append(list(new_root.keys()))
                                     else:
                                         self.logger.debug(f"DICT: {new_root}")
@@ -386,6 +393,7 @@ class Api(object):
 
             :param parent_key:
             :param dictionary:
+            :param resp:
             :return:
             """
 
@@ -402,6 +410,16 @@ class Api(object):
                             if key.label == "delete":
                                 self.logger.debug(f"DELETE: {parent_key} -- {key} -- {dictionary.get(key)}")
                                 for item in dictionary.get(key):
+                                    if item == "namespaces":
+                                        for namespace in data_old['site'][old_site]['namespaces']:
+                                            if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                                    if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                        resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
+                                            if "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                resp.append(f"{item}/{namespace}/origin_pools")
+                                            if "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                resp.append(f"{item}/{namespace}/proxys")
                                     self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                                     resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
                             elif key.label == "replace":
@@ -430,7 +448,7 @@ class Api(object):
 
         r = []
         k1 = get_keys(None, compared, r)
-
+        print("K1:", k1)
         table = PrettyTable()
         table.set_style(TableStyle.SINGLE_BORDER)
         table.field_names = ["path", "values", "action"]
@@ -442,6 +460,7 @@ class Api(object):
         for k in k1:
             response = list()
             r1 = get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
+            # print("R1", r1)
 
             if r1:
                 check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
