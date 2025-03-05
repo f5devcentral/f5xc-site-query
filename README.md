@@ -318,7 +318,7 @@ Below steps illustrating how to run comparison function:
     │          dc_cluster_group          │                        ['pg-dccg']                        │        │
     └────────────────────────────────────┴───────────────────────────────────────────────────────────┴────────┘
     ```
-Above table shows differences for a couple items between site A and site B. Table presents items which are available in site A aka the old site and not available in the new site B.
+Above table shows differences for a couple of items between __site A__ and __site B__. Table presents items which are available in site A aka the old site and not available in the new site B.
 
 - Run Compare for `siteA` and `siteB` csv file output
     ```bash
