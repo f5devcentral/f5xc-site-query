@@ -75,6 +75,11 @@ def main():
     api_token = args.token if args.token else os.environ.get('f5xc_api_token')
 
     if not api_url or not api_token:
+        logger.info("\n\n\n")
+        logger.info(38 * "#")
+        logger.info("api_url and api_token must be provided")
+        logger.info(38 * "#")
+        logger.info("\n\n\n")
         parser.print_help()
         sys.exit(1)
 
