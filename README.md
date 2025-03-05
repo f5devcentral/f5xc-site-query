@@ -349,7 +349,6 @@ This tool offers functions to create an inventory of a tenant. Supported invento
     ```bash
     ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
-
 - Run create CSV inventory file function
     ```bash
     ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
