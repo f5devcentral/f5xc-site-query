@@ -60,7 +60,7 @@ pipx install poetry
 
 ```bash
 poetry install
-$ eval $(poetry env activate)
+eval $(poetry env activate)
 #(project) $  # Virtualenv entered
 ```
 
