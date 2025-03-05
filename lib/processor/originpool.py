@@ -36,6 +36,7 @@ class Originpool(Base):
         Add origin pools to site if origin pools refers to a site. Obtains specific origin pool by name.
         :return: structure with origin pool information being added
         """
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             self.logger.info("Prepare origin pools query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in self.urls}
@@ -62,6 +63,7 @@ class Originpool(Base):
                     self.data[site_type][site_name]['namespaces'][namespace] = dict()
                 if "origin_pools" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
                     self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"] = dict()
+
                 self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
                 self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
                 self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
@@ -69,6 +71,7 @@ class Originpool(Base):
                 self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
                 self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
                 self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
+
                 self.logger.info(f"process origin pools add data: [namespace: {namespace} origin pool: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 self.logger.info("site_type:", site_type)
@@ -126,6 +129,7 @@ class Originpool(Base):
                                                     # Only processing sites which are not in failed state
                                                     if site_name not in self.data["failed"]:
                                                         if self.site:
+
                                                             if self.site == site_name:
                                                                 self.must_break = True
                                                                 process()

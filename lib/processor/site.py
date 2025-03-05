@@ -125,10 +125,6 @@ class Site(Base):
                         self.data['site'][site["object"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
                         self.data['site'][site["object"]]['metadata'] = site['data']['metadata']
                         self.data['site'][site["object"]]['spec'] = site['data']['spec']
-
-                        # if site['object'] in self.data['site']:
-                        #    self.logger.info(f"process sites add label information to site {site['object']}")
-                        #    self.data['site'][site["object"]]['labels'] = site['data']['metadata']['labels']
             else:
                 if "untyped" not in self.data:
                     self.data['untyped'] = list()
@@ -302,32 +298,16 @@ class Site(Base):
                                         urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
-                self.logger.info("Prepare forward proxy policy details query...")
-                future_to_ds = {executor.submit(self.get, url=url): url for url in urls.keys()}
+            fpps = self.execute(name="forward proxy policy details query", urls=urls)
 
-                for future in concurrent.futures.as_completed(future_to_ds):
-                    _data = future_to_ds[future]
+            for fpp in fpps:
+                if fpp["object"] in self.data['site']:
+                    if "fpp" not in self.data['site'][fpp["object"]]:
+                        self.data['site'][fpp["object"]]['fpp'] = dict()
 
-                    try:
-                        self.logger.info(f"process forward proxy policy details get item: {future_to_ds[future]} ...")
-                        result = future.result()
-                    except Exception as exc:
-                        self.logger.info('%s: %r generated an exception: %s' % ("process forward proxy policy details", _data, exc))
-                    else:
-                        self.logger.info(f"process forward proxy policy details got item: {future_to_ds[future]} ...")
-
-                        if result:
-                            fpp = result.json()
-                            self.logger.debug(json.dumps(fpp, indent=2))
-
-                            if urls[future_to_ds[future]] in self.data['site']:
-                                if "fpp" not in self.data['site'][urls[future_to_ds[future]]]:
-                                    self.data['site'][urls[future_to_ds[future]]]['fpp'] = dict()
-
-                                self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']] = dict()
-                                self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['metadata'] = fpp['metadata']
-                                self.data['site'][urls[future_to_ds[future]]]['fpp'][fpp['metadata']['name']]['spec'] = fpp['spec']
+                    self.data['site'][fpp["object"]]['fpp'][fpp['data']['metadata']['name']] = dict()
+                    self.data['site'][fpp["object"]]['fpp'][fpp['data']['metadata']['name']]['metadata'] = fpp['data']['metadata']
+                    self.data['site'][fpp["object"]]['fpp'][fpp['data']['metadata']['name']]['spec'] = fpp['data']['spec']
 
         return self.data
 

@@ -33,8 +33,11 @@ class Proxy(Base):
         :return: structure with proxies information being added
         """
 
-        proxies = list()
+        #proxies = list()
 
+        proxies = self.execute(name="proxies query", urls=self.urls)
+
+        """
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             self.logger.info("Prepare proxies query...")
             future_to_ds = {executor.submit(self.get, url=url): url for url in self.urls}
@@ -47,6 +50,7 @@ class Proxy(Base):
                     self.logger.info('%r generated an exception: %s' % (_data, exc))
                 else:
                     proxies.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+        """
 
         def process():
             try:

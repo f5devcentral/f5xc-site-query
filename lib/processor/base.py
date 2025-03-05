@@ -94,7 +94,7 @@ class Base(object):
         """
         return "{}{}".format(self.api_url, uri)
 
-    def execute(self, name: str = None, urls: dict[str, Any] = None) -> list | None:
+    def execute(self, name: str = None, urls: dict[str, Any] | list[str] = None) -> list | None:
         resp = list()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -111,7 +111,13 @@ class Base(object):
                 else:
                     self.logger.info(f"process {name} got item: {future_to_ds[future]} ...")
                     if data:
-                        resp.append({"object": urls[future_to_ds[future]], "data": data.json()})
+                        if isinstance(urls, dict):
+                            resp.append({"object": urls[future_to_ds[future]], "data": data.json()})
+                        elif isinstance(urls, list):
+                            #resp.append({"object": urls[future_to_ds[future]], "data": data.json()})
+                            resp.append({future_to_ds[future]: data.json()["items"]}) if data and data.json()["items"] else None
+                            #print("DATA:", future_to_ds[future])
+                            #print("URLS:", urls)
 
             return resp
 
