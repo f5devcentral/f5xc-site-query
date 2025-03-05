@@ -334,18 +334,18 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 
 #### CSV
 
-- Run query for specif site or specific namespace or for all data
+- Run query for all sites and all namespaces
     ```bash
-    ./get-sites.py -f ./get-sites-all-ns.json -q --log-stdout
+    ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
 - Run create CSV inventory file function
     ```bash
-    ./get-sites.py -f ./json/all-ns.json --build-inventory --inventory-file-csv ./csv/inventory.csv --log-level INFO --log-stdout
+    ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
     ```
 
 #### Stdout
 
-- Run query for specif site or specific namespace or for all data
+- Run query for all sites and all namespaces
     ```bash
     ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
