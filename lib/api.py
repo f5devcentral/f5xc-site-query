@@ -8,7 +8,6 @@ import re
 import sys
 from logging import Logger
 from typing import Any
-from xml.dom.minidom import ProcessingInstruction
 
 import jsondiff
 import requests
