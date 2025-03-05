@@ -322,7 +322,7 @@ Below steps illustrating how to run comparison function:
 Above table shows differences for a couple of items between __site A__ and __site B__. Table presents items which are available in site A aka the old site and not available in the new site B.
 
 > [!IMPORTANT]
-> Everytime a change in site data has been done `site query must be re run` to take those changes in consideration
+> Everytime a change in site data has been done `site query must be re run` to take those changes into consideration
 
 - Run Compare for `siteA` and `siteB` csv file output
     ```bash
