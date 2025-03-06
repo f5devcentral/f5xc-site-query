@@ -276,7 +276,9 @@ class Api(object):
                         table.add_row([record_no, key, value, "", "", "", ""])
                     elif isinstance(value, dict):
                         if key in c.CSV_EXPORT_KEYS:
-                            if key == "spoke":
+                            if key == "spec":
+                                table.add_row([record_no, key, "ce_sw_version", value["volterra_software_version"], "", "", ""])
+                            elif key == "spoke":
                                 if site_data["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
                                     # TODO add azure support
                                     pass
