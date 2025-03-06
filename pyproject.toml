@@ -17,7 +17,8 @@ dependencies = [
     "coloredlogs~=15.0.1",
     "tox>=4.24.1",
     "prettytable>=3.14.0",
-    "jsondiff>=2.2.1"
+    "jsondiff>=2.2.1",
+    "pytest>=8.3.5"
 ]
 
 [build-system]
