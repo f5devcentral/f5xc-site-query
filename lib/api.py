@@ -430,12 +430,20 @@ class Api(object):
                                                     for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
                                                         if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                             resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
-                                                if "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                elif "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
                                                     resp.append(f"{item}/{namespace}/origin_pools")
-                                                if "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                elif "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
                                                     resp.append(f"{item}/{namespace}/proxys")
+                                                self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                        if item == "loadbalancer":
+                                            namespace = parent_key.split("/")[1]
+                                            if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                                    if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                        resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
+                                        else:
+                                            resp.append(f"{parent_key}/{item}")
                                         self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
-                                        resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
                                 elif key.label == "replace":
                                     self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {dictionary.get(key)}")
                                     resp.append(f"{parent_key}" if parent_key else f"{key}")
@@ -463,6 +471,7 @@ class Api(object):
             r = []
             # build list of key paths
             k1 = get_keys(None, compared, r)
+            print("K1:", k1)
             table = PrettyTable()
             table.set_style(TableStyle.SINGLE_BORDER)
             table.field_names = ["path", "values"]
