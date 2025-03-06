@@ -290,8 +290,14 @@ class Api(object):
                                         table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"]), "", ""])
                                     if "hw_info" in attrs:
                                         for k, v in c.HW_INFO_ITEMS_TO_PROCESS.items():
-                                            for item in v:
-                                                table.add_row([record_no, "node", node, "hw_info", k, item, attrs["hw_info"][k][item]])
+                                            if k == "storage":
+                                                for s in attrs["hw_info"][k]:
+                                                    for item in v:
+                                                        if s[item] != 0:
+                                                            table.add_row([record_no, "node", node, "hw_info", k, s["name"], s[item]])
+                                            else:
+                                                for item in v:
+                                                    table.add_row([record_no, "node", node, "hw_info", k, item, attrs["hw_info"][k][item]])
                             elif key == "namespaces":
                                 for namespace, attrs in value.items():
                                     for ns_item, ns_item_value in attrs.items():
