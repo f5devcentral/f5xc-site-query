@@ -262,18 +262,18 @@ class Api(object):
         if data:
             table = PrettyTable()
             table.set_style(TableStyle.SINGLE_BORDER)
-            table.field_names = ["No", "Type", "Value", "Subtype", "SubValue"]
+            table.field_names = ["No", "Type", "Value", "Subtype1", "SubValue1", "Subtype2", "SubValue2"]
             table.title = "Inventory"
             table.padding_width = 1
 
             def process():
                 record_no = 1
-                table.add_row(["{}".format(site), "", "", "", ""])
+                table.add_row(["{}".format(site), "", "", "", "", "", ""])
                 for key, value in site_data.items():
                     if isinstance(value, str):
-                        table.add_row([record_no, key, value, "", ""])
+                        table.add_row([record_no, key, value, "", "", "", ""])
                     elif isinstance(value, int):
-                        table.add_row([record_no, key, value, "", ""])
+                        table.add_row([record_no, key, value, "", "", "", ""])
                     elif isinstance(value, dict):
                         if key in c.CSV_EXPORT_KEYS:
                             if key == "spoke":
@@ -281,23 +281,25 @@ class Api(object):
                                     # TODO add azure support
                                     pass
                                 elif site_data["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                                    table.add_row([record_no, key, len(value["vpc_list"]), "", ""])
+                                    table.add_row([record_no, key, len(value["vpc_list"]), "", "", "", ""])
                             elif key == "nodes":
                                 for node, attrs in value.items():
                                     if "interfaces" in attrs:
-                                        table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
+                                        table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"]), "", ""])
                                     if "hw_info" in attrs:
-                                        table.add_row([record_no, "node", node, "os", attrs["hw_info"]["os"]["vendor"]])
+                                        for k, v in c.HW_INFO_ITEMS_TO_PROCESS.items():
+                                            for item in v:
+                                                table.add_row([record_no, "node", node, "hw_info", k, item, attrs["hw_info"][k][item]])
                             elif key == "namespaces":
                                 for namespace, attrs in value.items():
                                     for ns_item, ns_item_value in attrs.items():
-                                        table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0]])
+                                        table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0], "", ""])
                             else:
                                 for name in value:
-                                    table.add_row([record_no, key, name, "", ""])
+                                    table.add_row([record_no, key, name, "", "", "", ""])
                     elif isinstance(value, list):
                         if len(value) > 0:
-                            table.add_row([record_no, key, value, "", ""])
+                            table.add_row([record_no, key, value, "", "", "", ""])
                     record_no += 1
 
                 table.add_divider()
