@@ -43,6 +43,12 @@ class Base(object):
     def logger(self):
         return self._logger
 
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return f"class: {self.__class__.__name__}, api_url: {self.api_url}, site: {self._site}, workers: {self.workers}"
+
     def get_site_nic_mode(self, site: str = None) -> str | None:
         """
         Check if interface mode key exists in given data. Return site interface mode which is Single NIC or Dual NIC.
