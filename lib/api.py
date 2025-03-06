@@ -297,7 +297,7 @@ class Api(object):
 
         compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
 
-        def get_by_path(root: dict | list = None, items: list = None, resp: list = None):
+        def get_by_path(root: dict | list = None, items: list = None, resp: list = None) -> list[str] | None:
             """
             Traverse a nested object by a sequence of path items.
             :param root: the dict or list of values to obtain values from leveraging a path
@@ -362,13 +362,13 @@ class Api(object):
 
             return resp
 
-        def get_keys(parent_key, dictionary, resp):
+        def get_keys(parent_key: str = None, dictionary: dict = None, resp: list[str] = None) -> list[str] | None:
             """
-
-            :param parent_key:
-            :param dictionary:
-            :param resp:
-            :return:
+            get_keys will compute list of strings, where each string represents path to key in a dict
+            :param parent_key: last key becomes parent key. When func called first time parent key will be None.
+            :param dictionary: holds compared data. With each recursion dictionary will present latest key values
+            :param resp: a list of strings. Each string represents a key path later used to access values in site inventory
+            :return: final list of all computed key path strings
             """
 
             if dictionary:
@@ -421,6 +421,7 @@ class Api(object):
                 return resp
 
         r = []
+        # build list of key paths
         k1 = get_keys(None, compared, r)
         table = PrettyTable()
         table.set_style(TableStyle.SINGLE_BORDER)
@@ -432,6 +433,7 @@ class Api(object):
 
         for k in k1:
             response = list()
+            # get list of items to be  added as table row data
             r1 = get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
 
             if r1:
