@@ -73,5 +73,6 @@ SITE_TYPE_TO_URI_MAP = {
 HW_INFO_ITEMS_TO_PROCESS = {
     "os": ["vendor", "version", "release"],
     "cpu": ["model", "cpus", "cores", "threads"],
-    "memory": ["speed", "size_mb"]
+    "memory": ["speed", "size_mb"],
+    "storage": ["size_gb"]
 }
