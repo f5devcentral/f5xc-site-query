@@ -266,29 +266,6 @@ class Api(object):
 
         return table
 
-    def run(self) -> dict:
-        """
-        Run functions to process data
-            - process_loadbalancer for each namespace and load balancer type
-            - process_proxies for each namespace
-            - process_origin_pools for each namespace
-            - process site labels only if referenced by a load balancer/ origin pool / proxy
-            - process site details to get hw info
-        :return: processed data
-        """
-
-        _processors = dict()
-        _processor = None
-
-        for index, processor in enumerate(c.API_PROCESSORS):
-            self.logger.info(f"Loading processor <{processor}>...")
-            package = load_module(c.PROCESSOR_PACKAGE, processor.lower())
-            _processor = getattr(package, processor.capitalize())(session=self.session, api_url=self.api_url, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
-            _processors[processor] = _processor
-            _processor.run()
-
-        return self.data
-
     def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
@@ -350,7 +327,7 @@ class Api(object):
                                 self.logger.debug(f"DICT: {new_root}")
                                 if len(items) == 0:
                                     _tmp = root.get(item)
-                                    #print(item, _tmp)
+                                    # print(item, _tmp)
                                     if type(_tmp) == list:
                                         # If complete interface definition is missing add list of missing interfaces and not all the sub items.
                                         if item == "interfaces":
@@ -462,3 +439,26 @@ class Api(object):
                     table.add_divider()
 
         return table
+
+    def run(self) -> dict:
+        """
+        Run functions to process data
+            - process_loadbalancer for each namespace and load balancer type
+            - process_proxies for each namespace
+            - process_origin_pools for each namespace
+            - process site labels only if referenced by a load balancer/ origin pool / proxy
+            - process site details to get hw info
+        :return: processed data
+        """
+
+        _processors = dict()
+        _processor = None
+
+        for index, processor in enumerate(c.API_PROCESSORS):
+            self.logger.info(f"Loading processor <{processor}>...")
+            package = load_module(c.PROCESSOR_PACKAGE, processor.lower())
+            _processor = getattr(package, processor.capitalize())(session=self.session, api_url=self.api_url, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+            _processors[processor] = _processor
+            _processor.run()
+
+        return self.data
