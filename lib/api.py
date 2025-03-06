@@ -259,67 +259,66 @@ class Api(object):
         self.logger.info(f"{self.build_inventory.__name__} started...")
 
         data = self.read_json_file(json_file)
-        table = PrettyTable()
-        table.set_style(TableStyle.SINGLE_BORDER)
-        table.field_names = ["No", "Type", "Value", "Subtype", "SubValue"]
-        table.title = "Inventory"
-        table.padding_width = 1
+        if data:
+            table = PrettyTable()
+            table.set_style(TableStyle.SINGLE_BORDER)
+            table.field_names = ["No", "Type", "Value", "Subtype", "SubValue"]
+            table.title = "Inventory"
+            table.padding_width = 1
 
-        def process():
-            record_no = 1
-            table.add_row(["{}".format(site), "", "", "", ""])
-            for key, value in site_data.items():
-                if isinstance(value, str):
-                    table.add_row([record_no, key, value, "", ""])
-                elif isinstance(value, int):
-                    table.add_row([record_no, key, value, "", ""])
-                elif isinstance(value, dict):
-                    if key in c.CSV_EXPORT_KEYS:
-                        if key == "spoke":
-                            if site_data["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
-                                # TODO add azure support
-                                pass
-                            elif site_data["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                                table.add_row([record_no, key, len(value["vpc_list"]), "", ""])
-                        elif key == "nodes":
-                            for node, attrs in value.items():
-                                # Skip SMv2 since no interface information available. process_node_interfaces() in site needs to be extended to support this
-                                if site_data["kind"] != c.F5XC_SITE_TYPE_SMS_V2:
-                                    table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
-                                    if "hw_info" in attrs:
-                                        table.add_row([record_no, "node", node, "os", attrs["hw_info"]["os"]["vendor"]])
-                                    else:
-                                        pass
-                                        # print(site, attrs)
-                        elif key == "namespaces":
-                            for namespace, attrs in value.items():
-                                for ns_item, ns_item_value in attrs.items():
-                                    table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0]])
-                        else:
-                            for name in value:
-                                table.add_row([record_no, key, name, "", ""])
-                elif isinstance(value, list):
-                    if len(value) > 0:
+            def process():
+                record_no = 1
+                table.add_row(["{}".format(site), "", "", "", ""])
+                for key, value in site_data.items():
+                    if isinstance(value, str):
                         table.add_row([record_no, key, value, "", ""])
-                record_no += 1
+                    elif isinstance(value, int):
+                        table.add_row([record_no, key, value, "", ""])
+                    elif isinstance(value, dict):
+                        if key in c.CSV_EXPORT_KEYS:
+                            if key == "spoke":
+                                if site_data["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
+                                    # TODO add azure support
+                                    pass
+                                elif site_data["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                                    table.add_row([record_no, key, len(value["vpc_list"]), "", ""])
+                            elif key == "nodes":
+                                for node, attrs in value.items():
+                                    if "interfaces" in attrs:
+                                        table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
+                                    elif "hw_info" in attrs:
+                                        table.add_row([record_no, "node", node, "os", attrs["hw_info"]["os"]["vendor"]])
+                            elif key == "namespaces":
+                                for namespace, attrs in value.items():
+                                    for ns_item, ns_item_value in attrs.items():
+                                        table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0]])
+                            else:
+                                for name in value:
+                                    table.add_row([record_no, key, name, "", ""])
+                    elif isinstance(value, list):
+                        if len(value) > 0:
+                            table.add_row([record_no, key, value, "", ""])
+                    record_no += 1
 
-            table.add_divider()
+                table.add_divider()
 
-        for site, site_data in data['site'].items():
-            if self.must_break:
-                break
-            else:
-                if self.site:
-                    if self.site == site:
-                        self.must_break = True
-                        process()
-                        break
+            print(data['site'])
+
+            for site, site_data in data['site'].items():
+                if self.must_break:
+                    break
                 else:
-                    process()
+                    if self.site:
+                        if self.site == site:
+                            self.must_break = True
+                            process()
+                            break
+                    else:
+                        process()
 
-        self.logger.info(f"{self.build_inventory.__name__} -> Done")
+            self.logger.info(f"{self.build_inventory.__name__} -> Done")
 
-        return table
+            return table
 
     def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
         """
