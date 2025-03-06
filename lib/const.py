@@ -70,3 +70,8 @@ SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_AZURE_VNET: URI_F5XC_SITE_AZURE_VNET,
     F5XC_SITE_VOLT_STACK: URI_F5XC_SITE_VOLT_STACK,
 }
+HW_INFO_ITEMS_TO_PROCESS = {
+    "os": ["vendor", "version", "release"],
+    "cpu": ["model", "cpus", "cores", "threads"],
+    "memory": ["speed", "size_mb"]
+}
