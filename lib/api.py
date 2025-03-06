@@ -286,7 +286,7 @@ class Api(object):
                                 for node, attrs in value.items():
                                     if "interfaces" in attrs:
                                         table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"])])
-                                    elif "hw_info" in attrs:
+                                    if "hw_info" in attrs:
                                         table.add_row([record_no, "node", node, "os", attrs["hw_info"]["os"]["vendor"]])
                             elif key == "namespaces":
                                 for namespace, attrs in value.items():
@@ -471,7 +471,6 @@ class Api(object):
             r = []
             # build list of key paths
             k1 = get_keys(None, compared, r)
-            print("K1:", k1)
             table = PrettyTable()
             table.set_style(TableStyle.SINGLE_BORDER)
             table.field_names = ["path", "values"]
