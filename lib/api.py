@@ -302,8 +302,6 @@ class Api(object):
 
                 table.add_divider()
 
-            print(data['site'])
-
             for site, site_data in data['site'].items():
                 if self.must_break:
                     break
@@ -375,19 +373,15 @@ class Api(object):
                                     self.logger.debug(f"DICT: {new_root}")
                                     if len(items) == 0:
                                         _tmp = root.get(item)
-                                        # print(item, _tmp)
                                         if type(_tmp) == list:
                                             # If complete interface definition is missing add list of missing interfaces and not all the sub items.
                                             if item == "interfaces":
                                                 ifaces = list()
-
                                                 for item in _tmp:
                                                     if "ethernet_interface" in item:
                                                         ifaces.append(item["ethernet_interface"]["device"])
 
                                                 resp.append(ifaces)
-                                            elif item == "proxys":
-                                                print("ITEM:", item)
                                             else:
                                                 resp.append(_tmp)
                                         elif type(_tmp) == dict:
