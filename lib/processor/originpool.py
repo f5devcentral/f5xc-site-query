@@ -11,13 +11,13 @@ from lib.processor.base import Base
 class Originpool(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         """
-
-        :param session:
-        :param api_url:
-        :param data:
-        :param site:
-        :param workers:
-        :param logger:
+        A class for processing site related origin pool data.
+        :param session: current http session
+        :param api_url: api url to connect to
+        :param data: data structure to add origin pool data to
+        :param site: user injected site name to filter for
+        :param workers: amount of concurrent threads
+        :param logger: log instance for writing / printing log information
         """
         super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
 

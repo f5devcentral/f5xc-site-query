@@ -34,6 +34,8 @@ class Api(object):
         http session
     _workers: int
        maximum number of workers
+    _data: dict
+        inventory data structure. Filled with data by various modules. Items and attributes out of this ds used for compare function.
 
     Methods
     -------

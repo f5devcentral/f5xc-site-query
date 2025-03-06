@@ -11,13 +11,43 @@ from lib.processor.base import Base
 class Site(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         """
+        :param session: current http session
+        :param api_url: api url to connect to
+        :param data: data structure to add site data to
+        :param site: user injected site name to filter for
+        :param workers: amount of concurrent threads
+        :param logger: log instance for writing / printing log information
 
-        :param session:
-        :param api_url:
-        :param data:
-        :param site:
-        :param workers:
-        :param logger:
+        A class for processing site related data. A site object directly references certain objects like:
+        - efp
+        - ffp
+        - dc cluster group
+        - cloud link
+        - spoke
+        This referenced objects will be added to site inventory. Additionally, this class provides methods to process site hardware and node interface information
+
+        Methods
+        -------
+        run()
+            start modules to start build site inventory information
+        process_site()
+            process general site data. Filter sites in available attributes and their status
+        process_site_details()
+            add site detail information to site inventory. Site details are 'metadata', 'spec', 'main_node_counter', 'worker_node_counter'
+        process_efp()
+            add referenced enhanced firewall policy information to site inventory
+        process_fpp()
+            add referenced forward proxy policy information to site inventory
+        process_dc_cluster_group()
+            add referenced dc cluster group information to site inventory
+        process_cloud_link()
+            add referenced cloud link information to site inventory
+        process_spokes()
+            add referenced spokes information to site inventory
+        process_node_interfaces()
+            add site interface information to site inventory
+        process_hw_info()
+            add site hardware information to site inventory
         """
         super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
 
