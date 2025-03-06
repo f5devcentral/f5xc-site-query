@@ -36,6 +36,59 @@ class Api(object):
        maximum number of workers
     _data: dict
         inventory data structure. Filled with data by various modules. Items and attributes out of this ds used for compare function.
+        Inventory structure:
+
+        site
+            <site_name>
+                kind
+                main_node_count
+                metadata
+                spec
+                sms (for secure mesh based sites)
+                legacy (for legacy object based sites)
+                sub_kind
+                worker_node_count
+                efp
+                fpp
+                bgp
+                dc_cluster_group
+                nodes
+                    <node_name>
+                        interfaces
+                        hw_info
+                namespaces
+                    loadbalancer
+                        <lb_type> e.g. http/tcp
+                            <loadbalancer_name>
+                                spec
+                                metadata
+                                system_metadata
+                    proxys
+                        <proxy_name>
+                            spec
+                                metadata
+                                system_metadata
+                smg
+                    <smg_name>
+                        spec
+                        metadata
+                vsites [list of virtual site names]
+        virtual_site
+            <virtual_site_name>
+                namespaces
+                    loadbalancer
+                        <lb_type> e.g. http/tcp
+                            <loadbalancer_name>
+                                spec
+                                metadata
+                                system_metadata
+                    proxys
+                        <proxy_name>
+                            spec
+                                metadata
+                                system_metadata
+        namespaces [list of namespace names]
+        failed_sites { <site_name>: <site_status> } e.g. "ce-ga-singlenic-azure": "FAILED"
 
     Methods
     -------
