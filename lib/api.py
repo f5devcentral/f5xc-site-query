@@ -53,7 +53,7 @@ class Api(object):
         compare any previous data set with current data set
     """
 
-    def __init__(self, _logger: Logger = None, api_url: str = None, api_token: str = None, namespace: str = None, site: str = None, workers: int = 10):
+    def __init__(self, logger: Logger = None, api_url: str = None, api_token: str = None, namespace: str = None, site: str = None, workers: int = 10):
         """
         Initialize API object. Stores session state and allows to run data processing methods.
 
@@ -64,7 +64,7 @@ class Api(object):
         :param workers: Maximum number of workers for concurrent processing
         """
 
-        self._logger = _logger
+        self._logger = logger
         self._data = dict()
         for key in c.F5XC_SITE_TYPES:
             self._data[key] = dict()
@@ -445,7 +445,7 @@ class Api(object):
         k1 = get_keys(None, compared, r)
         table = PrettyTable()
         table.set_style(TableStyle.SINGLE_BORDER)
-        table.field_names = ["path", "values", "action"]
+        table.field_names = ["path", "values"]
 
         if self.site:
             table.padding_width = 1
@@ -458,7 +458,7 @@ class Api(object):
             if r1:
                 check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
                 if not any(check):
-                    table.add_row([k, r1[0], ""])
+                    table.add_row([k, r1[0]])
                     table.add_divider()
 
         return table

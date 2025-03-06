@@ -85,7 +85,7 @@ def main():
 
     logger.info(f"Application {os.path.basename(__file__)} started...")
     start_time = time.perf_counter()
-    q = Api(_logger=logger, api_url=api_url, api_token=api_token, namespace=args.namespace, site=args.site, workers=args.workers)
+    q = Api(logger=logger, api_url=api_url, api_token=api_token, namespace=args.namespace, site=args.site, workers=args.workers)
 
     if args.query:
         q.run()
