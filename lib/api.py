@@ -308,9 +308,9 @@ class Api(object):
                                     for ns_item, ns_item_value in attrs.items():
                                         if ns_item == "loadbalancer":
                                             for lb, lb_values in ns_item_value.items():
-                                                table.add_row([record_no, key, namespace, ns_item, lb, "", list(lb_values.keys())[0]])
+                                                table.add_row([record_no, key, namespace, ns_item, lb, "", '\n'.join(list(lb_values.keys())) if len(lb_values.keys()) > 1 else list(lb_values.keys())[0]])
                                         else:
-                                            table.add_row([record_no, key, namespace, ns_item, list(ns_item_value.keys()) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0], "", ""])
+                                            table.add_row([record_no, key, namespace, ns_item, '\n'.join(list(ns_item_value.keys())) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0], "", ""])
                             else:
                                 for name in value:
                                     table.add_row([record_no, key, name, "", "", "", ""])
