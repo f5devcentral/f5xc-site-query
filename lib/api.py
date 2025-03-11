@@ -372,19 +372,19 @@ class Api(object):
                                 if type(_tmp) == list:
                                     # If complete interface definition is missing add list of missing interfaces and not all the sub items.
                                     if item == "interfaces":
-                                        ifaces = list()
                                         for item in _tmp:
                                             if "ethernet_interface" in item:
-                                                ifaces.append(item["ethernet_interface"]["device"])
-
-                                        resp.append(ifaces)
+                                                resp.append(item["ethernet_interface"]["device"])
                                     else:
                                         resp.append(_tmp)
                                 elif type(_tmp) == dict:
-                                    resp.append(list(new_root.keys()))
+                                    for item in list(new_root.keys()):
+                                        resp.append(item)
+
                                 else:
                                     self.logger.debug(f"DICT: {new_root}")
-                                    resp.append(list(new_root.keys()))
+                                    for item in list(new_root.keys()):
+                                        resp.append(item)
                             else:
                                 self._get_by_path(new_root, items, resp)
                         else:
@@ -492,7 +492,6 @@ class Api(object):
             r = []
             # build list of key paths
             dict_keys = self._get_keys(None, compared, r, old_site, data_old)
-            print(dict_keys)
             table = PrettyTable()
             table.set_style(TableStyle.SINGLE_BORDER)
             table.field_names = ["path", "values"]
@@ -504,12 +503,12 @@ class Api(object):
             for k in dict_keys:
                 response = list()
                 # get list of items to be added as table row data
-                r1 = self._get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
-
-                if r1:
+                values_from_path = self._get_by_path(data_old['site'][old_site], k.split("/"), response)
+                
+                if values_from_path:
                     check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
                     if not any(check):
-                        table.add_row([k, r1[0]])
+                        table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
                         table.add_divider()
 
             return table
