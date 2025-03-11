@@ -337,6 +337,135 @@ class Api(object):
 
             return table
 
+    def _get_by_path(self, root: dict | list = None, items: list = None, resp: list = None) -> list[str] | None:
+        """
+        Traverse a nested object by a sequence of path items.
+        :param root: the dict or list of values to obtain values from leveraging a path
+        :param items: list of items building a path. traverse root according to path and get value
+        :param resp: list where processed items will be appended to
+        :return: list of items obtained by path
+        """
+
+        if items:
+            while len(items) > 0:
+                item = items[0]
+                items.pop(0)
+
+                if isinstance(root, list) and item.isdigit():
+                    self._get_by_path(root[int(item)], items, resp)
+                elif isinstance(root, dict):
+                    new_root = root.get(int(item)) if item.isdigit() else root.get(item)
+
+                    if new_root:
+                        if isinstance(new_root, str):
+                            self.logger.debug(f"STRING: {new_root}")
+                            resp.append(new_root)
+                        elif isinstance(new_root, int):
+                            self.logger.debug(f"INT: {new_root}")
+                            resp.append(new_root)
+                        elif isinstance(root, list):
+                            self.logger.debug(f"LIST: {new_root}")
+                        elif isinstance(root, dict):
+                            self.logger.debug(f"DICT: {new_root}")
+                            if len(items) == 0:
+                                _tmp = root.get(item)
+                                if type(_tmp) == list:
+                                    # If complete interface definition is missing add list of missing interfaces and not all the sub items.
+                                    if item == "interfaces":
+                                        ifaces = list()
+                                        for item in _tmp:
+                                            if "ethernet_interface" in item:
+                                                ifaces.append(item["ethernet_interface"]["device"])
+
+                                        resp.append(ifaces)
+                                    else:
+                                        resp.append(_tmp)
+                                elif type(_tmp) == dict:
+                                    resp.append(list(new_root.keys()))
+                                else:
+                                    self.logger.debug(f"DICT: {new_root}")
+                                    resp.append(list(new_root.keys()))
+                            else:
+                                self._get_by_path(new_root, items, resp)
+                        else:
+                            self.logger.info(f"Unknown key: {type(root)}")
+                    else:
+                        self.logger.debug(f"new root item: {item}, {type(item)}")
+                        self.logger.debug(f"root: {root}")
+                        self.logger.debug(f"root.get(): {root.get(item)}")
+                else:
+                    self.logger.debug(f"Unknown: {root}")
+
+        return resp
+
+    def _get_keys(self, parent_key: str = None, compared: dict = None, resp: list[str] = None, old_site: str = None, data_old: dict = None) -> list[str] | None:
+        """
+        get_keys will compute list of strings, where each string represents path to key in a dict
+        :param parent_key: last key becomes parent key. When func called first time parent key will be None.
+        :param compared: holds compared data. With each recursion dictionary will present latest key values
+        :param resp: a list of strings. Each string represents a key path later used to access values in site inventory
+        :param old_site: old site name
+        :param data_old: old site data
+        :return: final list of all computed key path strings
+        """
+
+        if compared:
+            self.logger.debug(f"COMPARED: {compared}")
+            keys = list(compared.keys())
+
+            while len(keys) > 0:
+                key = keys[0]
+                keys.pop(0)
+
+                if key not in ["sms"]:
+                    if type(key) is jsondiff.symbols.Symbol:
+                        if key.label == "delete":
+                            self.logger.debug(f"DELETE: {parent_key} -- {key} -- {compared.get(key)}")
+                            for item in compared.get(key):
+                                if item == "namespaces":
+                                    for namespace in data_old['site'][old_site]['namespaces']:
+                                        if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                            for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                                if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                    resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
+                                        elif "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
+                                            resp.append(f"{item}/{namespace}/origin_pools")
+                                        elif "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
+                                            resp.append(f"{item}/{namespace}/proxys")
+                                        self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                if item == "loadbalancer":
+                                    namespace = parent_key.split("/")[1]
+                                    if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                        for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                            if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
+                                else:
+                                    resp.append(f"{parent_key}/{item}")
+                                self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                        elif key.label == "replace":
+                            self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
+                            resp.append(f"{parent_key}" if parent_key else f"{key}")
+                        else:
+                            self.logger.debug(f"UNKNOWN KEY: {key}")
+                    elif isinstance(compared.get(key), list):
+                        self.logger.debug(f"LIST: {parent_key} -- {key} -- {compared.get(key)}")
+                        resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                    else:
+                        if isinstance(compared.get(key), str):
+                            if key not in c.EXCLUDE_COMPARE_ATTRIBUTES:
+                                self.logger.debug(f"STRING: {parent_key} -- {key} -- {compared.get(key)}")
+                                resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                        elif isinstance(compared.get(key), int):
+                            self.logger.debug(f"INT: {parent_key} -- {key} -- {compared.get(key)}")
+                            resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                        elif isinstance(compared.get(key), dict):
+                            self.logger.debug(f"DICT: {key} -- {type(key)} -- {compared.get(key)}")
+                            self._get_keys(f"{parent_key}/{key}", compared.get(key), resp, old_site, data_old) if parent_key else self._get_keys(key, compared.get(key), resp, old_site, data_old)
+                        else:
+                            self.logger.debug(f"UNKNOWN KEY: {key} -- {type(compared.get(key))}")
+
+            return resp
+
     def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
@@ -360,136 +489,10 @@ class Api(object):
         if data_old and data_new:
             compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
 
-            def get_by_path(root: dict | list = None, items: list = None, resp: list = None) -> list[str] | None:
-                """
-                Traverse a nested object by a sequence of path items.
-                :param root: the dict or list of values to obtain values from leveraging a path
-                :param items: list of items building a path. traverse root according to path and get value
-                :param resp: list where processed items will be appended to
-                :return: list of items obtained by path
-                """
-
-                if items:
-                    while len(items) > 0:
-                        item = items[0]
-                        items.pop(0)
-
-                        if isinstance(root, list) and item.isdigit():
-                            get_by_path(root[int(item)], items, resp)
-                        elif isinstance(root, dict):
-                            new_root = root.get(int(item)) if item.isdigit() else root.get(item)
-
-                            if new_root:
-                                if isinstance(new_root, str):
-                                    self.logger.debug(f"STRING: {new_root}")
-                                    resp.append(new_root)
-                                elif isinstance(new_root, int):
-                                    self.logger.debug(f"INT: {new_root}")
-                                    resp.append(new_root)
-                                elif isinstance(root, list):
-                                    self.logger.debug(f"LIST: {new_root}")
-                                elif isinstance(root, dict):
-                                    self.logger.debug(f"DICT: {new_root}")
-                                    if len(items) == 0:
-                                        _tmp = root.get(item)
-                                        if type(_tmp) == list:
-                                            # If complete interface definition is missing add list of missing interfaces and not all the sub items.
-                                            if item == "interfaces":
-                                                ifaces = list()
-                                                for item in _tmp:
-                                                    if "ethernet_interface" in item:
-                                                        ifaces.append(item["ethernet_interface"]["device"])
-
-                                                resp.append(ifaces)
-                                            else:
-                                                resp.append(_tmp)
-                                        elif type(_tmp) == dict:
-                                            resp.append(list(new_root.keys()))
-                                        else:
-                                            self.logger.debug(f"DICT: {new_root}")
-                                            resp.append(list(new_root.keys()))
-                                    else:
-                                        get_by_path(new_root, items, resp)
-                                else:
-                                    self.logger.info(f"Unknown key: {type(root)}")
-                            else:
-                                self.logger.debug(f"new root item: {item}, {type(item)}")
-                                self.logger.debug(f"root: {root}")
-                                self.logger.debug(f"root.get(): {root.get(item)}")
-                        else:
-                            self.logger.debug(f"Unknown: {root}")
-
-                return resp
-
-            def get_keys(parent_key: str = None, dictionary: dict = None, resp: list[str] = None) -> list[str] | None:
-                """
-                get_keys will compute list of strings, where each string represents path to key in a dict
-                :param parent_key: last key becomes parent key. When func called first time parent key will be None.
-                :param dictionary: holds compared data. With each recursion dictionary will present latest key values
-                :param resp: a list of strings. Each string represents a key path later used to access values in site inventory
-                :return: final list of all computed key path strings
-                """
-
-                if dictionary:
-                    self.logger.debug(f"DICTIONARY: {dictionary}")
-                    keys = list(dictionary.keys())
-
-                    while len(keys) > 0:
-                        key = keys[0]
-                        keys.pop(0)
-
-                        if key not in ["sms"]:
-                            if type(key) is jsondiff.symbols.Symbol:
-                                if key.label == "delete":
-                                    self.logger.debug(f"DELETE: {parent_key} -- {key} -- {dictionary.get(key)}")
-                                    for item in dictionary.get(key):
-                                        if item == "namespaces":
-                                            for namespace in data_old['site'][old_site]['namespaces']:
-                                                if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
-                                                    for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                                        if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
-                                                            resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
-                                                elif "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
-                                                    resp.append(f"{item}/{namespace}/origin_pools")
-                                                elif "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
-                                                    resp.append(f"{item}/{namespace}/proxys")
-                                                self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
-                                        if item == "loadbalancer":
-                                            namespace = parent_key.split("/")[1]
-                                            if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
-                                                for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                                    if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
-                                                        resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
-                                        else:
-                                            resp.append(f"{parent_key}/{item}")
-                                        self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
-                                elif key.label == "replace":
-                                    self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {dictionary.get(key)}")
-                                    resp.append(f"{parent_key}" if parent_key else f"{key}")
-                                else:
-                                    self.logger.debug(f"UNKNOWN KEY: {key}")
-                            elif isinstance(dictionary.get(key), list):
-                                self.logger.debug(f"LIST: {parent_key} -- {key} -- {dictionary.get(key)}")
-                                resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
-                            else:
-                                if isinstance(dictionary.get(key), str):
-                                    if key not in c.EXCLUDE_COMPARE_ATTRIBUTES:
-                                        self.logger.debug(f"STRING: {parent_key} -- {key} -- {dictionary.get(key)}")
-                                        resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
-                                elif isinstance(dictionary.get(key), int):
-                                    self.logger.debug(f"INT: {parent_key} -- {key} -- {dictionary.get(key)}")
-                                    resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
-                                elif isinstance(dictionary.get(key), dict):
-                                    self.logger.debug(f"DICT: {key} -- {type(key)} -- {dictionary.get(key)}")
-                                    get_keys(f"{parent_key}/{key}", dictionary.get(key), resp) if parent_key else get_keys(key, dictionary.get(key), resp)
-                                else:
-                                    self.logger.debug(f"UNKNOWN KEY: {key} -- {type(dictionary.get(key))}")
-
-                    return resp
-
             r = []
             # build list of key paths
-            k1 = get_keys(None, compared, r)
+            dict_keys = self._get_keys(None, compared, r, old_site, data_old)
+            print(dict_keys)
             table = PrettyTable()
             table.set_style(TableStyle.SINGLE_BORDER)
             table.field_names = ["path", "values"]
@@ -498,10 +501,10 @@ class Api(object):
                 table.padding_width = 1
                 table.title = self.site
 
-            for k in k1:
+            for k in dict_keys:
                 response = list()
-                # get list of items to be  added as table row data
-                r1 = get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
+                # get list of items to be added as table row data
+                r1 = self._get_by_path(data_old['site'][old_site], [k for k in k.split("/")], response)
 
                 if r1:
                     check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
@@ -514,11 +517,11 @@ class Api(object):
     def run(self) -> dict:
         """
         Run functions to process data
-            - process_loadbalancer for each namespace and load balancer type
-            - process_proxies for each namespace
-            - process_origin_pools for each namespace
-            - process site labels only if referenced by a load balancer/ origin pool / proxy
-            - process site details to get hw info
+        - process_loadbalancer for each namespace and load balancer type
+        - process_proxies for each namespace
+        - process_origin_pools for each namespace
+        - process site labels only if referenced by a load balancer/ origin pool / proxy
+        - process site details to get hw info
         :return: processed data
         """
 
