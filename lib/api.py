@@ -206,6 +206,11 @@ class Api(object):
         return r if r else False
 
     def read_json_file(self, name: str = None) -> Any | None:
+        """
+        Read json data from file.
+        :param name: file name
+        :return:
+        """
         try:
             with open(name, 'r') as fd:
                 data = json.load(fp=fd)
@@ -234,8 +239,8 @@ class Api(object):
     def write_string_file(self, name: str = None, data: str = None):
         """
         Write string to file
-        :param name:
-        :param data:
+        :param name: the file name
+        :param data: str data to write to file
         :return:
         """
 
