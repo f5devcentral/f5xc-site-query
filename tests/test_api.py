@@ -1,5 +1,4 @@
 import json
-from logging import debug
 from unittest.mock import patch
 
 import jsondiff.symbols
