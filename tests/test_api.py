@@ -105,7 +105,7 @@ def test_get_keys(api, compared, dict_keys, old_site, data_old):
         ['ip-192-168-0-88'],
         ['192.168.0.88'],
         [],
-        [3200],
+        [2666],
         ['eth0', 'eth1'],
         ['eth0', 'eth1'],
         ['eth0', 'eth1'],
