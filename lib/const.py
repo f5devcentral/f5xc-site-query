@@ -50,6 +50,7 @@ F5XC_LOAD_BALANCER_TYPES = ["http_loadbalancers", "tcp_loadbalancers", "udp_load
 F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'private_name']
 F5XC_CLOUD_CONNECT_TYPES = ["azure_vnet_site", "aws_tgw_site"]
 F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
+F5XC_CREATOR_CLASS_MAURICE = "maurice"
 
 #
 # Site query

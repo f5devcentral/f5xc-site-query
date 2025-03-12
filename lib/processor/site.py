@@ -1,5 +1,6 @@
 import concurrent.futures
 import json
+import pprint
 from logging import Logger
 
 from requests import Session
@@ -590,8 +591,8 @@ class Site(Base):
 
     def process_hw_info(self) -> dict | None:
         """
-        Process site hardware info and add data to site data.
-        process_hw_info only supports sms object based sites
+        Process site hardware info and add data to site data. process_hw_info only supports sms object based sites.
+        Since nodes available below ['status'] key not idempotent nodes are taken from ['spec'] which is.
         :return: structure with label information being added
         """
 
@@ -620,16 +621,28 @@ class Site(Base):
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
                         if urls[future_to_ds[future]] in self.data['site']:
-                            idx = 0
+                            # Build nodes structure first if not already created. Since nodes available below ['status'] key not idempotent nodes are taken from ['spec'] which is. :(
+                            # Build static mapping between node key and hostname e.g. node0 --> ip-192-168-0-88
+                            node_key_to_hostname_map = dict()
+                            if "nodes" not in self.data['site'][urls[future_to_ds[future]]].keys():
+                                self.data['site'][urls[future_to_ds[future]]]['nodes'] = dict()
+
+                            for idx, node in enumerate(r['spec']['main_nodes']):
+                                if f"node{idx}" not in self.data['site'][urls[future_to_ds[future]]]['nodes']:
+                                    self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"] = dict()
+
+                                # explicitly set hostname since used as filter when adding hw info
+                                self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"]['hostname'] = node['name']
+                                # add node name to hostname mapping
+                                node_key_to_hostname_map[node['name']] = f"node{idx}"
+
                             for node in r['status']:
                                 if node['node_info']:
-                                    if c.F5XC_NODE_PRIMARY in node['node_info']['role']:
-                                        if "nodes" not in self.data['site'][urls[future_to_ds[future]]].keys():
-                                            self.data['site'][urls[future_to_ds[future]]]['nodes'] = dict()
-                                        if f"node{idx}" not in self.data['site'][urls[future_to_ds[future]]]['nodes']:
-                                            self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"] = dict()
-
-                                        self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"]['hw_info'] = node['hw_info']
-                                        idx = idx + 1
+                                    if node['metadata']['creator_class'] == c.F5XC_CREATOR_CLASS_MAURICE and c.F5XC_NODE_PRIMARY in node['node_info']['role']:
+                                        # Filter on hostname set in previous step :(.
+                                        if node['node_info']['hostname'] in node_key_to_hostname_map:
+                                            self.data['site'][urls[future_to_ds[future]]]['nodes'][node_key_to_hostname_map[node['node_info']['hostname']]]['hw_info'] = node['hw_info']
+                                        else:
+                                            self.logger.info(f"Site {urls[future_to_ds[future]]} node {node['node_info']['hostname']} does not have hardware info available. No node name to hostname mapping found.")
 
         return self.data
