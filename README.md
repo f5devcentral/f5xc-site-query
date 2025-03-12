@@ -358,6 +358,11 @@ This tool offers functions to create an inventory of a tenant. Supported invento
     ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
     ```
 
+## Test
+
+- Change director to `tests`
+- Run unit tests with `poetry run pytest`
+
 ## Support
 
 For support, please open a GitHub issue. Note, the code in this repository is community supported and is not supported
