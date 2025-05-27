@@ -39,7 +39,10 @@ class Smg(Base):
 
             site_mesh_groups = self.execute(name="site mesh group", urls=urls_smg)
             for smg in site_mesh_groups:
-                urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=c.F5XC_NAMESPACE_SHARED, name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata']['name']
+                if len(smg['data']['spec']['virtual_site']) > 0:
+                    urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=c.F5XC_NAMESPACE_SHARED, name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata']['name']
+                else:
+                    self.logger.info(f"failed to add site mesh group info for site: {smg['data']['metadata']['name']}")
 
             # Remove virtual sites without 'site_selector' key
             virtual_sites = [vs for vs in self.execute(name="virtual site", urls=urls_vs) if 'site_selector' in vs['data']['spec']]
@@ -90,9 +93,10 @@ class Smg(Base):
                 # Add secure mesh site to site data
                 # If secure mesh site virtual site name is in list of virtual sites this site is a member of
                 for smg in site_mesh_groups:
-                    if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:
-                        self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]] = dict()
-                        self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["metadata"] = smg["data"]["metadata"]
-                        self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["spec"] = smg["data"]["spec"]
+                    if len(smg['data']['spec']['virtual_site']) > 0:
+                        if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:
+                            self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]] = dict()
+                            self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["metadata"] = smg["data"]["metadata"]
+                            self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["spec"] = smg["data"]["spec"]
 
         return self.data
