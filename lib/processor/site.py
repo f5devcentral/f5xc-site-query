@@ -81,6 +81,8 @@ class Site(Base):
 
             return self.data
 
+        return None
+
     def process_site(self, sites: list = None) -> dict | None:
         """
         Process general site details and add data to specific site.
@@ -139,7 +141,7 @@ class Site(Base):
 
                                             elif "destroy_state" in _state["deployment"]["apply_status"]:
                                                 if _state["deployment"]["apply_status"]["destroy_state"] == "DESTROYED":
-                                                    return True, _state["deployment"]["apply_status"]["destroy_state"]
+                                                    return False, _state["deployment"]["apply_status"]["destroy_state"]
                                                 else:
                                                     failed[site['data']['metadata']['name']] = _state["deployment"]["apply_status"]["destroy_state"]
                                                     return False, _state["deployment"]["apply_status"]["destroy_state"]
@@ -530,23 +532,25 @@ class Site(Base):
                                     self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
                 elif self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_GCP_VPC:
-                    nic_setup = self.get_site_nic_mode(site=site)
-                    if nic_setup:
-                        for idx in range(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["node_number"]):
-                            if "nodes" not in self.data['site'][site]:
-                                self.data['site'][site]['nodes'] = dict()
-                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                        nic_setup = self.get_site_nic_mode(site=site)
+                        if nic_setup:
+                            for idx in range(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["node_number"]):
+                                if "nodes" not in self.data['site'][site]:
+                                    self.data['site'][site]['nodes'] = dict()
+                                if f"node{idx}" not in self.data['site'][site]['nodes'].keys():
+                                    self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"].keys():
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
-                            if "inside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_network"]
-                                if "inside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_subnet"]
+                                if "inside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_network"]
+                                    if "inside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_subnet"]
 
-                            if "outside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_network"]
-                                if "outside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_subnet"]
+                                if "outside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_network"]
+                                    if "outside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_subnet"]
                 else:
                     # Check if sub kind exist
                     if self.data['site'][site]["sub_kind"]:
@@ -555,15 +559,19 @@ class Site(Base):
                             for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["voltstack_cluster"]["az_nodes"]):
                                 if "nodes" not in self.data['site'][site]:
                                     self.data['site'][site]['nodes'] = dict()
-
-                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                                if "node{idx}" not in self.data['site'][site]['nodes']:
+                                    self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"]:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
                                 if "local_subnet" in node:
                                     self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["local"] = node["local_subnet"]
                                 # Add cloud site info to every node even it's duplicate data for the sake of iterating through nodes made easier and needs no exception handling
                                 if "cloud_site_info" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]["cloud_site"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]["subnet_ids"]
+                                    if "subnet_ids" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]:
+                                        self.data['site'][site]['nodes'][f"node{idx}"]["cloud_site"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]["subnet_ids"]
+                                    else:
+                                        self.logger.info(f"failed to add cloud site info subnet IDs for site: {site}")
                     else:
                         # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
                         nic_setup = self.get_site_nic_mode(site=site)
@@ -571,9 +579,10 @@ class Site(Base):
                             for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
                                 if "nodes" not in self.data['site'][site]:
                                     self.data['site'][site]['nodes'] = dict()
-
-                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                                if "node{idx}" not in self.data['site'][site]['nodes']:
+                                    self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"]:
+                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
                                 if "local_subnet" in node:
                                     self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["local_subnet"]
