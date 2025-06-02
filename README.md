@@ -360,7 +360,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 
 ## Test
 
-- Change director to `tests`
+- Change to `tests` directory
 - Run unit tests with `poetry run pytest`
 
 ## Support
