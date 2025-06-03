@@ -336,6 +336,7 @@ class Api(object):
             self.logger.info(f"{self.build_inventory.__name__} -> Done")
 
             return table
+        return None
 
     def _get_by_path(self, root: dict | list = None, items: list = None, resp: list = None) -> list[str] | None:
         """
@@ -465,6 +466,7 @@ class Api(object):
                             self.logger.debug(f"UNKNOWN KEY: {key} -- {type(compared.get(key))}")
 
             return resp
+        return None
 
     def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
         """
@@ -487,6 +489,10 @@ class Api(object):
         self.logger.debug(f"DATA_NEW: {data_new}")
 
         if data_old and data_new:
+            if data_old['site'][old_site]['kind'] != data_new['site'][new_site]['kind']:
+                self.logger.info(f"Compare new site <{new_site}> with old site <{old_site}> not supported since not of same kind.")
+                return None
+
             compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
 
             r = []
@@ -512,6 +518,7 @@ class Api(object):
                         table.add_divider()
 
             return table
+        return None
 
     def run(self) -> dict:
         """
