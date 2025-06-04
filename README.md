@@ -255,7 +255,7 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 ### Compare function
 
 This tool provides a comparison function to compare site information.
-Given the old site called `siteA` and a newly created site called `siteB` one can compate those two sites to find any differences in configuration.
+Given the old site called `siteA` and a newly created site called `siteB` one can compare those two sites to find any differences in configuration.
 
 A site data comparison is only possible if:
 - site `kind` is the same 
