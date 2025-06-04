@@ -256,6 +256,17 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 
 This tool provides a comparison function to compare site information.
 Given the old site called `siteA` and a newly created site called `siteB` one can compate those two sites to find any differences in configuration.
+
+A site data comparison is only possible if:
+- site `kind` is the same 
+  * Examples:
+    * aws_vpc_site with aws_vpc_site
+    * aws_tgw_site with aws_tgw_site
+- In case of Secure Mesh site 
+  * site `kind` is 
+    * Secure Mesh V1 
+    * Secure Mesh V2
+
 Below steps illustrating how to run comparison function:
 
 - Run query for `siteA` and write data to `siteA.json`
