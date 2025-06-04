@@ -97,8 +97,9 @@ def main():
     if args.compare:
         if args.old_site_file and args.new_site_file and args.old_site and args.new_site:
             data = q.compare(old_site=args.old_site, old_file=args.old_site_file, new_site=args.new_site, new_file=args.new_site_file)
-            logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
-            q.write_string_file(args.diff_file_csv, data.get_csv_string()) if args.diff_file_csv and data else None
+            if data:
+                logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
+                q.write_string_file(args.diff_file_csv, data.get_csv_string()) if args.diff_file_csv and data else None
         else:
             logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")
 

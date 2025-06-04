@@ -489,35 +489,40 @@ class Api(object):
         self.logger.debug(f"DATA_NEW: {data_new}")
 
         if data_old and data_new:
-            if data_old['site'][old_site]['kind'] != data_new['site'][new_site]['kind']:
+            # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is seure mesh v2
+            same = data_old['site'][old_site]['kind'] == data_new['site'][new_site]['kind']
+            secure_mesh = data_old['site'][old_site]['kind'] == "securemesh_site" and data_new['site'][new_site]['kind'] == "securemesh_site_v2"
+
+            if same or secure_mesh:
+                compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
+
+                r = []
+                # build list of key paths
+                dict_keys = self._get_keys(None, compared, r, old_site, data_old)
+                table = PrettyTable()
+                table.set_style(TableStyle.SINGLE_BORDER)
+                table.field_names = ["path", "values"]
+
+                if self.site:
+                    table.padding_width = 1
+                    table.title = self.site
+
+                for k in dict_keys:
+                    response = list()
+                    # get list of items to be added as table row data
+                    values_from_path = self._get_by_path(data_old['site'][old_site], k.split("/"), response)
+
+                    if values_from_path:
+                        check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
+                        if not any(check):
+                            table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
+                            table.add_divider()
+
+                return table
+            else:
                 self.logger.info(f"Comparing new site <{new_site}> with old site <{old_site}> not supported since not of same kind.")
                 return None
 
-            compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
-
-            r = []
-            # build list of key paths
-            dict_keys = self._get_keys(None, compared, r, old_site, data_old)
-            table = PrettyTable()
-            table.set_style(TableStyle.SINGLE_BORDER)
-            table.field_names = ["path", "values"]
-
-            if self.site:
-                table.padding_width = 1
-                table.title = self.site
-
-            for k in dict_keys:
-                response = list()
-                # get list of items to be added as table row data
-                values_from_path = self._get_by_path(data_old['site'][old_site], k.split("/"), response)
-                
-                if values_from_path:
-                    check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
-                    if not any(check):
-                        table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
-                        table.add_divider()
-
-            return table
         return None
 
     def run(self) -> dict:
