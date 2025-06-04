@@ -264,8 +264,7 @@ A site data comparison is only possible if:
     * aws_tgw_site with aws_tgw_site
 - In case of Secure Mesh site 
   * site `kind` is 
-    * Secure Mesh V1 
-    * Secure Mesh V2
+    * Secure Mesh V1 with Secure Mesh V2
 
 Below steps illustrating how to run comparison function:
 
