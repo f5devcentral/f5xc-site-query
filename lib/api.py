@@ -353,7 +353,10 @@ class Api(object):
                 items.pop(0)
 
                 if isinstance(root, list) and item.isdigit():
-                    self._get_by_path(root[int(item)], items, resp)
+                    if int(item) <= len(root):
+                        self._get_by_path(root[int(item)], items, resp)
+                    #else:
+                    #    self._get_by_path(root[len(root)-1], items, resp)
                 elif isinstance(root, dict):
                     new_root = root.get(int(item)) if item.isdigit() else root.get(item)
 
@@ -495,7 +498,6 @@ class Api(object):
 
             if same or secure_mesh:
                 compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
-
                 r = []
                 # build list of key paths
                 dict_keys = self._get_keys(None, compared, r, old_site, data_old)
@@ -515,8 +517,27 @@ class Api(object):
                     if values_from_path:
                         check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
                         if not any(check):
-                            table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
-                            table.add_divider()
+                            if re.match(c.COMPARE_REGEX_HW_INFO_CPU_FLAGS, k):
+                                start = 0
+                                item_counter = 0
+                                values_from_path_as_list = values_from_path[0].split(" ")
+
+                                for i in range(len(values_from_path_as_list)):
+                                    if item_counter == 15:
+                                        table.add_row([k, values_from_path_as_list[start:i]])
+                                        start = i
+                                        item_counter = 0
+                                    item_counter += 1
+                                table.add_divider()
+                            elif re.match(c.COMPARE_REGEX_HW_INFO_USB, k):
+                                for item in values_from_path:
+                                    for item1 in item:
+                                        for k1,v in item1.items():
+                                            table.add_row([k, {k1: v}])
+                                table.add_divider()
+                            else:
+                                table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
+                                table.add_divider()
 
                 return table
             else:
