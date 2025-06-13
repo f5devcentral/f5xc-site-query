@@ -3,6 +3,7 @@ authors: cklewar
 """
 
 import json
+import logging
 import os
 import re
 import sys
@@ -353,7 +354,8 @@ class Api(object):
                 items.pop(0)
 
                 if isinstance(root, list) and item.isdigit():
-                    if int(item) <= len(root):
+                    #Skip inserted elements on new site
+                    if int(item) <= len(root)-1:
                         self._get_by_path(root[int(item)], items, resp)
                     #else:
                     #    self._get_by_path(root[len(root)-1], items, resp)
@@ -449,6 +451,9 @@ class Api(object):
                         elif key.label == "replace":
                             self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
                             resp.append(f"{parent_key}" if parent_key else f"{key}")
+                        #elif key.label == "insert":
+                        #    self.logger.info(f"INSERT: {parent_key} -- {key} -- {compared.get(key)}")
+                            #resp.append(f"{parent_key}" if parent_key else f"{key}")
                         else:
                             self.logger.debug(f"UNKNOWN KEY: {key}")
                     elif isinstance(compared.get(key), list):
@@ -492,7 +497,15 @@ class Api(object):
         self.logger.debug(f"DATA_NEW: {data_new}")
 
         if data_old and data_new:
-            # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is seure mesh v2
+            # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
+            if not new_site in data_new['site']:
+                self.logger.info(f"Comparing new site <{new_site}> not found in file {new_file}.")
+                return None
+
+            if not old_site in data_old['site']:
+                self.logger.info(f"Comparing new site <{old_site}> not found in file {old_file}.")
+                return None
+
             same = data_old['site'][old_site]['kind'] == data_new['site'][new_site]['kind']
             secure_mesh = data_old['site'][old_site]['kind'] == "securemesh_site" and data_new['site'][new_site]['kind'] == "securemesh_site_v2"
 
