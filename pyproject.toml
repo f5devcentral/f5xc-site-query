@@ -1,0 +1,29 @@
+[project]
+name = "f5xc-site-query"
+version = "0.1.0"
+description = "F5 XC inventory and compare tool"
+authors = [
+    { name = "c.klewar", email = "c.klewar@f5.com" }
+]
+license = { text = "Apache License 2.0" }
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "certifi>=2025.1.31",
+    "charset-normalizer>=3.4.1",
+    "idna>=3.10",
+    "requests>=2.32.3",
+    "urllib3>=2.3.0",
+    "coloredlogs~=15.0.1",
+    "tox>=4.24.1",
+    "prettytable>=3.14.0",
+    "jsondiff>=2.2.1",
+    "pytest>=8.3.5"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false

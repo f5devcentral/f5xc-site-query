@@ -1,4 +1,4 @@
-# f5xc-site-query concurrent version
+# f5xc-site-query
 
 ## Overview
 
@@ -8,23 +8,61 @@ Helper tool get-sites.py queries application objects (HTTP and TCP Load Balancer
 The generated get-sites.json file helps to answer questions like
 
 a) What application objects are assigned to a site or virtual site and in what namespace
-
 b) Who created an application object
-
 c) Are there sites that only serve origin pools
-
 d) Are there application objects assigned to non-existent sites
+
+## Requirements
+
+| Name                                                                              | Version  |
+|-----------------------------------------------------------------------------------|----------|
+|                                                                                   |          |
+| <a name="requirement_python"></a> [python](https://www.python.org/downloads/)     | \>= 3.13 |
+| <a name="requirement_git"></a> [git](https://git-scm.com/)                        | \>= 8.0  |
+| <a name="requirement_pipx"></a> [pipx](https://pipx.pypa.io/stable/installation/) | latest   |
+
+### OS Platform
+
+| Name            | Status      |
+|-----------------|-------------|
+| Linux           | supported   |
+| Mac OS (Sonoma) | supported   |
+| Windows         | unsupported |
 
 ## Installation
 
-1. Create a Python Virtual Environment:
-   `python3 -m venv myenv`
+- Check python version
 
-2. Source the new environment:
-   `source myenv/bin/activate`
+```bash
+python3 --version
+--> Python 3.13.1
+```
 
-3. Install required python modules:
-   `python3 -m pip install -r requirements.txt`
+- Clone repository
+
+```bash
+git clone https://github.com/f5devcentral/f5xc-site-query
+```
+
+- Install pipx
+
+```bash
+python3 -m pip install pipx-in-pipx --user
+```
+
+- Install poetry
+
+```bash
+pipx install poetry
+```
+
+- Install dependencies
+
+```bash
+poetry install
+eval $(poetry env activate)
+#(project) $  # Virtualenv entered
+```
 
 ## Credentials
 
@@ -48,29 +86,45 @@ Alternatively you can set command line options instead when running the script.
 
 ## Usage
 
+`site-query` will only process site objects:
+
+- with state being __APPLIED__
+- which can be identified by the __kind__ key
+
+Referencing objects that reference a site object are only added to the site object if the referenced site also exists.
+
 ```
-$ ./get-sites.py 
-usage: get-sites.py [-h] [-a APIURL] [-c CSV_FILE] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--diff-file DIFF_FILE] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
+./get-sites.py
+usage: get-sites.py [-h] [-a APIURL] [-c] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--old-site OLD_SITE] [--new-site NEW_SITE] [--old-site-file OLD_SITE_FILE] [--new-site-file NEW_SITE_FILE] [--build-inventory] [--diff-table]
+                    [--diff-file-csv DIFF_FILE_CSV] [--inventory-table] [--inventory-file-csv INVENTORY_FILE_CSV] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
 Get F5 XC Sites command line arguments
 
 options:
   -h, --help            show this help message and exit
-  -a APIURL, --apiurl APIURL
-                        F5 XC API URL
-  -c CSV_FILE, --csv-file CSV_FILE
-                        write inventory info to csv file
-  -f FILE, --file FILE  read/write api data to/from json file
-  -n NAMESPACE, --namespace NAMESPACE
+  -a, --apiurl APIURL   F5 XC API URL
+  -c, --compare         compare new site with old site
+  -f, --file FILE       read/write api data to/from json file
+  -n, --namespace NAMESPACE
                         namespace (not setting this option will process all namespaces)
   -q, --query           run site query
-  -s SITE, --site SITE  site to be processed
-  -t TOKEN, --token TOKEN
-                        F5 XC API Token
-  -w WORKERS, --workers WORKERS
+  -s, --site SITE       site to be processed
+  -t, --token TOKEN     F5 XC API Token
+  -w, --workers WORKERS
                         maximum number of worker for concurrent processing (default 10)
-  --diff-file DIFF_FILE
-                        compare to site
+  --old-site OLD_SITE   old site name to compare with
+  --new-site NEW_SITE   new site name to compare with
+  --old-site-file OLD_SITE_FILE
+                        new site file to compare with
+  --new-site-file NEW_SITE_FILE
+                        new site file to compare with
+  --build-inventory     build inventory and write it to file
+  --diff-table          print diff info to stdout
+  --diff-file-csv DIFF_FILE_CSV
+                        write site diff info to csv file
+  --inventory-table     print inventory info to stdout
+  --inventory-file-csv INVENTORY_FILE_CSV
+                        write inventory info to csv file
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
@@ -80,19 +134,19 @@ options:
 ### Example to get data from all namespaces:
 
 ```bash
-./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+./get-sites.py -f ./json/all-ns-prod.json -q --log-stdout
 ```
 
 ### Example to get data from specific namespace:
 
 ```bash
-./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-level INFO --log-stdout
+./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-stdout
 ```
 
 ### Example to get data for specific site:
 
 ```bash
-./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-level INFO --log-stdout
+./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-stdout
 ```
 
 The generated get-sites.json is now populated with application objects per namespace and site/virtual site and can be parsed
@@ -200,36 +254,156 @@ Look through the generated `get-sites.json` file for empty site_labels. See answ
 
 ### Compare function
 
-This tool provides a comparison function to compare page information.
-The steps to compare site information are as follows:
+This tool provides a comparison function to compare site information.
+Given the old site called `siteA` and a newly created site called `siteB` one can compare those two sites to find any differences in configuration.
 
-- Run query for `siteA` and write data to `out_site_a.json`
+A site data comparison is only possible if:
+- site `kind` is the same 
+  * Examples:
+    * aws_vpc_site with aws_vpc_site
+    * aws_tgw_site with aws_tgw_site
+- In case of Secure Mesh site 
+  * site `kind` is 
+    * Secure Mesh V1 with Secure Mesh V2
+
+Below steps illustrating how to run comparison function:
+
+- Run query for `siteA` and write data to `siteA.json`
     ```bash
-    ./get-sites.py -f `./out_site_a_json` -q -s `siteA` --log-level INFO --log-stdout
+    ./get-sites.py -f `./siteA.json` -q -s `siteA` --log-stdout
     ```
-- Run query for `siteB` and compare to `siteA` data
+- Run query for `siteB` and write data to `siteB.json`
     ```bash
-    ./get-sites.py -f `./out_site_b.json` -q -s `siteB` --diff-file `./ou_site_a_json` --log-level INFO --log-stdout
+    ./get-sites.py -f `./siteB.json` -q -s `siteB` --log-stdout
     ``` 
+- Run compare for `siteA` and `siteB` with table output
+    ```bash
+     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
+    ```
 - Output
     ```bash
-    2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site written to ./get-sites-diff-b.json
-    2024-10-22 16:11:09,129 - INFO - compare started with data from get-sites-diff-a.json and current api run...
-    2024-10-22 16:11:09,129 - INFO - 1 site and 0 virtual site read from ./get-sites-diff-a.json
-    2024-10-22 16:11:09,129 - INFO - compare done with results: {'os': True, 'cpu': True, 'memory': True, 'network': [True]}
+    ┌────────────────────────────────────┬───────────────────────────────────────────────────────────┬────────┐
+    │                path                │                           values                          │ action │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                kind                │                      securemesh_site                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │           metadata/name            │                           siteA                           │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │    metadata/labels/pg-vsite-all    │                            yes                            │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │         spec/vip_vrrp_mode         │                      VIP_VRRP_ENABLE                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       spec/main_nodes/0/name       │                      ip-192-168-0-16                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │   spec/main_nodes/0/slo_address    │                        192.168.0.16                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       spec/main_nodes/1/name       │                      ip-192-168-0-37                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │   spec/main_nodes/1/slo_address    │                        192.168.0.37                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       spec/main_nodes/2/name       │                      ip-192-168-0-88                      │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │   spec/main_nodes/2/slo_address    │                        192.168.0.88                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │ nodes/node0/hw_info/memory/size_mb │                           15786                           │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       nodes/node0/interfaces       │                      ['eth0', 'eth1']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │  nodes/node1/hw_info/memory/speed  │                            2666                           │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       nodes/node1/interfaces       │                      ['eth0', 'eth1']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │       nodes/node2/interfaces       │                      ['eth0', 'eth1']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                bgp                 │         ['ves-io-bgp-ves-io-securemesh-site-siteA']       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │               vsites               │                     ['pg-visite-smg']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                smg                 │                     ['pg-visite-smg']                     │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                efp                 │                   ['test123', 'test124']                  │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │                fpp                 │                        ['pg-proxy']                       │        │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────────────┼────────┤
+    │          dc_cluster_group          │                        ['pg-dccg']                        │        │
+    └────────────────────────────────────┴───────────────────────────────────────────────────────────┴────────┘
     ```
 
-Above output shows there are no differences for hardware info items __cpu__, __memory__ and __network__
+Above table shows differences for a couple of items between __site A__ and __site B__. Table presents items which are available in site A aka the old site and not available in the new site B.
 
-### Create csv inventory file
+> [!IMPORTANT]
+> Everytime a change in site data has been done `site query must be re run` to take those changes into consideration
 
-This tool offers the function to create a CSV inventory file. This file can be read in and further processed by applying filters to the generated data.
-
-- Run query for specif site or specific namespace or for all data
+- Run Compare for `siteA` and `siteB` csv file output
     ```bash
-    ./get-sites.py -f ./get-sites-all-ns.json -q --log-level INFO --log-stdout
+     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
+    ```
+
+### Export inventory
+
+This tool offers functions to create an inventory of a tenant. Supported inventory output formats are
+
+- CSV inventory file
+- Table stdout output
+
+#### CSV
+
+- Run query for all sites and all namespaces
+    ```bash
+    ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
 - Run create CSV inventory file function
     ```bash
-    ./get-sites.py -f ./get-sites-all-ns.json -c inventory.csv --log-level INFO --log-stdout
+    ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
     ```
+
+#### Stdout
+
+- Run query for all sites and all namespaces
+    ```bash
+    ./get-sites.py -f ./all-ns.json -q --log-stdout
+    ```
+- Run create CSV inventory file function
+    ```bash
+    ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
+    ```
+
+## Test
+
+- Change to `tests` directory
+- Run unit tests with `poetry run pytest`
+
+## Support
+
+For support, please open a GitHub issue. Note, the code in this repository is community supported and is not supported
+by F5 Networks. For a complete list of supported projects please reference [SUPPORT.md](SUPPORT.md).
+
+## Community Code of Conduct
+
+Please refer to the [F5 DevCentral Community Code of Conduct](code_of_conduct.md).
+
+## License
+
+[Apache License 2.0](LICENSE)
+
+## Copyright
+
+Copyright 2014-2025 F5 Networks Inc.
+
+### F5 Networks Contributor License Agreement
+
+Before you start contributing to any project sponsored by F5 Networks, Inc. (F5) on GitHub, you will need to sign a
+Contributor License Agreement (CLA).
+
+If you are signing as an individual, we recommend that you talk to your employer (if applicable) before signing the CLA
+since some employment agreements may have restrictions on your contributions to other projects.
+Otherwise, by submitting a CLA you represent that you are legally entitled to grant the licenses recited therein.
+
+If your employer has rights to intellectual property that you create, such as your contributions, you represent that you
+have received permission to make contributions on behalf of that employer, that your employer has waived such rights for
+your contributions, or that your employer has executed a separate CLA with F5.
+
+If you are signing on behalf of a company, you represent that you are legally entitled to grant the license recited
+therein.
+You represent further that each employee of the entity that submits contributions is authorized to submit such
+contributions on behalf of the entity pursuant to the CLA.
