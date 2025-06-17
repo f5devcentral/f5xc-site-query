@@ -201,6 +201,8 @@ class Api(object):
         r = self.session.get(url)
 
         if 200 != r.status_code:
+            if r.status_code == 401 or r.status_code == 403:
+                self.logger.info("get failed for {} with authentication error: <{}>".format(url, r.status_code))
             self.logger.debug("get failed for {} with {}".format(url, r.status_code))
             return False
 
