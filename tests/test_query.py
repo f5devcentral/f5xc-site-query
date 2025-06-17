@@ -9,8 +9,8 @@ from prettytable import PrettyTable
 
 from lib.api import Api
 
-API_URL = "https://customer1.crt.volterra.us/api"
-API_TOKEN = "hNDP6qxdnAMKziKaI5mEdz9hqXc="
+API_URL = ""
+API_TOKEN = ""
 WORKERS = 10
 USER_SPECIFIED_SITE = "smeshsiteongoing-singlenode"
 TEST_DATA_SITE_FILE_NAME = "../json/smeshsiteongoing-singlenode-2.json"
