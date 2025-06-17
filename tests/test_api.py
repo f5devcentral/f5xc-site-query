@@ -1,16 +1,16 @@
 import json
+import logging
+import os
 from unittest.mock import patch
 
 import jsondiff.symbols
-from prettytable import PrettyTable
-
 import pytest
-import logging
+from prettytable import PrettyTable
 
 from lib.api import Api
 
-API_URL = "https://playground.console.ves.volterra.io/api"
-API_TOKEN = "abc123456789"
+API_URL = os.environ.get("API_URL")
+API_TOKEN = os.environ.get("API_TOKEN")
 WORKERS = 10
 USER_SPECIFIED_SITE = "f5xc-aws-ce-test-60"
 TEST_DATA_ALL_NS_FILE_NAME = "tests/data/all_ns.json"
