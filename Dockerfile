@@ -11,4 +11,5 @@ RUN poetry config virtualenvs.in-project true && \
 RUN poetry install --only=main --no-root
 COPY lib lib/
 COPY get-sites.py .
-CMD ["poetry", "run", "python", "get-sites.py"]
+ENTRYPOINT ["poetry", "run", "python", "get-sites.py"]
+CMD ["-h"]

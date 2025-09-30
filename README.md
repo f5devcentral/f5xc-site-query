@@ -12,15 +12,6 @@ b) Who created an application object
 c) Are there sites that only serve origin pools
 d) Are there application objects assigned to non-existent sites
 
-## Requirements
-
-| Name                                                                              | Version  |
-|-----------------------------------------------------------------------------------|----------|
-|                                                                                   |          |
-| <a name="requirement_python"></a> [python](https://www.python.org/downloads/)     | \>= 3.13 |
-| <a name="requirement_git"></a> [git](https://git-scm.com/)                        | \>= 8.0  |
-| <a name="requirement_pipx"></a> [pipx](https://pipx.pypa.io/stable/installation/) | latest   |
-
 ### OS Platform
 
 | Name            | Status      |
@@ -31,17 +22,47 @@ d) Are there application objects assigned to non-existent sites
 
 ## Installation
 
+- Clone repository
+
+```bash
+git clone https://github.com/f5devcentral/f5xc-site-query
+```
+
+### Docker
+
+Install Docker following instructions:
+
+- Docker Engine: [docker_engine](https://docs.docker.com/engine/install/)
+- Docker Desktop [docker_desktop](https://docs.docker.com/desktop/)
+
+On macOS or Linux based systems run below commands to build and run docker container:
+
+- Build image
+```bash
+docker build . -t site-query:latest
+```
+- Run container
+
+```bash
+docker run -it --rm site-query:latest 
+```
+
+### Local
+
+#### Requirements
+
+| Name                                                                              | Version  |
+|-----------------------------------------------------------------------------------|----------|
+|                                                                                   |          |
+| <a name="requirement_python"></a> [python](https://www.python.org/downloads/)     | \>= 3.13 |
+| <a name="requirement_git"></a> [git](https://git-scm.com/)                        | \>= 8.0  |
+| <a name="requirement_pipx"></a> [pipx](https://pipx.pypa.io/stable/installation/) | latest   |
+
 - Check python version
 
 ```bash
 python3 --version
 --> Python 3.13.1
-```
-
-- Clone repository
-
-```bash
-git clone https://github.com/f5devcentral/f5xc-site-query
 ```
 
 - Install pipx
@@ -133,17 +154,41 @@ options:
 
 ### Example to get data from all namespaces:
 
+#### Docker
+
+```bash
+docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns-prod.json -q --log-stdout
+```
+
+#### Manual
+
 ```bash
 ./get-sites.py -f ./json/all-ns-prod.json -q --log-stdout
 ```
 
 ### Example to get data from specific namespace:
 
+#### Docker
+
+```bash
+docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./get-sites-specific-ns.json -n default -q --log-stdout
+```
+
+#### Manual
+
 ```bash
 ./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-stdout
 ```
 
 ### Example to get data for specific site:
+
+#### Docker
+
+```bash
+docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-stdout
+```
+
+#### Manual
 
 ```bash
 ./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-stdout
@@ -269,17 +314,31 @@ A site data comparison is only possible if:
 Below steps illustrating how to run comparison function:
 
 - Run query for `siteA` and write data to `siteA.json`
+  - Docker
+    ```bash
+      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `./siteA.json` -q -s `siteA` --log-stdout
+    ```
+       - Run query for `siteB` and write data to `siteB.json`
+          ```bash
+          docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `./siteB.json` -q -s `siteB` --log-stdout
+          ``` 
+      - Run compare for `siteA` and `siteB` with table output
+          ```bash
+           docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
+          ```
+    
+  - Manual 
     ```bash
     ./get-sites.py -f `./siteA.json` -q -s `siteA` --log-stdout
     ```
-- Run query for `siteB` and write data to `siteB.json`
-    ```bash
-    ./get-sites.py -f `./siteB.json` -q -s `siteB` --log-stdout
-    ``` 
-- Run compare for `siteA` and `siteB` with table output
-    ```bash
-     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
-    ```
+    - Run query for `siteB` and write data to `siteB.json`
+        ```bash
+        ./get-sites.py -f `./siteB.json` -q -s `siteB` --log-stdout
+        ``` 
+    - Run compare for `siteA` and `siteB` with table output
+        ```bash
+         ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
+        ```
 - Output
     ```bash
     ┌────────────────────────────────────┬───────────────────────────────────────────────────────────┬────────┐
@@ -335,6 +394,11 @@ Above table shows differences for a couple of items between __site A__ and __sit
 > Everytime a change in site data has been done `site query must be re run` to take those changes into consideration
 
 - Run Compare for `siteA` and `siteB` csv file output
+  - Docker
+    ```bash
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
+    ```
+  - Manual
     ```bash
      ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
     ```
@@ -349,21 +413,41 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 #### CSV
 
 - Run query for all sites and all namespaces
+  - Docker
+    ```bash
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
+    ```
+  - Manual
     ```bash
     ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
 - Run create CSV inventory file function
+  - Docker
     ```bash
-    ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
     ```
+  - Manual
+      ```bash
+      ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
+      ```
 
 #### Stdout
 
 - Run query for all sites and all namespaces
+   - Docker
+    ```bash
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
+    ```
+  - Manual
     ```bash
     ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
 - Run create CSV inventory file function
+  - Docker
+    ```bash
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-table --log-stdout
+    ```
+  - Manual
     ```bash
     ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
     ```
