@@ -1,6 +1,6 @@
 [project]
 name = "f5xc-site-query"
-version = "0.1.0"
+version = "0.1.1"
 description = "F5 XC inventory and compare tool"
 authors = [
     { name = "c.klewar", email = "c.klewar@f5.com" }
@@ -18,11 +18,17 @@ dependencies = [
     "tox>=4.24.1",
     "prettytable>=3.14.0",
     "jsondiff>=2.2.1",
-    "pytest>=8.3.5"
+    "pytest>=8.3.5",
+]
+
+# https://docs.pytest.org/en/latest/reference/customize.html
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
 ]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
