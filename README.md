@@ -14,11 +14,11 @@ d) Are there application objects assigned to non-existent sites
 
 ### OS Platform
 
-| Name            | Status      |
-|-----------------|-------------|
-| Linux           | supported   |
-| Mac OS (Sonoma) | supported   |
-| Windows         | unsupported |
+| Name            | Status    |
+|-----------------|-----------|
+| Linux           | supported |
+| Mac OS (Sonoma) | supported |
+| Windows         | untested  |
 
 ## Installation
 
@@ -32,8 +32,8 @@ git clone https://github.com/f5devcentral/f5xc-site-query
 
 Install Docker following instructions:
 
-- Docker Engine: [docker_engine](https://docs.docker.com/engine/install/)
-- Docker Desktop [docker_desktop](https://docs.docker.com/desktop/)
+- Docker Engine: [Docker Engine](https://docs.docker.com/engine/install/)
+- Docker Desktop: [Docker Desktop](https://docs.docker.com/desktop/)
 
 On macOS or Linux based systems run below commands to build and run docker container:
 
@@ -44,7 +44,7 @@ docker build . -t site-query:latest
 - Run container
 
 ```bash
-docker run -it --rm site-query:latest 
+docker run -it --rm site-query 
 ```
 
 ### Local
@@ -434,19 +434,20 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 #### Stdout
 
 - Run query for all sites and all namespaces
-   - Docker
-    ```bash
+  - Docker
+     ```bash
      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
-    ```
+     ```
   - Manual
-    ```bash
-    ./get-sites.py -f ./all-ns.json -q --log-stdout
-    ```
+     ```bash
+     ./get-sites.py -f ./all-ns.json -q --log-stdout
+     ```
 - Run create CSV inventory file function
   - Docker
     ```bash
      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-table --log-stdout
     ```
+  
   - Manual
     ```bash
     ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
