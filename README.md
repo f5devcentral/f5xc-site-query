@@ -407,8 +407,30 @@ Above table shows differences for a couple of items between __site A__ and __sit
 
 This tool offers functions to create an inventory of a tenant. Supported inventory output formats are
 
+- XLSX inventory file
 - CSV inventory file
 - Table stdout output
+
+#### XLSX
+
+- Run query for all sites and all namespaces
+  - Docker
+    ```bash
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
+    ```
+  - Manual
+    ```bash
+    ./get-sites.py -f ./all-ns.json -q --log-stdout
+    ```
+- Run create XLSX inventory file function
+  - Docker
+    ```bash
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-file-xlsx ./inventory.xlsx --log-stdout
+    ```
+  - Manual
+      ```bash
+      ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-xlsx ./inventory.xlsx --log-stdout
+      ```
 
 #### CSV
 
