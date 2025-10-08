@@ -115,9 +115,9 @@ Alternatively you can set command line options instead when running the script.
 Referencing objects that reference a site object are only added to the site object if the referenced site also exists.
 
 ```
-./get-sites.py
-usage: get-sites.py [-h] [-a APIURL] [-c] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--old-site OLD_SITE] [--new-site NEW_SITE] [--old-site-file OLD_SITE_FILE] [--new-site-file NEW_SITE_FILE] [--build-inventory] [--diff-table]
-                    [--diff-file-csv DIFF_FILE_CSV] [--inventory-table] [--inventory-file-csv INVENTORY_FILE_CSV] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
+usage: get-sites.py [-h] [-a APIURL] [-c] [-f FILE] [-n NAMESPACE] [-q] [-s SITE] [-t TOKEN] [-w WORKERS] [--old-site OLD_SITE] [--new-site NEW_SITE] [--old-site-file OLD_SITE_FILE]
+                    [--new-site-file NEW_SITE_FILE] [--build-inventory] [--diff-table] [--diff-file-csv DIFF_FILE_CSV] [--inventory-table] [--inventory-file-csv INVENTORY_FILE_CSV]
+                    [--inventory-file-xlsx INVENTORY_FILE_XLSX] [--log-level LOG_LEVEL] [--log-stdout] [--log-file]
 
 Get F5 XC Sites command line arguments
 
@@ -146,6 +146,8 @@ options:
   --inventory-table     print inventory info to stdout
   --inventory-file-csv INVENTORY_FILE_CSV
                         write inventory info to csv file
+  --inventory-file-xlsx INVENTORY_FILE_XLSX
+                        write inventory info to xlsx to file
   --log-level LOG_LEVEL
                         set log level to INFO or DEBUG
   --log-stdout          write log info to stdout
