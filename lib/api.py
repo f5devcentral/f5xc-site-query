@@ -3,7 +3,6 @@ authors: cklewar
 """
 
 import json
-import logging
 import os
 import re
 import sys
@@ -17,6 +16,7 @@ from prettytable import PrettyTable, TableStyle
 from requests import Response
 
 import lib.const as c
+from lib.xlsx import Xlsx
 from lib.loader import load_module
 
 
@@ -257,14 +257,34 @@ class Api(object):
         else:
             self.logger.info(json.dumps(self.data, indent=2))
 
-    def build_inventory(self, json_file: str = None) -> PrettyTable | None:
+    def build_inventory_xlsx(self, json_file: str = None, xlsx_file: str = None) -> Any | None:
+        """
+        Write site inventory to CSV file
+        :param json_file: json input data
+        :param xlsx_file: csv output data
+        :return: inventory data
+        """
+
+        self.logger.info(f"{self.build_inventory_xlsx.__name__} started...")
+        data = self.read_json_file(json_file)
+
+        if data:
+            xlsx = Xlsx(site=self.site, file=xlsx_file, data=data, logger=self.logger)
+            xlsx.build()
+            xlsx.write()
+            self.logger.info(f"{self.build_inventory_xlsx.__name__} done.")
+
+    
+        return None
+
+    def build_inventory_csv(self, json_file: str = None) -> PrettyTable | None:
         """
         Write site inventory to CSV file
         :param json_file: json input data
         :return: inventory data
         """
 
-        self.logger.info(f"{self.build_inventory.__name__} started...")
+        self.logger.info(f"{self.build_inventory_csv.__name__} started...")
 
         data = self.read_json_file(json_file)
         if data:
@@ -336,7 +356,7 @@ class Api(object):
                     else:
                         process()
 
-            self.logger.info(f"{self.build_inventory.__name__} -> Done")
+            self.logger.info(f"{self.build_inventory_csv.__name__} -> Done")
 
             return table
         return None
@@ -508,10 +528,10 @@ class Api(object):
                 self.logger.info(f"Comparing new site <{old_site}> not found in file {old_file}.")
                 return None
 
-            same = data_old['site'][old_site]['kind'] == data_new['site'][new_site]['kind']
-            secure_mesh = data_old['site'][old_site]['kind'] == "securemesh_site" and data_new['site'][new_site]['kind'] == "securemesh_site_v2"
+            legacy_to_smv2 = data_old['site'][old_site]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC, c.F5XC_SITE_TYPE_AZURE_VNET] and data_new['site'][new_site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
+            smv1_to_smv2 = data_old['site'][old_site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_new['site'][new_site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
 
-            if same or secure_mesh:
+            if legacy_to_smv2 or smv1_to_smv2:
                 compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
                 r = []
                 # build list of key paths

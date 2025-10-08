@@ -45,6 +45,7 @@ def main():
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
     parser.add_argument('--log-file', help='write log info to file', action='store_true')
+    parser.add_argument('--xlsx-file', help='write xlsx to file name', default="")
 
     # Parse the arguments
     args = parser.parse_args()
@@ -103,10 +104,16 @@ def main():
         else:
             logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")
 
-    data = q.build_inventory(json_file=args.file) if args.build_inventory else None
+    data = q.build_inventory_csv(json_file=args.file) if args.build_inventory else None
     if data:
         q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None
         logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
+
+    if args.xlsx_file:
+        if args.file is None:
+            logger.info("--file option is required")
+            sys.exit(1)
+        q.build_inventory_xlsx(json_file=args.file, xlsx_file=args.xlsx_file)
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 

@@ -19,6 +19,7 @@ dependencies = [
     "prettytable>=3.14.0",
     "jsondiff>=2.2.1",
     "pytest>=8.3.5",
+    "enlighten>=1.14.1",
 ]
 
 # https://docs.pytest.org/en/latest/reference/customize.html

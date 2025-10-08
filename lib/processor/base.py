@@ -1,5 +1,5 @@
 import concurrent.futures
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from logging import Logger
 from typing import Any
 
@@ -8,7 +8,7 @@ from requests import Response, Session
 import lib.const as c
 
 
-class Base(object):
+class Base(ABC):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
         self._session = session
         self.api_url = api_url
