@@ -2,17 +2,17 @@
 
 ## Overview
 
-Helper tool get-sites.py queries application objects (HTTP and TCP Load Balancers, Proxys and Origin Pools) per namespace
+Helper tool `get-sites.py queries application objects (HTTP and TCP Load Balancers, Proxys and Origin Pools) per namespace
 (or all namespaces) and creates a json file with all objects listed per site, virtual site and namespace.
 
-The generated get-sites.json file helps to answer questions like
+The generated json output file helps to answer questions like:
 
-a) What application objects are assigned to a site or virtual site and in what namespace
-b) Who created an application object
-c) Are there sites that only serve origin pools
-d) Are there application objects assigned to non-existent sites
+  - What application objects are assigned to a site or virtual site and in what namespace
+  - Who created an application object
+  - Are there sites that only serve origin pools
+  - Are there application objects assigned to non-existent sites
 
-### OS Platform
+### Tested OS Platforms
 
 | Name            | Status    |
 |-----------------|-----------|
