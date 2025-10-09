@@ -329,7 +329,6 @@ Below steps illustrating how to run comparison function:
           ```bash
            docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-table --log-stdout
           ```
-    
   - Manual 
     ```bash
     ./get-sites.py -f `./siteA.json` -q -s `siteA` --log-stdout
