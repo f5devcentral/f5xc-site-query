@@ -319,15 +319,15 @@ Below steps illustrating how to run comparison function:
 - Run query for `siteA` and write data to `siteA.json`
   - Docker
     ```bash
-      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `./siteA.json` -q -s `siteA` --log-stdout
+      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `/data/siteA.json` -q -s `siteA` --log-stdout
     ```
        - Run query for `siteB` and write data to `siteB.json`
           ```bash
-          docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `./siteB.json` -q -s `siteB` --log-stdout
+          docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `/data/siteB.json` -q -s `siteB` --log-stdout
           ``` 
       - Run compare for `siteA` and `siteB` with table output
           ```bash
-           docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
+           docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-table --log-stdout
           ```
     
   - Manual 
@@ -336,7 +336,7 @@ Below steps illustrating how to run comparison function:
     ```
     - Run query for `siteB` and write data to `siteB.json`
         ```bash
-        ./get-sites.py -f `./siteB.json` -q -s `siteB` --log-stdout
+        ./get-sites.py -f `/data/siteB.json` -q -s `siteB` --log-stdout
         ``` 
     - Run compare for `siteA` and `siteB` with table output
         ```bash
@@ -399,7 +399,7 @@ Above table shows differences for a couple of items between __site A__ and __sit
 - Run Compare for `siteA` and `siteB` xslx file output
   - Docker
     ```bash
-    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-xlsx ./csv/diff_site_a_and_site_b.xlsx --log-stdout
+    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-file-xlsx ``/data/xlsx/diff_site_a_and_site_b.xls`` --log-stdout
     ```
   -Manual
     ```bash
@@ -409,11 +409,11 @@ Above table shows differences for a couple of items between __site A__ and __sit
 - Run Compare for `siteA` and `siteB` csv file output
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-file-csv ``/data/csv/diff_site_a_and_site_b.csv`` --log-stdout
     ```
   - Manual
     ```bash
-     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
+     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
     ```
 
 ### Export inventory
