@@ -305,13 +305,14 @@ This tool provides a comparison function to compare site information.
 Given the old site called `siteA` and a newly created site called `siteB` one can compare those two sites to find any differences in configuration.
 
 A site data comparison is only possible if:
-- site `kind` is the same 
-  * Examples:
-    * aws_vpc_site with aws_vpc_site
-    * aws_tgw_site with aws_tgw_site
+* Source site is `Secure Mesh V1 with Secure Mesh V2
+  * Legacy site 
+    * Examples:
+      * aws_vpc_site with aws_vpc_site
+      * aws_tgw_site with aws_tgw_site
 - In case of Secure Mesh site 
   * site `kind` is 
-    * Secure Mesh V1 with Secure Mesh V2
+    
 
 Below steps illustrating how to run comparison function:
 
@@ -394,6 +395,16 @@ Above table shows differences for a couple of items between __site A__ and __sit
 
 > [!IMPORTANT]
 > Everytime a change in site data has been done `site query must be re run` to take those changes into consideration
+
+- Run Compare for `siteA` and `siteB` xslx file output
+  - Docker
+    ```bash
+    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-xlsx ./csv/diff_site_a_and_site_b.xlsx --log-stdout
+    ```
+  -Manual
+    ```bash
+    ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-xlsx ./xlsx/diff_site_a_and_site_b.xlsx --log-stdout
+    ```
 
 - Run Compare for `siteA` and `siteB` csv file output
   - Docker

@@ -257,25 +257,41 @@ class Api(object):
         else:
             self.logger.info(json.dumps(self.data, indent=2))
 
-    def build_inventory_xlsx(self, json_file: str = None, xlsx_file: str = None) -> Any | None:
+    def build_compare_xlsx(self, xlsx_file: str = None, data: str = None, data_source: dict = None, data_target: dict = None):
         """
-        Write site inventory to CSV file
+        Write site comparison to XLSX file
+        :param xlsx_file: xlsx output data
+        :param data: compared json data
+        :param data_source: source site json input data
+        :param data_target: target site data json input data
+        :return:
+        """
+
+        self.logger.info(f"{self.build_compare_xlsx.__name__} started...")
+        data = json.loads(data)
+
+        if data:
+            xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
+            xlsx.build_compare(data=data, data_source=data_source, data_target=data_target)
+            xlsx.write()
+            self.logger.info(f"{self.build_compare_xlsx.__name__} done.")
+
+    def build_inventory_xlsx(self, json_file: str = None, xlsx_file: str = None):
+        """
+        Write site inventory to XLSX file
         :param json_file: json input data
-        :param xlsx_file: csv output data
-        :return: inventory data
+        :param xlsx_file: xlsx output data
+        :return:
         """
 
         self.logger.info(f"{self.build_inventory_xlsx.__name__} started...")
         data = self.read_json_file(json_file)
 
         if data:
-            xlsx = Xlsx(site=self.site, file=xlsx_file, data=data, logger=self.logger)
-            xlsx.build()
+            xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
+            xlsx.build_inventory(data=data)
             xlsx.write()
             self.logger.info(f"{self.build_inventory_xlsx.__name__} done.")
-
-    
-        return None
 
     def build_inventory_csv(self, json_file: str = None) -> PrettyTable | None:
         """
@@ -498,44 +514,43 @@ class Api(object):
             return resp
         return None
 
-    def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
+    def compare(self, source: str = None, source_file: str = None, target: str = None, target_file: str = None, data_source: dict = None, data_target: dict = None) -> PrettyTable | None:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
-        :param new_site: new site name to compare with
-        :param old_site: old site name to compare with
-        :param new_file: file name data loaded to compare with
-        :param old_file: file name data loaded to compare with
+        :param target: target site name to compare with
+        :param source: source site name to compare with
+        :param target_file: file name data loaded to compare with
+        :param source_file: file name data loaded to compare with
+        :param data_source: data from source site
+        :param data_target: data from target site
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
-        self.logger.info(f"{self.compare.__name__} started with data from previous run: <{os.path.basename(old_file)}> and data from latest run <{os.path.basename(new_file)}>")
-        self.logger.info(f"Compare old site: {old_site} --> {old_file}")
-        self.logger.info(f"Compare new site: {new_site} --> {new_file}")
+        self.logger.info(f"{self.compare.__name__} started with data from previous run: <{os.path.basename(source_file)}> and data from latest run <{os.path.basename(target_file)}>")
+        self.logger.info(f"Compare old site: {source} --> {source_file}")
+        self.logger.info(f"Compare new site: {target} --> {target_file}")
 
-        data_old = self.read_json_file(old_file)
-        data_new = self.read_json_file(new_file)
+        self.logger.debug(f"DATA_OLD: {data_source}")
+        self.logger.debug(f"DATA_NEW: {data_target}")
 
-        self.logger.debug(f"DATA_OLD: {data_old}")
-        self.logger.debug(f"DATA_NEW: {data_new}")
-
-        if data_old and data_new:
+        if data_source and data_target:
             # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
-            if not new_site in data_new['site']:
-                self.logger.info(f"Comparing new site <{new_site}> not found in file {new_file}.")
+            if not target in data_target['site']:
+                self.logger.info(f"Comparing new site <{target}> not found in file {target_file}.")
                 return None
 
-            if not old_site in data_old['site']:
-                self.logger.info(f"Comparing new site <{old_site}> not found in file {old_file}.")
+            if not source in data_source['site']:
+                self.logger.info(f"Comparing new site <{source}> not found in file {source_file}.")
                 return None
 
-            legacy_to_smv2 = data_old['site'][old_site]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC, c.F5XC_SITE_TYPE_AZURE_VNET] and data_new['site'][new_site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
-            smv1_to_smv2 = data_old['site'][old_site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_new['site'][new_site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
+            legacy_to_smv2 = data_source['site'][source]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC, c.F5XC_SITE_TYPE_AZURE_VNET] and data_target['site'][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
+            smv1_to_smv2 = data_source['site'][source]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_target['site'][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
 
             if legacy_to_smv2 or smv1_to_smv2:
-                compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
+                compared = diff(data_source['site'][source], data_target['site'][target], syntax="compact")
                 r = []
                 # build list of key paths
-                dict_keys = self._get_keys(None, compared, r, old_site, data_old)
+                dict_keys = self._get_keys(None, compared, r, source, data_source)
                 table = PrettyTable()
                 table.set_style(TableStyle.SINGLE_BORDER)
                 table.field_names = ["path", "values"]
@@ -547,7 +562,7 @@ class Api(object):
                 for k in dict_keys:
                     response = list()
                     # get list of items to be added as table row data
-                    values_from_path = self._get_by_path(data_old['site'][old_site], k.split("/"), response)
+                    values_from_path = self._get_by_path(data_source['site'][source], k.split("/"), response)
 
                     if values_from_path:
                         check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
@@ -576,7 +591,7 @@ class Api(object):
 
                 return table
             else:
-                self.logger.info(f"Comparing new site <{new_site}> with old site <{old_site}> not supported since not of same kind.")
+                self.logger.info(f"Comparing new site <{target}> with old site <{source}> not supported since not of same kind.")
                 return None
 
         return None

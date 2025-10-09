@@ -40,6 +40,7 @@ def main():
     parser.add_argument('--build-inventory', help='build inventory and write it to file', action="store_true")
     parser.add_argument('--diff-table', help='print diff info to stdout', action='store_true')
     parser.add_argument('--diff-file-csv', help='write site diff info to csv file', required=False, default="")
+    parser.add_argument('--diff-file-xlsx', help='write site diff info to xlsx file', required=False, default="")
     parser.add_argument('--inventory-table', help='print inventory info to stdout', action='store_true')
     parser.add_argument('--inventory-file-csv', help='write inventory info to csv file', required=False, default="")
     parser.add_argument('--inventory-file-xlsx', help='write inventory info to xlsx to file', required=False, default="")
@@ -97,23 +98,29 @@ def main():
 
     if args.compare:
         if args.old_site_file and args.new_site_file and args.old_site and args.new_site:
-            data = q.compare(old_site=args.old_site, old_file=args.old_site_file, new_site=args.new_site, new_file=args.new_site_file)
+            data_site_source = q.read_json_file(args.old_site_file)
+            data_site_target = q.read_json_file(args.new_site_file)
+            data = q.compare(source=args.old_site, source_file=args.old_site_file, target=args.new_site, target_file=args.new_site_file, data_source=data_site_source, data_target=data_site_target)
             if data:
                 logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
-                q.write_string_file(args.diff_file_csv, data.get_csv_string()) if args.diff_file_csv and data else None
+                q.write_string_file(name=args.diff_file_csv, data=data.get_csv_string()) if args.diff_file_csv and data else None
+                q.build_compare_xlsx(xlsx_file=args.diff_file_xlsx, data=data.get_json_string(), data_source=data_site_source["site"][args.old_site], data_target=data_site_target["site"][args.new_site]) if args.diff_file_xlsx else None
         else:
             logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")
+            sys.exit(1)
 
-    data = q.build_inventory_csv(json_file=args.file) if args.build_inventory and args.inventory_file_csv else None
-    if data:
-        q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None
-        logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
-
-    if args.build_inventory and args.inventory_file_xlsx:
+    if args.build_inventory:
         if args.file is None:
             logger.info("--file option is required")
             sys.exit(1)
-        q.build_inventory_xlsx(json_file=args.file, xlsx_file=args.inventory_file_xlsx)
+
+        data = q.build_inventory_csv(json_file=args.file) if args.inventory_file_csv else None
+        if data:
+            q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None
+            logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
+
+        q.build_inventory_xlsx(json_file=args.file, xlsx_file=args.inventory_file_xlsx) if args.inventory_file_xlsx else None
+
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
 
