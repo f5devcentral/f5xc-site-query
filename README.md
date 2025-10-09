@@ -307,8 +307,8 @@ This tool provides a comparison function to compare site information.
 Given the old site called `siteA` and a newly created site called `siteB` one can compare those two sites to find any differences in configuration.
 
 A site data comparison is only possible if:
-* Source site is of kind `Secure Mesh V1` and target site is of kind `Secure Mesh V2`
-* Source site is of kind `Legacy` and target site is of kind `Secure Mesh V2`
+  * Source site is of kind `Secure Mesh V1` and target site is of kind `Secure Mesh V2`
+  * Source site is of kind `Legacy` e.g. AWS_VPC or AZURE_VNET and target site is of kind `Secure Mesh V2`
   
 Below steps illustrating how to run comparison function:
 
