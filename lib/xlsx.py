@@ -555,16 +555,24 @@ class Xlsx(object):
         target_lbs = 0
         target_ops = 0
 
-        if "namespaces" in data_source and "namespaces" in data_target:
-            for source_item, target_item in zip(data_source["namespaces"].values(), data_target["namespaces"].values()):
-                if "loadbalancer" in source_item.keys() and "loadbalancer" in target_item.keys():
-                    for source_lb_type, target_lb_type in zip(source_item["loadbalancer"].keys(), target_item["loadbalancer"].keys()):
+        if "namespaces" in data_source:
+            for source_item in data_source["namespaces"].values():
+                if "loadbalancer" in source_item.keys():
+                    for source_lb_type in source_item["loadbalancer"].keys():
                         source_lbs = source_lbs + len(source_item["loadbalancer"][source_lb_type].keys())
+
+            for source_item in data_source["namespaces"].values():
+                if "origin_pools" in source_item.keys():
+                    source_ops = source_ops + len(source_item["origin_pools"].keys())
+
+        if "namespaces" in data_target:
+            for target_item in data_target["namespaces"].values():
+                if "loadbalancer" in target_item.keys():
+                    for target_lb_type in target_item["loadbalancer"].keys():
                         target_lbs = target_lbs + len(target_item["loadbalancer"][target_lb_type].keys())
 
-            for source_item, target_item in zip(data_source["namespaces"].values(), data_target["namespaces"].values()):
-                if "origin_pools" in source_item.keys() and "origin_pools" in target_item.keys():
-                    source_ops = source_ops + len(source_item["origin_pools"].keys())
+            for target_item in data_target["namespaces"].values():
+                if "origin_pools" in target_item.keys():
                     target_ops = target_ops + len(target_item["origin_pools"].keys())
 
         table_data_services = [
