@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 from logging import Logger
 
@@ -20,6 +21,14 @@ class Vs(Base):
         """
         super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
 
+        # Reset urls
+        self.urls = list()
+
+        for namespace in self.data["namespaces"]:
+            self.urls.append(self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace=namespace)))
+
+        self.logger.debug("VIRTUAL_SITE_URLS: %s", self.urls)
+
     def run(self) -> dict | None:
         """
         Get list of virtual sites and process data.
@@ -27,24 +36,47 @@ class Vs(Base):
         :return: structure with virtual sites information being added
         """
 
-        self.logger.info(f"process virtual sites get all virtual sites from {self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace=c.F5XC_NAMESPACE_SHARED))}")
-        _virtual_sites = self.get(self.build_url(c.URI_F5XC_VIRTUAL_SITES.format(namespace=c.F5XC_NAMESPACE_SHARED)))
+        _virtual_sites = self.execute(name="virtual site details", urls=self.urls)
 
-        if _virtual_sites:
-            self.logger.debug(json.dumps(_virtual_sites.json(), indent=2))
-            virtual_sites = [vs for vs in _virtual_sites.json()['items'] if self.site == vs['name']] if self.site else _virtual_sites.json()['items']
+        def process():
+            try:
+                vs_name = r["metadata"]["name"]
+                self.data[c.VIRTUAL_SITES_KEY][vs_name] = dict()
+                self.data[c.VIRTUAL_SITES_KEY][vs_name]['metadata'] = r["metadata"]
+                self.data[c.VIRTUAL_SITES_KEY][vs_name]['spec'] = r["spec"]
+            except Exception as e:
+                self.logger.info("namespace:", r["metadata"]["namespace"])
+                self.logger.info("system_metadata:", r['system_metadata'])
+                self.logger.info("Exception:", e)
 
-            if virtual_sites:
-                # Stores virtual_site urls build from URI_F5XC_VIRTUAL_SITE
-                urls = dict()
-                # Build urls for site
-                for vs in virtual_sites:
-                    urls[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=c.F5XC_NAMESPACE_SHARED, name=vs['name']))] = vs['name']
+        urls = list()
 
-                _virtual_sites = self.execute(name="virtual site details", urls=urls)
-                for vs in _virtual_sites:
-                    self.data['virtual_site'][vs["object"]] = dict()
-                    self.data['virtual_site'][vs["object"]]['metadata'] = vs['data']['metadata']
-                    self.data['virtual_site'][vs["object"]]['spec'] = vs['data']['spec']
+        for item in _virtual_sites:
+            for url, lbs in item.items():
+                for lb in lbs:
+                    _url = "{}/{}".format(url, lb['name'])
+                    urls.append(_url)
 
-            return self.data
+        self.logger.debug(f"process virtual site url: {urls}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
+            future_to_ds = {executor.submit(self.get, url=url): url for url in urls}
+
+            for future in concurrent.futures.as_completed(future_to_ds):
+                _data = future_to_ds[future]
+                self.must_break = False
+
+                try:
+                    self.logger.info(f"process virtual site get item: {future_to_ds[future]} ...")
+                    result = future.result()
+                except Exception as exc:
+                    self.logger.info('%s: %r generated an exception: %s' % ("process virtual site", _data, exc))
+                else:
+                    self.logger.info(f"process virtual site got item: {future_to_ds[future]} ...")
+
+                    if result:
+                        r = result.json()
+                        self.logger.debug(json.dumps(r, indent=2))
+                        process()
+
+        return self.data

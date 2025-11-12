@@ -34,7 +34,9 @@ URI_F5XC_FORWARD_PROXY_POLICY = "/config/namespaces/{namespace}/forward_proxy_po
 #
 # F5XC objects
 #
-F5XC_SITE_TYPES = ["site", "virtual_site"]  # "virtual_site_with_vip"
+F5XC_SITE = "site"
+F5XC_VIRTUAL_SITE = "virtual_site"
+F5XC_SITE_TYPES = [F5XC_SITE, F5XC_VIRTUAL_SITE]  # "virtual_site_with_vip"
 F5XC_SITE_VOLT_STACK = "voltstack_site"
 F5XC_SITE_TYPE_SMS_V1 = "securemesh_site"
 F5XC_SITE_TYPE_SMS_V2 = "securemesh_site_v2"
@@ -53,9 +55,18 @@ F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 F5XC_CREATOR_CLASS_MAURICE = "maurice"
 
 #
+# Dict Keys
+#
+SITES_KEY = "sites"
+VIRTUAL_SITES_KEY = "virtual_sites"
+SITE_VIRTUAL_SITES_KEY = "vsites"
+SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
+
+#
 # Site query
 #
-API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
+API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
+#API_PROCESSORS = ["vs", "site"]
 PROCESSOR_PACKAGE = "lib.processor"
 CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces"]
 XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces"]
@@ -65,7 +76,7 @@ COMPARE_REGEX_HW_INFO_USB = "nodes/.*/hw_info/usb"
 EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity", COMPARE_REGEX_HW_INFO_USB]
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
+SITE_OBJECT_PROCESSORS = ["site_details", "virtual_site", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,
@@ -80,4 +91,8 @@ HW_INFO_ITEMS_TO_PROCESS = {
     "cpu": ["model", "cpus", "cores", "threads"],
     "memory": ["speed", "size_mb"],
     "storage": ["size_gb"]
+}
+OBJECT_TO_KEY_MAP = {
+    F5XC_SITE: SITES_KEY,
+    F5XC_VIRTUAL_SITE: VIRTUAL_SITES_KEY,
 }

@@ -40,63 +40,35 @@ class Smg(Base):
             site_mesh_groups = self.execute(name="site mesh group", urls=urls_smg)
             for smg in site_mesh_groups:
                 if len(smg['data']['spec']['virtual_site']) > 0:
-                    urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=c.F5XC_NAMESPACE_SHARED, name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata']['name']
+                    for namespace in self.data['namespaces']:
+                        urls_vs[self.build_url(c.URI_F5XC_VIRTUAL_SITE.format(namespace=namespace, name=smg['data']['spec']['virtual_site'][0]['name']))] = smg['data']['metadata'][
+                            'name']
                 else:
                     self.logger.info(f"failed to add site mesh group info for site: {smg['data']['metadata']['name']}")
 
             # Remove virtual sites without 'site_selector' key
             virtual_sites = [vs for vs in self.execute(name="virtual site", urls=urls_vs) if 'site_selector' in vs['data']['spec']]
-            for site in self.data["site"].keys():
+            for site in self.data[c.SITES_KEY].keys():
                 # Store virtual sites current site is a member of
-                site_is_member_of_virtual_sites = set()
-                # Need to evaluate site_selector expression in virtual site data
-                # Split expression into key, operator, value parts. If value is a comma separated list of items split these
-                # Compare site label and key with virtual site expression key and value. Supported comparators are "equal" and "in"
-                for vs in virtual_sites:
-                    _expressions = list()
+                site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site)
 
-                    for exp in vs['data']["spec"]["site_selector"]["expressions"]:
-                        if " " in exp:
-                            _expressions.append(exp.split(" ", 2))
-                        else:
-                            _exp = exp.split("=")
-                            _exp.insert(1, "=")
-                            _expressions.append(_exp)
+                # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
+                if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
+                   self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                else:
+                    merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
+                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
 
-                    expressions = list()
-
-                    for expression in _expressions:
-                        # Check if expression is of from ["key", "operand", "value"]
-                        if len(expression) == 3:
-                            # If virtual site site_selector expression is a comma separated list of items split these
-                            if expression[2].startswith("(") and expression[2].endswith(")"):
-                                val = [a.strip("() ") for a in expression[2].split(",")]
-                                expressions.append({"key": expression[0], "operator": expression[1], "value": val})
-                            else:
-                                expressions.append({"key": expression[0], "operator": expression[1], "value": expression[2]})
-                        else:
-                            self.logger.info(f"Found unsupported selector expression: {expression}")
-
-                    for label, value in self.data["site"][site]["metadata"]["labels"].items():
-                        for expression in expressions:
-                            if label == expression["key"] and value == expression["value"]:
-                                site_is_member_of_virtual_sites.add(vs["data"]["metadata"]["name"])
-                            elif label == expression["key"] and value in expression["value"]:
-                                site_is_member_of_virtual_sites.add(vs["data"]["metadata"]["name"])
-
-                # Add virtual sites current site is a member of below new key 'vsites'
-                if "vsites" not in self.data["site"][site].keys():
-                    self.data["site"][site]["vsites"] = list(site_is_member_of_virtual_sites)
-
-                if "smg" not in self.data["site"][site].keys():
-                    self.data["site"][site]["smg"] = dict()
                 # Add secure mesh site to site data
                 # If secure mesh site virtual site name is in list of virtual sites this site is a member of
+                if "smg" not in self.data[c.SITES_KEY][site].keys():
+                   self.data[c.SITES_KEY][site]["smg"] = dict()
+
                 for smg in site_mesh_groups:
                     if len(smg['data']['spec']['virtual_site']) > 0:
                         if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:
-                            self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]] = dict()
-                            self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["metadata"] = smg["data"]["metadata"]
-                            self.data["site"][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["spec"] = smg["data"]["spec"]
+                           self.data[c.SITES_KEY][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]] = dict()
+                           self.data[c.SITES_KEY][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["metadata"] = smg["data"]["metadata"]
+                           self.data[c.SITES_KEY][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["spec"] = smg["data"]["spec"]
 
         return self.data

@@ -43,11 +43,67 @@ class Base(ABC):
     def logger(self):
         return self._logger
 
+    @urls.setter
+    def urls(self, urls: list):
+        self._urls = urls
+
     def __str__(self):
         return self.__class__.__name__
 
     def __repr__(self):
         return f"class: {self.__class__.__name__}, api_url: {self.api_url}, site: {self._site}, workers: {self.workers}"
+
+    def get_site_member_of_virtual_sites(self, site: str) -> set | None:
+        """
+        Evaluate site_selector expression in virtual site data
+        Split expression into key, operator, value parts. If value is a comma separated list of items split these
+        Compare site label and key with virtual site expression key and value. Supported comparators are "equal" and "in"
+
+        Parameters
+        ----------
+        site string: Site name to check for virtual sites
+
+        Returns
+        -------
+        A set of virtual sites a site is member of
+        """
+
+        # Store virtual sites current site is a member of
+        site_is_member_of_virtual_sites = set()
+
+        for vs_name, vs_attr in self.data[c.VIRTUAL_SITES_KEY].items():
+            _expressions = list()
+
+            for exp in vs_attr["spec"]["site_selector"]["expressions"]:
+                if " " in exp:
+                    _expressions.append(exp.split(" ", 2))
+                else:
+                    _exp = exp.split("=")
+                    _exp.insert(1, "=")
+                    _expressions.append(_exp)
+
+            expressions = list()
+
+            for expression in _expressions:
+                # Check if expression is of from ["key", "operand", "value"]
+                if len(expression) == 3:
+                    # If virtual site site_selector expression is a comma separated list of items split these
+                    if expression[2].startswith("(") and expression[2].endswith(")"):
+                        val = [a.strip("() ") for a in expression[2].split(",")]
+                        expressions.append({"key": expression[0], "operator": expression[1], "value": val})
+                    else:
+                        expressions.append({"key": expression[0], "operator": expression[1], "value": expression[2]})
+                else:
+                    self.logger.info(f"Found unsupported selector expression: {expression}")
+
+            for label, value in self.data["sites"][site]["metadata"]["labels"].items():
+                for expression in expressions:
+                    if label == expression["key"] and value == expression["value"]:
+                        site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                    elif label == expression["key"] and value in expression["value"]:
+                        site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+
+        return site_is_member_of_virtual_sites
 
     def get_site_nic_mode(self, site: str = None) -> str | None:
         """
@@ -57,9 +113,9 @@ class Base(ABC):
         :return: return interface mode string
         """
 
-        if "ingress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+        if "ingress_gw" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
             return "ingress_gw"
-        elif "ingress_egress_gw" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+        elif "ingress_egress_gw" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
             return "ingress_egress_gw"
         else:
             self.logger.debug(f"Unsupported interface mode for site {site} found")
@@ -72,7 +128,7 @@ class Base(ABC):
         :return: key name
         """
 
-        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 or self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+        if self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 or self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
             return c.SITE_OBJECT_TYPE_SMS
         else:
             # F5XC_SITE_TYPE_AWS_TGW, F5XC_SITE_TYPE_AWS_VPC, F5XC_SITE_TYPE_AZURE_VNET, F5XC_SITE_TYPE_GCP_VPC

@@ -38,23 +38,23 @@ class Originpool(Base):
             try:
                 origin_pool_name = r["metadata"]["name"]
                 namespace = r["metadata"]["namespace"]
-                if site_name not in self.data[site_type].keys():
-                    self.data[site_type][site_name] = dict()
-                    self.data[site_type][site_name]['namespaces'] = dict()
-                if 'namespaces' not in self.data[site_type][site_name].keys():
-                    self.data[site_type][site_name]['namespaces'] = dict()
-                if namespace not in self.data[site_type][site_name]['namespaces'].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace] = dict()
-                if "origin_pools" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"] = dict()
+                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
+                if 'namespaces' not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
+                if namespace not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace] = dict()
+                if "origin_pools" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"] = dict()
 
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
-                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
-                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
 
                 self.logger.info(f"process origin pools add data: [namespace: {namespace} origin pool: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
@@ -109,7 +109,7 @@ class Originpool(Base):
 
                                             if site_name:
                                                 # Referenced site must exist
-                                                if site_name in self.data[site_type]:
+                                                if site_name in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
                                                     # Only processing sites which are not in failed state
                                                     if site_name not in self.data["failed"]:
                                                         if self.site:

@@ -31,17 +31,17 @@ class Bgp(Base):
             try:
                 bgp_name = r["metadata"]["name"]
                 site_name = r['spec']['where'][site_type]["ref"][0]['name']
-                if site_name not in self.data[site_type].keys():
-                    self.data[site_type][site_name] = dict()
-                if 'bgp' not in self.data[site_type][site_name].keys():
-                    self.data[site_type][site_name]['bgp'] = dict()
-                self.data[site_type][site_name]['bgp'][bgp_name] = dict()
-                self.data[site_type][site_name]['bgp'][bgp_name]['spec'] = dict()
-                self.data[site_type][site_name]['bgp'][bgp_name]['metadata'] = dict()
-                self.data[site_type][site_name]['bgp'][bgp_name]['system_metadata'] = dict()
-                self.data[site_type][site_name]['bgp'][bgp_name]['spec'] = r['spec']
-                self.data[site_type][site_name]['bgp'][bgp_name]['metadata'] = r['metadata']
-                self.data[site_type][site_name]['bgp'][bgp_name]['system_metadata'] = r['system_metadata']
+                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
+                if 'bgp' not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name]['spec'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name]['metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name]['system_metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name]['spec'] = r['spec']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name]['metadata'] = r['metadata']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['bgp'][bgp_name]['system_metadata'] = r['system_metadata']
 
             except Exception as e:
                 self.logger.info("site_type:", site_type)
@@ -85,7 +85,7 @@ class Bgp(Base):
                                     else:
                                         if site_type in c.F5XC_SITE_TYPES:
                                             # Referenced site must exist
-                                            if r['spec']['where'][site_type]["ref"][0]['name'] in self.data[site_type]:
+                                            if r['spec']['where'][site_type]["ref"][0]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
                                                 # Only processing sites which are not in failed state
                                                 if r['spec']['where'][site_type]["ref"][0]['name'] not in self.data["failed"]:
                                                     if self.site:

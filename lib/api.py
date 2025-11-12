@@ -122,7 +122,7 @@ class Api(object):
 
         self._logger = logger
         self._data = dict()
-        for key in c.F5XC_SITE_TYPES:
+        for key in c.SITE_TYPES:
             self._data[key] = dict()
         self._api_url = api_url
         self._api_token = api_token
@@ -217,7 +217,7 @@ class Api(object):
         try:
             with open(name, 'r') as fd:
                 data = json.load(fp=fd)
-                self.logger.info(f"{len(data['site'])} {'sites' if len(data['site']) > 1 else 'site'} and {len(data['virtual_site'])} virtual {'sites' if len(data['virtual_site']) > 1 else 'site'} read from {name}")
+                self.logger.info(f"{len(data[c.SITES_KEY])} {'sites' if len(data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
                 return data
         except OSError as e:
             self.logger.info(f"Reading file {name} failed with error: {e}")
@@ -233,7 +233,7 @@ class Api(object):
             try:
                 with open(name, 'w') as fd:
                     fd.write(json.dumps(self.data, indent=2))
-                    self.logger.info(f"{len(self.data['site'])} {'sites' if len(self.data['site']) > 1 else 'site'} and {len(self.data['virtual_site'])} virtual {'sites' if len(self.data['virtual_site']) > 1 else 'site'} written to {name}")
+                    self.logger.info(f"{len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self.data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(self.data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} written to {name}")
             except OSError as e:
                 self.logger.info(f"Writing file {name} failed with error: {e}")
         else:
@@ -360,7 +360,7 @@ class Api(object):
 
                 table.add_divider()
 
-            for site, site_data in data['site'].items():
+            for site, site_data in data[c.SITES_KEY].items():
                 if self.must_break:
                     break
                 else:
@@ -467,21 +467,21 @@ class Api(object):
                             self.logger.debug(f"DELETE: {parent_key} -- {key} -- {compared.get(key)}")
                             for item in compared.get(key):
                                 if item == "namespaces":
-                                    for namespace in data_old['site'][old_site]['namespaces']:
-                                        if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                    for namespace in data_old[c.SITES_KEY][old_site]['namespaces']:
+                                        if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                                if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                     resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
-                                        elif "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
+                                        elif "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             resp.append(f"{item}/{namespace}/origin_pools")
-                                        elif "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
+                                        elif "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             resp.append(f"{item}/{namespace}/proxys")
                                         self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                                 if item == "loadbalancer":
                                     namespace = parent_key.split("/")[1]
-                                    if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                    if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                         for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                            if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                            if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                 resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
                                 else:
                                     resp.append(f"{parent_key}/{item}")
@@ -535,19 +535,19 @@ class Api(object):
 
         if data_source and data_target:
             # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
-            if not target in data_target['site']:
+            if not target in data_target[c.SITES_KEY]:
                 self.logger.info(f"Comparing new site <{target}> not found in file {target_file}.")
                 return None
 
-            if not source in data_source['site']:
+            if not source in data_source[c.SITES_KEY]:
                 self.logger.info(f"Comparing new site <{source}> not found in file {source_file}.")
                 return None
 
-            legacy_to_smv2 = data_source['site'][source]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC, c.F5XC_SITE_TYPE_AZURE_VNET] and data_target['site'][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
-            smv1_to_smv2 = data_source['site'][source]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_target['site'][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
+            legacy_to_smv2 = data_source[c.SITES_KEY][source]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC, c.F5XC_SITE_TYPE_AZURE_VNET] and data_target[c.SITES_KEY][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
+            smv1_to_smv2 = data_source[c.SITES_KEY][source]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_target[c.SITES_KEY][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
 
             if legacy_to_smv2 or smv1_to_smv2:
-                compared = diff(data_source['site'][source], data_target['site'][target], syntax="compact")
+                compared = diff(data_source[c.SITES_KEY][source], data_target[c.SITES_KEY][target], syntax="compact")
                 r = []
                 # build list of key paths
                 dict_keys = self._get_keys(None, compared, r, source, data_source)
@@ -562,7 +562,7 @@ class Api(object):
                 for k in dict_keys:
                     response = list()
                     # get list of items to be added as table row data
-                    values_from_path = self._get_by_path(data_source['site'][source], k.split("/"), response)
+                    values_from_path = self._get_by_path(data_source[c.SITES_KEY][source], k.split("/"), response)
 
                     if values_from_path:
                         check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))

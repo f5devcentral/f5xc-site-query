@@ -29,19 +29,19 @@ class Segment(Base):
 
         def process():
             try:
-                for site in self.data["site"]:
+                for site in self.data[c.SITES_KEY]:
                     if site == attachment["site"]:
                         segment_name = segment["data"]["metadata"]["name"]
-                        if 'segment' not in self.data["site"][site].keys():
-                            self.data["site"][site]["segments"] = dict()
-                        if segment_name not in self.data["site"][site]["segments"].keys():
-                            self.data["site"][site]["segments"][segment_name] = dict()
-                        self.data["site"][site]['segments'][segment_name]['spec'] = dict()
-                        self.data["site"][site]['segments'][segment_name]['metadata'] = dict()
-                        self.data["site"][site]['segments'][segment_name]['system_metadata'] = dict()
-                        self.data["site"][site]['segments'][segment_name]['spec'] = segment["data"]["spec"]
-                        self.data["site"][site]['segments'][segment_name]['metadata'] = segment["data"]["metadata"]
-                        self.data["site"][site]['segments'][segment_name]['system_metadata'] = segment["data"]['system_metadata']
+                        if 'segment' not in self.data[c.SITES_KEY][site].keys():
+                            self.data[c.SITES_KEY][site]["segments"] = dict()
+                        if segment_name not in self.data[c.SITES_KEY][site]["segments"].keys():
+                            self.data[c.SITES_KEY][site]["segments"][segment_name] = dict()
+                        self.data[c.SITES_KEY][site]['segments'][segment_name]['spec'] = dict()
+                        self.data[c.SITES_KEY][site]['segments'][segment_name]['metadata'] = dict()
+                        self.data[c.SITES_KEY][site]['segments'][segment_name]['system_metadata'] = dict()
+                        self.data[c.SITES_KEY][site]['segments'][segment_name]['spec'] = segment["data"]["spec"]
+                        self.data[c.SITES_KEY][site]['segments'][segment_name]['metadata'] = segment["data"]["metadata"]
+                        self.data[c.SITES_KEY][site]['segments'][segment_name]['system_metadata'] = segment["data"]['system_metadata']
 
             except Exception as e:
                 self.logger.info("segment_name:", segment["data"]["metadata"]["name"])
@@ -71,7 +71,7 @@ class Segment(Base):
                         for idx, attachment in enumerate(segment["data"]["spec"]["attachments"]):
 
                             # Referenced site must exist
-                            if attachment["site"] in self.data["site"]:
+                            if attachment["site"] in self.data[c.SITES_KEY]:
                                 # Only processing sites which are not in failed state
                                 if attachment["site"] not in self.data["failed"]:
                                     if self.site:
