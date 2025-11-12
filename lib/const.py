@@ -65,8 +65,8 @@ SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 #
 # Site query
 #
-API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
-#API_PROCESSORS = ["vs", "site"]
+#API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
+API_PROCESSORS = ["site", "lb", "originpool"]
 PROCESSOR_PACKAGE = "lib.processor"
 CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces"]
 XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces"]

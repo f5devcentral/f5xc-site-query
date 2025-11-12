@@ -113,7 +113,6 @@ class Originpool(Base):
                                                     # Only processing sites which are not in failed state
                                                     if site_name not in self.data["failed"]:
                                                         if self.site:
-
                                                             if self.site == site_name:
                                                                 self.must_break = True
                                                                 process()
