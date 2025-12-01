@@ -394,7 +394,7 @@ Above table shows differences for a couple of items between __site A__ and __sit
 - Run Compare for `siteA` and `siteB` xslx file output
   - Docker
     ```bash
-    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-file-xlsx ``/data/xlsx/diff_site_a_and_site_b.xls`` --log-stdout
+    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/json/siteA.json` --new-site `siteB` --new-site-file `/data/json/siteB.json` --diff-file-xlsx ``/data/xlsx/diff_site_a_and_site_b.xls`` --log-stdout
     ```
   -Manual
     ```bash
@@ -404,11 +404,11 @@ Above table shows differences for a couple of items between __site A__ and __sit
 - Run Compare for `siteA` and `siteB` csv file output
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-file-csv ``/data/csv/diff_site_a_and_site_b.csv`` --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/json/siteA.json` --new-site `siteB` --new-site-file `/data/json/siteB.json` --diff-file-csv ``/data/csv/diff_site_a_and_site_b.csv`` --log-stdout
     ```
   - Manual
     ```bash
-     ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
+     ./get-sites.py -c --old-site `siteA` --old-site-file `./json/siteA.json` --new-site `siteB` --new-site-file `./json/siteB.json` --diff-file-csv ./csv/diff_site_a_and_site_b.csv --log-stdout
     ```
 
 ### Export inventory
@@ -424,7 +424,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 - Run query for all sites and all namespaces
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json -q --log-stdout
     ```
   - Manual
     ```bash
@@ -433,7 +433,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 - Run create XLSX inventory file function
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-file-xlsx ./inventory.xlsx --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json --build-inventory --inventory-file-xlsx /data/xlsx/inventory-prod-playground.xlsx --log-stdout
     ```
   - Manual
       ```bash
@@ -445,7 +445,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 - Run query for all sites and all namespaces
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json -q --log-stdout
     ```
   - Manual
     ```bash
@@ -454,7 +454,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 - Run create CSV inventory file function
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json --build-inventory --inventory-file-csv ./inventory.csv --log-stdout
     ```
   - Manual
       ```bash
@@ -466,7 +466,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 - Run query for all sites and all namespaces
   - Docker
      ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json -q --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json -q --log-stdout
      ```
   - Manual
      ```bash
@@ -475,7 +475,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 - Run create CSV inventory file function
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./all-ns.json --build-inventory --inventory-table --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json --build-inventory --inventory-table --log-stdout
     ```
   
   - Manual

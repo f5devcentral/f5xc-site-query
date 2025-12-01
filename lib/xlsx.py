@@ -71,7 +71,7 @@ class Xlsx(object):
 
         """
 
-        sites = data["site"]
+        sites = data["sites"]
 
         # WS Summary Tab
         ws_summary = self.wb.create_sheet("Summary", order)
@@ -246,7 +246,7 @@ class Xlsx(object):
 
         """
 
-        sites = data["site"]
+        sites = data["sites"]
 
         # WS Infrastructure Tab
         ws_infrastructure = self.wb.create_sheet("Infrastructure", order)
@@ -366,7 +366,7 @@ class Xlsx(object):
 
         """
 
-        sites = data["site"]
+        sites = data["sites"]
 
         # WS Services Tab
         ws_services = self.wb.create_sheet("Services", order)
@@ -483,9 +483,9 @@ class Xlsx(object):
         """
 
         # summary_data = dict()
-        # summary_data["site"] = dict()
-        # summary_data["site"][data_source["metadata"]["name"]] = data_source
-        # summary_data["site"][data_target["metadata"]["name"]] = data_target
+        # summary_data["sites"] = dict()
+        # summary_data["sites"][data_source["metadata"]["name"]] = data_source
+        # summary_data["sites"][data_target["metadata"]["name"]] = data_target
         # self.build_inventory_summary(0, data=summary_data)
 
         # WS Summary Comparison Tab
