@@ -28,6 +28,7 @@ URI_F5XC_SITE_MESH_GROUP = "/config/namespaces/{namespace}/site_mesh_groups/{nam
 URI_F5XC_SITE_MESH_GROUPS = "/config/namespaces/{namespace}/site_mesh_groups"
 URI_F5XC_DC_CLUSTER_GROUP = "/config/namespaces/{namespace}/dc_cluster_groups/{name}"
 URI_F5XC_ENHANCED_FW_POLICY = "/config/namespaces/{namespace}/enhanced_firewall_policys/{name}"
+URI_F5XC_FIREWALL_FAST_ACLS = "/config/namespaces/{namespace}/fast_acls"
 URI_F5XC_ENHANCED_FW_POLICIES = "/config/namespaces/{namespace}/enhanced_firewall_policys"
 URI_F5XC_FORWARD_PROXY_POLICY = "/config/namespaces/{namespace}/forward_proxy_policys/{name}"
 
@@ -65,10 +66,9 @@ SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 #
 # Site query
 #
-#API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
-API_PROCESSORS = ["site", "lb", "originpool"]
+API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
-CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces"]
+CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group","nodes", "namespaces"]
 XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces"]
 XLSX_INFRASTRUCTURE_EXPORT_KEYS = ["spec", "nodes"]
 COMPARE_REGEX_HW_INFO_CPU_FLAGS = "nodes/.*/hw_info/cpu/flags"

@@ -11,6 +11,7 @@ import sys
 import time
 from pathlib import Path
 
+import lib.const as c
 from coloredlogs import ColoredFormatter
 
 from lib.api import Api
@@ -104,7 +105,7 @@ def main():
             if data:
                 logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
                 q.write_string_file(name=args.diff_file_csv, data=data.get_csv_string()) if args.diff_file_csv and data else None
-                q.build_compare_xlsx(xlsx_file=args.diff_file_xlsx, data=data.get_json_string(), data_source=data_site_source["site"][args.old_site], data_target=data_site_target["site"][args.new_site]) if args.diff_file_xlsx else None
+                q.build_compare_xlsx(xlsx_file=args.diff_file_xlsx, data=data.get_json_string(), data_source=data_site_source[c.SITES_KEY][args.old_site], data_target=data_site_target[c.SITES_KEY][args.new_site]) if args.diff_file_xlsx else None
         else:
             logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")
             sys.exit(1)

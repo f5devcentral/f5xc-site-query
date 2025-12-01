@@ -1,7 +1,4 @@
-"""
-authors: cklewar
-"""
-
+import pprint
 from logging import Logger
 
 from enlighten import get_manager
@@ -55,7 +52,9 @@ class Xlsx(object):
         -------
 
         """
+        self.logger.info(f"Writing xlsx file: {self.file}")
         self.wb.save(self.file)
+        self.logger.info(f"Writing xlsx file: {self.file}. Done.")
 
     def build_inventory_summary(self, order: int = None, data: dict = None, title_prefix: str = None):
         """
@@ -145,7 +144,7 @@ class Xlsx(object):
                 ('Count of segments', len(sites[site]["segments"].keys()) if "segments" in sites[site] else 0),
                 ('Count of External Connectors', ''),
                 ('Count of BGP Policies', len(sites[site]["bgp"].keys()) if "bgp" in sites[site] else 0),
-                ('Count of BGP objects', '')
+                ('Count of BGP objects', ''),
             ]
 
             ws_summary.append([f"Summary: {site}"] if title_prefix is None else [f"{title_prefix}: {site}"])
@@ -467,13 +466,12 @@ class Xlsx(object):
         self.build_inventory_infrastructure(1, data)
         self.build_inventory_service(2, data)
 
-    def build_compare_summary(self, order: int = None, summary_data: dict = None, data_source: dict = None, data_target: dict = None):
+    def build_compare_summary(self, order: int = None, data_source: dict = None, data_target: dict = None):
         """
 
         Parameters
         ----------
         order: int
-        summary_data: dict
         data_source: dict
         data_target: dict
 
@@ -481,12 +479,6 @@ class Xlsx(object):
         -------
 
         """
-
-        # summary_data = dict()
-        # summary_data["sites"] = dict()
-        # summary_data["sites"][data_source["metadata"]["name"]] = data_source
-        # summary_data["sites"][data_target["metadata"]["name"]] = data_target
-        # self.build_inventory_summary(0, data=summary_data)
 
         # WS Summary Comparison Tab
         ws_summary = self.wb.create_sheet("Summary", order)
@@ -586,7 +578,8 @@ class Xlsx(object):
             ('Count of segments', len(data_source["segments"].keys()) if "segments" in data_source else 0, len(data_target["segments"].keys()) if "segments" in data_target else 0),
             ('Count of External Connectors', '', ''),
             ('Count of BGP Policies', len(data_source["bgp"].keys()) if "bgp" in data_source else 0, len(data_target["bgp"].keys()) if "bgp" in data_target else 0),
-            ('Count of BGP objects', '', '')
+            ('Count of BGP objects', '', ''),
+            ('Count of Virtual Sites', len(data_source["vsites"]), len(data_target["vsites"]))
         ]
 
         ws_summary.append([f"Summary comparison: {data_source["metadata"]["name"]} with {data_target["metadata"]["name"]}"])
@@ -789,6 +782,6 @@ class Xlsx(object):
 
         """
 
-        self.build_compare_summary(0, data, data_source, data_target)
+        self.build_compare_summary(0, data_source, data_target)
         self.build_compare_infrastructure(1, data)
         self.build_compare_service(2, data)
