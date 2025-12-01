@@ -114,8 +114,6 @@ class Site(Base):
                         """
 
                         if site_kind == c.F5XC_SITE_TYPE_SMS_V1 or site_kind == c.F5XC_SITE_TYPE_SMS_V2:
-                            #if site['data']['metadata']["name"] == "f5xc-aws-ce-test-60":
-                            #    return True, site["data"]["spec"]["site_state"]
                             if site["data"]["spec"]["site_state"] == "ONLINE":
                                 return True, site["data"]["spec"]["site_state"]
                             else:

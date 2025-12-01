@@ -217,11 +217,11 @@ class Api(object):
         try:
             with open(name, 'r') as fd:
                 data = json.load(fp=fd)
-                if c.SITES_KEY in data:
+                if c.SITES_KEY in data and c.VIRTUAL_SITES_KEY in data:
                     self.logger.info(f"{len(data[c.SITES_KEY])} {c.SITES_KEY if len(data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
                     return data
                 else:
-                    self.logger.info(f"Error reading data from file {name}. No sites available")
+                    self.logger.info(f"Error reading data from file {name}. No site data available")
         except OSError as e:
             self.logger.info(f"Reading file {name} failed with error: {e}")
             return None
