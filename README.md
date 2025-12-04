@@ -659,7 +659,7 @@ Run Compare for `siteA` and `siteB` xlsx file output.
 #### XLSX file output example
 Below image shows example of XLSX compare summary sheet 
 
-![XSLS_Compare_Summary_Sheet](images/xlsx_compare.png "XLSX Summary Sheet")
+![XSLS_Compare_Summary_Sheet](images/xlsx_compare.png "XLSX Compare Summary Sheet")
 
 ### Export inventory
 
@@ -689,6 +689,10 @@ This tool offers functions to create an inventory of a tenant. Supported invento
       ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-xlsx ./inventory.xlsx --log-stdout
       ```
 
+##### XLSX inventory example
+
+![XSLS_Inventory_Summary_Sheet](images/xlsx_inventory.png "XLSX Inventory Summary Sheet")
+
 #### Stdout
 
 - Run query for all sites and all namespaces
@@ -710,6 +714,75 @@ This tool offers functions to create an inventory of a tenant. Supported invento
     ```bash
     ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
     ```
+
+##### Stdout inventory table example
+
+```bash
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                               Inventory                                                                                                │
+├───────────────────────┬───────────────────┬─────────────────────────────────────────────────────────┬───────────────────┬───────────────────────┬──────────┬───────────────────────────────────────────┤
+│           No          │        Type       │                          Value                          │      Subtype1     │       SubValue1       │ Subtype2 │                 SubValue2                 │
+├───────────────────────┼───────────────────┼─────────────────────────────────────────────────────────┼───────────────────┼───────────────────────┼──────────┼───────────────────────────────────────────┤
+│ smeshsiteongoing-mver │                   │                                                         │                   │                       │          │                                           │
+│           1           │        kind       │                     securemesh_site                     │                   │                       │          │                                           │
+│           2           │  main_node_count  │                            3                            │                   │                       │          │                                           │
+│           4           │        spec       │                      ce_sw_version                      │ crt-20250701-0196 │                       │          │                                           │
+│           7           │ worker_node_count │                            0                            │                   │                       │          │                                           │
+│           9           │        efp        │                      sohith-cc-test                     │                   │                       │          │                                           │
+│           10          │        fpp        │                   sohith-test-fw-proxy                  │                   │                       │          │                                           │
+│           11          │  dc_cluster_group │                    charan-dc-cluster                    │                   │                       │          │                                           │
+│           12          │        node       │                          node0                          │     interfaces    │           3           │          │                                           │
+│           12          │        node       │                          node0                          │      hw_info      │           os          │  vendor  │                    rhel                   │
+│           12          │        node       │                          node0                          │      hw_info      │           os          │ version  │                 9.2025.39                 │
+│           12          │        node       │                          node0                          │      hw_info      │           os          │ release  │                    9.7                    │
+│           12          │        node       │                          node0                          │      hw_info      │          cpu          │  model   │ Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz │
+│           12          │        node       │                          node0                          │      hw_info      │          cpu          │   cpus   │                     8                     │
+│           12          │        node       │                          node0                          │      hw_info      │          cpu          │  cores   │                     8                     │
+│           12          │        node       │                          node0                          │      hw_info      │          cpu          │ threads  │                     8                     │
+│           12          │        node       │                          node0                          │      hw_info      │         memory        │  speed   │                     0                     │
+│           12          │        node       │                          node0                          │      hw_info      │         memory        │ size_mb  │                   24539                   │
+│           12          │        node       │                          node0                          │      hw_info      │        storage        │   vda    │                     68                    │
+│           12          │        node       │                          node1                          │     interfaces    │           3           │          │                                           │
+│           12          │        node       │                          node1                          │      hw_info      │           os          │  vendor  │                    rhel                   │
+│           12          │        node       │                          node1                          │      hw_info      │           os          │ version  │                 9.2025.39                 │
+│           12          │        node       │                          node1                          │      hw_info      │           os          │ release  │                    9.7                    │
+│           12          │        node       │                          node1                          │      hw_info      │          cpu          │  model   │ Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz │
+│           12          │        node       │                          node1                          │      hw_info      │          cpu          │   cpus   │                     8                     │
+│           12          │        node       │                          node1                          │      hw_info      │          cpu          │  cores   │                     8                     │
+│           12          │        node       │                          node1                          │      hw_info      │          cpu          │ threads  │                     8                     │
+│           12          │        node       │                          node1                          │      hw_info      │         memory        │  speed   │                     0                     │
+│           12          │        node       │                          node1                          │      hw_info      │         memory        │ size_mb  │                   24539                   │
+│           12          │        node       │                          node1                          │      hw_info      │        storage        │   vda    │                     68                    │
+│           12          │        node       │                          node2                          │     interfaces    │           3           │          │                                           │
+│           12          │        node       │                          node2                          │      hw_info      │           os          │  vendor  │                    rhel                   │
+│           12          │        node       │                          node2                          │      hw_info      │           os          │ version  │                 9.2025.39                 │
+│           12          │        node       │                          node2                          │      hw_info      │           os          │ release  │                    9.7                    │
+│           12          │        node       │                          node2                          │      hw_info      │          cpu          │  model   │ Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz │
+│           12          │        node       │                          node2                          │      hw_info      │          cpu          │   cpus   │                     8                     │
+│           12          │        node       │                          node2                          │      hw_info      │          cpu          │  cores   │                     8                     │
+│           12          │        node       │                          node2                          │      hw_info      │          cpu          │ threads  │                     8                     │
+│           12          │        node       │                          node2                          │      hw_info      │         memory        │  speed   │                     0                     │
+│           12          │        node       │                          node2                          │      hw_info      │         memory        │ size_mb  │                   24539                   │
+│           12          │        node       │                          node2                          │      hw_info      │        storage        │   vda    │                     68                    │
+│           13          │     namespaces    │                         default                         │    loadbalancer   │          http         │          │              charan-b64-lb-2              │
+│           13          │     namespaces    │                         default                         │    loadbalancer   │          tcp          │          │               charan-tcp-lb               │
+│           13          │     namespaces    │                         default                         │       proxys      │    charan-smv-test    │          │                                           │
+│           13          │     namespaces    │                         default                         │    origin_pools   │ charan-smv1-to-smv2-5 │          │                                           │
+│           13          │     namespaces    │                        jeevan-ns                        │    loadbalancer   │          http         │          │                   ce-lb                   │
+│           13          │     namespaces    │                ongoing-upgrade-scenarios                │    loadbalancer   │          http         │          │       ongoing-sm1-adv-ce-segment-lb       │
+│                       │                   │                                                         │                   │                       │          │         ongoing-smv1-adv-ce-re-lb         │
+│                       │                   │                                                         │                   │                       │          │         ongoing-smv1-adv-ce-sli-lb        │
+│                       │                   │                                                         │                   │                       │          │         ongoing-smv1-adv-ce-slo-lb        │
+│           13          │     namespaces    │                ongoing-upgrade-scenarios                │    origin_pools   │ smv1-ce-seg-disocvery │          │                                           │
+│                       │                   │                                                         │                   │    smv1-ce-slo-pool   │          │                                           │
+│                       │                   │                                                         │                   │    smv1-ce-sli-pool   │          │                                           │
+│           13          │     namespaces    │                  s-dey-ns-adv-pol-gfms                  │    loadbalancer   │          http         │          │             s-dey-cert-lb-dvns            │
+│           14          │        bgp        │                     charan-smv-test                     │                   │                       │          │                                           │
+│           14          │        bgp        │ ves-io-bgp-ves-io-securemesh-site-smeshsiteongoing-mver │                   │                       │          │                                           │
+│           16          │      segments     │                     ongoing-smv1-seg                    │                   │                       │          │                                           │
+│           16          │      segments     │                       sohith-allow                      │                   │                       │          │                                           │
+└───────────────────────┴───────────────────┴─────────────────────────────────────────────────────────┴───────────────────┴───────────────────────┴──────────┴───────────────────────────────────────────┘
+```
 
 ## Test
 
