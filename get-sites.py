@@ -115,11 +115,18 @@ def main():
             logger.info("--file option is required")
             sys.exit(1)
 
+        # CSV inventory
         data = q.build_inventory_csv(json_file=args.file) if args.inventory_file_csv else None
         if data:
             q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None
             logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
 
+        # stdout table inventory
+        data = q.build_inventory_csv(json_file=args.file) if args.inventory_table else None
+        if data:
+            logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
+
+        # XLSX inventory
         q.build_inventory_xlsx(json_file=args.file, xlsx_file=args.inventory_file_xlsx) if args.inventory_file_xlsx else None
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
