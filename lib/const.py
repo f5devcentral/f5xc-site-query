@@ -69,8 +69,8 @@ SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 #
 API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
-CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group","nodes", "namespaces"]
-XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "proxy"]
+CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces", "vsites"]
+XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces", "vsites"]
 XLSX_INFRASTRUCTURE_EXPORT_KEYS = ["spec", "nodes"]
 COMPARE_REGEX_HW_INFO_CPU_FLAGS = "nodes/.*/hw_info/cpu/flags"
 COMPARE_REGEX_HW_INFO_USB = "nodes/.*/hw_info/usb"

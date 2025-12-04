@@ -739,10 +739,10 @@ class Xlsx(object):
 
         """
 
-        # WS Infrastructure Tab
+        # WS services Tab
         ws_services = self.wb.create_sheet("Services", order)
-        ws_services.column_dimensions['A'].width = 40
-        ws_services.column_dimensions['B'].width = 60
+        ws_services.column_dimensions['A'].width = 60
+        ws_services.column_dimensions['B'].width = 100
 
         ws_services.append([f"Services: Differences"])
         ws_services.merge_cells(f"A{ws_services.max_row}:F{ws_services.max_row}")
@@ -761,10 +761,7 @@ class Xlsx(object):
                     path = item["path"]
                     service = item["path"].split("/")[0]
 
-                print("SERVICE", path, service)
-
                 if service in c.XLSX_SERVICE_EXPORT_KEYS:
-
                     if isinstance(item["values"], str):
                         ws_services.append([path, item["values"]])
                     elif isinstance(item["values"], int):
