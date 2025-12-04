@@ -29,19 +29,18 @@ class Segment(Base):
 
         def process():
             try:
-                for site in self.data[c.SITES_KEY]:
-                    if site == attachment["site"]:
-                        segment_name = segment["data"]["metadata"]["name"]
-                        if 'segment' not in self.data[c.SITES_KEY][site].keys():
-                            self.data[c.SITES_KEY][site]["segments"] = dict()
-                        if segment_name not in self.data[c.SITES_KEY][site]["segments"].keys():
-                            self.data[c.SITES_KEY][site]["segments"][segment_name] = dict()
-                        self.data[c.SITES_KEY][site]['segments'][segment_name]['spec'] = dict()
-                        self.data[c.SITES_KEY][site]['segments'][segment_name]['metadata'] = dict()
-                        self.data[c.SITES_KEY][site]['segments'][segment_name]['system_metadata'] = dict()
-                        self.data[c.SITES_KEY][site]['segments'][segment_name]['spec'] = segment["data"]["spec"]
-                        self.data[c.SITES_KEY][site]['segments'][segment_name]['metadata'] = segment["data"]["metadata"]
-                        self.data[c.SITES_KEY][site]['segments'][segment_name]['system_metadata'] = segment["data"]['system_metadata']
+                segment_name = segment["data"]["metadata"]["name"]
+
+                if 'segments' not in self.data[c.SITES_KEY][attachment["site"]].keys():
+                    self.data[c.SITES_KEY][attachment["site"]]["segments"] = dict()
+                if segment_name not in self.data[c.SITES_KEY][attachment["site"]]["segments"].keys():
+                    self.data[c.SITES_KEY][attachment["site"]]["segments"][segment_name] = dict()
+                self.data[c.SITES_KEY][attachment["site"]]['segments'][segment_name]['spec'] = dict()
+                self.data[c.SITES_KEY][attachment["site"]]['segments'][segment_name]['metadata'] = dict()
+                self.data[c.SITES_KEY][attachment["site"]]['segments'][segment_name]['system_metadata'] = dict()
+                self.data[c.SITES_KEY][attachment["site"]]['segments'][segment_name]['spec'] = segment["data"]["spec"]
+                self.data[c.SITES_KEY][attachment["site"]]['segments'][segment_name]['metadata'] = segment["data"]["metadata"]
+                self.data[c.SITES_KEY][attachment["site"]]['segments'][segment_name]['system_metadata'] = segment["data"]['system_metadata']
 
             except Exception as e:
                 self.logger.info("segment_name:", segment["data"]["metadata"]["name"])
@@ -49,7 +48,7 @@ class Segment(Base):
                 self.logger.info("system_metadata:", segment["data"]['system_metadata'])
                 self.logger.info("Exception:", e)
 
-        self.logger.info(f"process segments get all cloud connect objects from {self.build_url(c.URI_F5XC_SEGMENTS).format(namespace=c.F5XC_NAMESPACE_SYSTEM)}")
+        self.logger.info(f"process segments get all segment objects from {self.build_url(c.URI_F5XC_SEGMENTS).format(namespace=c.F5XC_NAMESPACE_SYSTEM)}")
         _segments = self.get(self.build_url(c.URI_F5XC_SEGMENTS).format(namespace=c.F5XC_NAMESPACE_SYSTEM))
 
         if _segments:
@@ -65,20 +64,11 @@ class Segment(Base):
 
             if segments:
                 for segment in segments:
-                    if self.must_break:
-                        break
-                    else:
-                        for idx, attachment in enumerate(segment["data"]["spec"]["attachments"]):
+                    for idx, attachment in enumerate(segment["data"]["spec"]["attachments"]):
+                        # Referenced site must exist
+                        if attachment["site"] in self.data[c.SITES_KEY]:
+                            # Only processing sites which are not in failed state
+                            if attachment["site"] not in self.data["failed"]:
+                                process()
 
-                            # Referenced site must exist
-                            if attachment["site"] in self.data[c.SITES_KEY]:
-                                # Only processing sites which are not in failed state
-                                if attachment["site"] not in self.data["failed"]:
-                                    if self.site:
-                                        if self.site == attachment["site"]:
-                                            self.must_break = True
-                                            process()
-                                            break
-                                    else:
-                                        process()
         return self.data
