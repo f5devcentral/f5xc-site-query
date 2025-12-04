@@ -657,7 +657,7 @@ Run Compare for `siteA` and `siteB` xlsx file output.
   ```
 
 #### XLSX file output example
-Below image shows example of XLSX compare summary sheet 
+Below image shows example of XLSX compare summary sheet.
 
 <figure style="width: 60%; margin: 0 auto;">
     <img 
