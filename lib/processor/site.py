@@ -212,8 +212,26 @@ class Site(Base):
                             self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['metadata'] = r['metadata']
                             self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'] = r['spec']
 
+                            # Process worker nodes
                             if "worker_nodes" in r['spec'].keys():
                                 self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+                            elif "total_nodes" in r['spec'].keys():
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['total_nodes'])
+                            else:
+                                self.logger.info("process site details worker nodes: <worker_nodes> key not found. Processing node list...")
+
+                                if self.data[c.SITES_KEY][urls[future_to_ds[future]]]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                                    if c.F5XC_SMV2_PROVIDERS & set(self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'].keys()):
+                                        provider_key = list(c.F5XC_SMV2_PROVIDERS & set(self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'].keys()))[0]
+
+                                        if provider_key:
+                                            self.logger.info(f"process site details worker nodes: Processing node list for provider: {provider_key}")
+                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = 0
+                                            for node in self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'][provider_key]['not_managed']['node_list']:
+                                                if node['type'] == "Worker":
+                                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] += 1
+
+                            self.logger.info("process site details worker nodes: <worker_nodes> key not found. Processing node list. Done.")
 
                             # check if sms or legacy object type
                             if self.get_key_from_site_kind(urls[future_to_ds[future]]) == c.SITE_OBJECT_TYPE_LEGACY:
