@@ -700,7 +700,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 
 ##### XLSX inventory example
 
-<figure style="width: 30%; margin: 0 auto;">
+<figure style="width: 20%; margin: 0 auto;">
     <img 
         src="images/xlsx_inventory.png" 
         alt="XSLS_Inventory_Summary_Sheet" 
