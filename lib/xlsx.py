@@ -1,5 +1,6 @@
 import pprint
 from logging import Logger
+from xml.sax.handler import property_interning_dict
 
 from enlighten import get_manager
 from openpyxl import Workbook
@@ -124,6 +125,8 @@ class Xlsx(object):
 
             lbs = 0
             ops = 0
+            proxies = 0
+
             if "namespaces" in sites[site]:
                 for item in sites[site]["namespaces"].values():
                     if "loadbalancer" in item.keys():
@@ -134,13 +137,19 @@ class Xlsx(object):
                     if "origin_pools" in item.keys():
                         ops = ops + len(item["origin_pools"].keys())
 
+                for item in sites[site]["namespaces"].values():
+                    if "proxys" in item.keys():
+                        proxies = proxies + len(item["proxys"].keys())
+
             table_data_services = [
                 ('Count of LBs', lbs),
                 ('Count of Origin pools', ops),
-                ('Count of EFW', len(sites[site]["efp"].keys()) if "efp" in sites[site] else 0),
+                ('Count of EFP', len(sites[site]["efp"].keys()) if "efp" in sites[site] else 0),
+                ('Count of FPP', len(sites[site]["fpp"].keys()) if "fpp" in sites[site] else 0),
                 ('Count of SMG', len(sites[site]["smg"].keys()) if "smg" in sites[site] else 0),
                 ('Count of DCCG', len(sites[site]["dc_cluster_group"].keys()) if "dc_cluster_group" in sites[site] else 0),
-                ('Count of segments', len(sites[site]["segments"].keys()) if "segments" in sites[site] else 0),
+                ('Count of Proxies', proxies),
+                ('Count of Segments', len(sites[site]["segments"].keys()) if "segments" in sites[site] else 0),
                 ('Count of BGP Policies', len(sites[site]["bgp"].keys()) if "bgp" in sites[site] else 0),
             ]
 
@@ -543,12 +552,17 @@ class Xlsx(object):
         source_ops = 0
         target_lbs = 0
         target_ops = 0
+        source_proxies = 0
+        target_proxies = 0
 
         if "namespaces" in data_source:
             for source_item in data_source["namespaces"].values():
                 if "loadbalancer" in source_item.keys():
                     for source_lb_type in source_item["loadbalancer"].keys():
                         source_lbs = source_lbs + len(source_item["loadbalancer"][source_lb_type].keys())
+                if "proxys" in source_item.keys():
+                    for source_proxy_type in source_item["proxys"].keys():
+                        source_proxies = source_proxies + len(source_item["proxys"][source_proxy_type].keys())
 
             for source_item in data_source["namespaces"].values():
                 if "origin_pools" in source_item.keys():
@@ -559,6 +573,9 @@ class Xlsx(object):
                 if "loadbalancer" in target_item.keys():
                     for target_lb_type in target_item["loadbalancer"].keys():
                         target_lbs = target_lbs + len(target_item["loadbalancer"][target_lb_type].keys())
+                if "proxys" in target_item.keys():
+                    for target_proxy_type in target_item["proxys"].keys():
+                        target_proxies = target_proxies + len(target_item["proxys"][target_proxy_type].keys())
 
             for target_item in data_target["namespaces"].values():
                 if "origin_pools" in target_item.keys():
@@ -567,11 +584,13 @@ class Xlsx(object):
         table_data_services = [
             ('Count of LBs', source_lbs, target_lbs),
             ('Count of Origin pools', source_ops, target_ops),
-            ('Count of EFW', len(data_source["efp"].keys()) if "efp" in data_source else 0, len(data_target["efp"].keys()) if "efp" in data_target else 0),
+            ('Count of EFP', len(data_source["efp"].keys()) if "efp" in data_source else 0, len(data_target["efp"].keys()) if "efp" in data_target else 0),
+            ('Count of FPP', len(data_source["fpp"].keys()) if "fpp" in data_source else 0, len(data_target["fpp"].keys()) if "fpp" in data_target else 0),
             ('Count of SMG', len(data_source["smg"].keys()) if "smg" in data_source else 0, len(data_target["smg"].keys()) if "smg" in data_target else 0),
             ('Count of DCCG', len(data_source["dc_cluster_group"].keys()) if "dc_cluster_group" in data_source else 0,
              len(data_target["dc_cluster_group"].keys()) if "dc_cluster_group" in data_target else 0),
-            ('Count of segments', len(data_source["segments"].keys()) if "segments" in data_source else 0, len(data_target["segments"].keys()) if "segments" in data_target else 0),
+            ('Count of Proxies', source_proxies, target_proxies),
+            ('Count of Segments', len(data_source["segments"].keys()) if "segments" in data_source else 0, len(data_target["segments"].keys()) if "segments" in data_target else 0),
             ('Count of BGP Policies', len(data_source["bgp"].keys()) if "bgp" in data_source else 0, len(data_target["bgp"].keys()) if "bgp" in data_target else 0),
             ('Count of Virtual Sites', len(data_source["vsites"]), len(data_target["vsites"]))
         ]
@@ -742,7 +761,10 @@ class Xlsx(object):
                     path = item["path"]
                     service = item["path"].split("/")[0]
 
+                print("SERVICE", path, service)
+
                 if service in c.XLSX_SERVICE_EXPORT_KEYS:
+
                     if isinstance(item["values"], str):
                         ws_services.append([path, item["values"]])
                     elif isinstance(item["values"], int):

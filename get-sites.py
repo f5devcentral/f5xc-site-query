@@ -40,10 +40,8 @@ def main():
     parser.add_argument('--new-site-file', help='new site file to compare with', required=False, default="")
     parser.add_argument('--build-inventory', help='build inventory and write it to file', action="store_true")
     parser.add_argument('--diff-table', help='print diff info to stdout', action='store_true')
-    parser.add_argument('--diff-file-csv', help='write site diff info to csv file', required=False, default="")
     parser.add_argument('--diff-file-xlsx', help='write site diff info to xlsx file', required=False, default="")
     parser.add_argument('--inventory-table', help='print inventory info to stdout', action='store_true')
-    parser.add_argument('--inventory-file-csv', help='write inventory info to csv file', required=False, default="")
     parser.add_argument('--inventory-file-xlsx', help='write inventory info to xlsx to file', required=False, default="")
     parser.add_argument('--log-level', type=str, help='set log level to INFO or DEBUG', required=False, default="INFO")
     parser.add_argument('--log-stdout', help='write log info to stdout', action='store_true')
@@ -102,9 +100,9 @@ def main():
             data_site_source = q.read_json_file(args.old_site_file)
             data_site_target = q.read_json_file(args.new_site_file)
             data = q.compare(source=args.old_site, source_file=args.old_site_file, target=args.new_site, target_file=args.new_site_file, data_source=data_site_source, data_target=data_site_target)
+
             if data:
                 logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
-                q.write_string_file(name=args.diff_file_csv, data=data.get_csv_string()) if args.diff_file_csv and data else None
                 q.build_compare_xlsx(xlsx_file=args.diff_file_xlsx, data=data.get_json_string(), data_source=data_site_source[c.SITES_KEY][args.old_site], data_target=data_site_target[c.SITES_KEY][args.new_site]) if args.diff_file_xlsx else None
         else:
             logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")

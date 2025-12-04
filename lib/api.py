@@ -271,13 +271,18 @@ class Api(object):
         """
 
         self.logger.info(f"{self.build_compare_xlsx.__name__} started...")
-        data = json.loads(data)
 
         if data:
-            xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
-            xlsx.build_compare(data=data, data_source=data_source, data_target=data_target)
-            xlsx.write()
-            self.logger.info(f"{self.build_compare_xlsx.__name__} done.")
+            try:
+                data = json.loads(data)
+                xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
+                xlsx.build_compare(data=data, data_source=data_source, data_target=data_target)
+                xlsx.write()
+                self.logger.info(f"{self.build_compare_xlsx.__name__} done.")
+            except json.decoder.JSONDecodeError as e:
+                self.logger.error(f"Error parsing json data for file {xlsx_file} with error: {e}")
+        else:
+            self.logger.info("Error data can not be null")
 
     def build_inventory_xlsx(self, json_file: str = None, xlsx_file: str = None):
         """
@@ -389,9 +394,13 @@ class Api(object):
         :return: list of items obtained by path
         """
 
+
+
         if items:
+            #print(items)
             while len(items) > 0:
                 item = items[0]
+                #print(item)
                 items.pop(0)
 
                 if isinstance(root, list) and item.isdigit():
@@ -464,6 +473,7 @@ class Api(object):
                 key = keys[0]
                 keys.pop(0)
 
+                # skip sms e.g. sms/metadata/labels
                 if key not in ["sms"]:
                     if type(key) is jsondiff.symbols.Symbol:
                         if key.label == "delete":
@@ -475,23 +485,52 @@ class Api(object):
                                             for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
                                                 if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                     resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
-                                        elif "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                                    self.logger.debug(f"APPEND NEW ITEM10: {f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}"}")
+                                        if "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             resp.append(f"{item}/{namespace}/origin_pools")
-                                        elif "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                            self.logger.debug(f"APPEND NEW ITEM11: {f"{item}/{namespace}/origin_pools"}")
+                                        if "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             resp.append(f"{item}/{namespace}/proxys")
-                                        self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                            self.logger.debug(f"APPEND NEW ITEM12: {f"{item}/{namespace}/proxys"}")
+                                        self.logger.debug(f"APPEND NEW ITEM13: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                                 if item == "loadbalancer":
                                     namespace = parent_key.split("/")[1]
                                     if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                         for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
                                             if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                 resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
+                                                self.logger.debug(f"APPEND NEW ITEM14: {f"{parent_key}/{item}/{lb_type.split("_")[0]}"}")
                                 else:
-                                    resp.append(f"{parent_key}/{item}")
-                                self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                    resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
+                                self.logger.debug(f"APPEND NEW ITEM15: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                         elif key.label == "replace":
                             self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
-                            resp.append(f"{parent_key}" if parent_key else f"{key}")
+                            for item in compared.get(key):
+                                if parent_key == "namespaces":
+                                    resp.append(f"{parent_key}")
+                                    for namespace in data_old[c.SITES_KEY][old_site]['namespaces']:
+                                        self.logger.debug(f"APPEND NEW ITEM1: {f"{parent_key}/{namespace}"}")
+                                        if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                            for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                                if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                    resp.append(f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
+                                                    for lb_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'][lb_type.split("_")[0]]:
+                                                        self.logger.debug(f"APPEND NEW ITEM2: {f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}/{lb_name}"}")
+                                        if "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                            resp.append(f"{parent_key}/{namespace}/origin_pools")
+                                            for op_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['origin_pools']:
+                                                self.logger.debug(f"APPEND NEW ITEM3: {f"{parent_key}/{namespace}/origin_pools/{op_name}"}")
+                                        if "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                            resp.append(f"{parent_key}/{namespace}/proxys")
+                                            for proxy_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['proxys']:
+                                                self.logger.debug(f"APPEND NEW ITEM4: {f"{parent_key}/{namespace}/proxys/{proxy_name}"}")
+                                if parent_key == "loadbalancer":
+                                    namespace = parent_key.split("/")[1]
+                                    if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                        for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                            resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
+                                            if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                self.logger.debug(f"APPEND NEW ITEM5: {f"{parent_key}/{item}/{lb_type.split("_")[0]}"}")
                         #elif key.label == "insert":
                         #    self.logger.info(f"INSERT: {parent_key} -- {key} -- {compared.get(key)}")
                             #resp.append(f"{parent_key}" if parent_key else f"{key}")
@@ -500,14 +539,17 @@ class Api(object):
                     elif isinstance(compared.get(key), list):
                         self.logger.debug(f"LIST: {parent_key} -- {key} -- {compared.get(key)}")
                         resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                        self.logger.debug(f"APPEND NEW ITEM100: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                     else:
                         if isinstance(compared.get(key), str):
                             if key not in c.EXCLUDE_COMPARE_ATTRIBUTES:
                                 self.logger.debug(f"STRING: {parent_key} -- {key} -- {compared.get(key)}")
                                 resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                                self.logger.debug(f"APPEND NEW ITEM101: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                         elif isinstance(compared.get(key), int):
                             self.logger.debug(f"INT: {parent_key} -- {key} -- {compared.get(key)}")
                             resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                            self.logger.debug(f"APPEND NEW ITEM102: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                         elif isinstance(compared.get(key), dict):
                             self.logger.debug(f"DICT: {key} -- {type(key)} -- {compared.get(key)}")
                             self._get_keys(f"{parent_key}/{key}", compared.get(key), resp, old_site, data_old) if parent_key else self._get_keys(key, compared.get(key), resp, old_site, data_old)
@@ -563,12 +605,15 @@ class Api(object):
                     table.title = self.site
 
                 for k in dict_keys:
+                    #print(k.split("/"))
                     response = list()
                     # get list of items to be added as table row data
                     values_from_path = self._get_by_path(data_source[c.SITES_KEY][source], k.split("/"), response)
+                    #print("VALUE_FROM_PATH", k, values_from_path)
 
                     if values_from_path:
                         check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
+
                         if not any(check):
                             if re.match(c.COMPARE_REGEX_HW_INFO_CPU_FLAGS, k):
                                 start = 0
