@@ -2,10 +2,10 @@
 
 ## Overview
 
-Helper tool `get-sites.py` queries application objects (HTTP and TCP Load Balancers, Proxys and Origin Pools) per namespace
-(or all namespaces) and creates a json file with all objects listed per site, virtual site and namespace.
+Helper tool `get-sites.py` queries application objects (HTTP / UDP / TCP Load Balancers, Dynamic Proxies and Origin Pools) per namespace
+(or all namespaces) and creates a json inventory file with all objects listed per site, virtual site and namespace.
 
-The generated json output file helps to answer questions like:
+The generated json inventory file helps to answer questions like:
 
   - a) What application objects are assigned to a site or virtual site and in what namespace
   - b) Who created an application object
@@ -49,7 +49,7 @@ Additionally the tool provides list for:
     }
   }
   ```
-- Untyped sites do no provide a `kind` key and therefore can not be processed
+- Untyped sites which do no provide a `kind` key and therefore can not be processed
   ```json
   {
     "untyped": [
