@@ -140,11 +140,11 @@ class Xlsx(object):
                 ('Count of EFW', len(sites[site]["efp"].keys()) if "efp" in sites[site] else 0),
                 ('Count of SMG', len(sites[site]["smg"].keys()) if "smg" in sites[site] else 0),
                 ('Count of DCCG', len(sites[site]["dc_cluster_group"].keys()) if "dc_cluster_group" in sites[site] else 0),
-                ('Count of Fast ACLs', ''),
+                ('Count of Fast ACLs', 'N/A'),
                 ('Count of segments', len(sites[site]["segments"].keys()) if "segments" in sites[site] else 0),
-                ('Count of External Connectors', ''),
+                ('Count of External Connectors', 'N/A'),
                 ('Count of BGP Policies', len(sites[site]["bgp"].keys()) if "bgp" in sites[site] else 0),
-                ('Count of BGP objects', ''),
+                ('Count of BGP objects', 'N/A'),
             ]
 
             ws_summary.append([f"Summary: {site}"] if title_prefix is None else [f"{title_prefix}: {site}"])

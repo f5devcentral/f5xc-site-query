@@ -218,7 +218,7 @@ class Site(Base):
                             elif "total_nodes" in r['spec'].keys():
                                 self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['total_nodes'])
                             else:
-                                self.logger.info("process site details worker nodes: <worker_nodes> key not found. Processing node list...")
+                                self.logger.info("process site details worker nodes: <worker_nodes>/<total_nodes> key not found. Processing node list...")
 
                                 if self.data[c.SITES_KEY][urls[future_to_ds[future]]]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
                                     if c.F5XC_SMV2_PROVIDERS & set(self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'].keys()):

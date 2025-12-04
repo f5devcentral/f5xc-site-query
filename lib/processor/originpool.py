@@ -95,29 +95,15 @@ class Originpool(Base):
                         origin_servers = r['spec'].get('origin_servers', [])
 
                         for origin_server in origin_servers:
-                            if self.must_break:
-                                break
-                            else:
-                                for key in c.F5XC_ORIGIN_SERVER_TYPES:
-                                    if self.must_break:
-                                        break
-                                    else:
-                                        site_locator = origin_server.get(key, {}).get('site_locator', {})
-
-                                        for site_type, site_data in site_locator.items():
-                                            site_name = site_data.get('name')
-
-                                            if site_name:
-                                                # Referenced site must exist
-                                                if site_name in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
-                                                    # Only processing sites which are not in failed state
-                                                    if site_name not in self.data["failed"]:
-                                                        if self.site:
-                                                            if self.site == site_name:
-                                                                self.must_break = True
-                                                                process()
-                                                                break
-                                                        else:
-                                                            process()
+                            for key in c.F5XC_ORIGIN_SERVER_TYPES:
+                                site_locator = origin_server.get(key, {}).get('site_locator', {})
+                                for site_type, site_data in site_locator.items():
+                                    site_name = site_data.get('name')
+                                    if site_name:
+                                        # Referenced site must exist
+                                        if site_name in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
+                                            # Only processing sites which are not in failed state
+                                            if site_name not in self.data["failed"]:
+                                                process()
 
         return self.data
