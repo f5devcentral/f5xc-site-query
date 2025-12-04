@@ -213,8 +213,12 @@ class Site(Base):
                             self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'] = r['spec']
 
                             # Process worker nodes
+                            self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = 0
                             if "worker_nodes" in r['spec'].keys():
-                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['worker_nodes']
+                                if self.data[c.SITES_KEY][urls[future_to_ds[future]]]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+                                else:
+                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['worker_nodes']
                             elif "total_nodes" in r['spec'].keys():
                                 self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['total_nodes']
                             elif "nodes_per_az" in r['spec'].keys():
@@ -228,7 +232,6 @@ class Site(Base):
 
                                         if provider_key:
                                             self.logger.info(f"process site details worker nodes: Processing node list for provider: {provider_key}")
-                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = 0
                                             for node in self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'][provider_key]['not_managed']['node_list']:
                                                 if node['type'] == "Worker":
                                                     self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] += 1
