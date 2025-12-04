@@ -214,9 +214,11 @@ class Site(Base):
 
                             # Process worker nodes
                             if "worker_nodes" in r['spec'].keys():
-                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['worker_nodes']
                             elif "total_nodes" in r['spec'].keys():
-                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['total_nodes'])
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['total_nodes']
+                            elif "nodes_per_az" in r['spec'].keys():
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['nodes_per_az']
                             else:
                                 self.logger.info("process site details worker nodes: <worker_nodes>/<total_nodes> key not found. Processing node list...")
 

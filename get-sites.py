@@ -121,7 +121,7 @@ def main():
             q.write_string_file(args.inventory_file_csv, data.get_csv_string()) if args.inventory_file_csv and data else None
             logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
 
-        # stdout table inventory
+        # stdout inventory
         data = q.build_inventory_csv(json_file=args.file) if args.inventory_table else None
         if data:
             logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
