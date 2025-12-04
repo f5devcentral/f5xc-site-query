@@ -659,7 +659,16 @@ Run Compare for `siteA` and `siteB` xlsx file output.
 #### XLSX file output example
 Below image shows example of XLSX compare summary sheet 
 
-![XSLS_Compare_Summary_Sheet](images/xlsx_compare.png "XLSX Compare Summary Sheet")
+<figure style="width: 60%; margin: 0 auto;">
+    <img 
+        src="images/xlsx_compare.png" 
+        alt="XSLS_Compare_Summary_Sheet" 
+        style="max-width: 100%; height: auto; border-radius: 8px;"
+    >
+    <figcaption style="text-align: center; font-style: italic; margin-top: 10px; color: #555;">
+        Figure: XLSX Compare Summary Sheet
+    </figcaption>
+</figure>
 
 ### Export inventory
 
@@ -691,7 +700,16 @@ This tool offers functions to create an inventory of a tenant. Supported invento
 
 ##### XLSX inventory example
 
-![XSLS_Inventory_Summary_Sheet](images/xlsx_inventory.png "XLSX Inventory Summary Sheet")
+<figure style="width: 60%; margin: 0 auto;">
+    <img 
+        src="images/xlsx_inventory.png" 
+        alt="XSLS_Inventory_Summary_Sheet" 
+        style="max-width: 100%; height: auto; border-radius: 8px;"
+    >
+    <figcaption style="text-align: center; font-style: italic; margin-top: 10px; color: #555;">
+        Figure: XLSX Inventory Summary Sheet
+    </figcaption>
+</figure>
 
 #### Stdout
 
