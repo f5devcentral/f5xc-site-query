@@ -14,7 +14,7 @@ The generated json output file helps to answer questions like:
 
 ### Supported Inventory Data 
 
-This tool supports the following inventory data: 
+This tool supports below inventory data types: 
 
 - Proxy (HTTP Connect & DRP)
 - Spokes
@@ -31,6 +31,35 @@ This tool supports the following inventory data:
 - Node Hardware Info
 - Forward Proxy Policy
 - Enhanced Firewall Policy
+
+Additionally the tool provides list for:
+
+- Sites which are not in `Applied` and `Online` state
+  ```json
+  {
+    "failed": {
+      "adarsh-static-vm": "FAILED",
+      "adarsh-az-1": "PROVISIONING",
+      "ak-tgw2": "APPLY_ERRORED",
+      "akash-test-volterra-1": "WAITING_FOR_REGISTRATION",
+      "alert-gcp-dntt": "TIMED_OUT",
+      "akash-very-big-ce-2": "FAILED",
+      "alert-nw-qxin": null,
+      "arish-ce": "DESTROY_ERRORED"
+    }
+  }
+  ```
+- Untyped sites do no provide a `kind` key and therefore can not be processed
+  ```json
+  {
+    "untyped": [
+      "apisec-stg-ce-k8s-eks",
+      "autoscale-qyb-aws-ha-15",
+      "autoscale-jop-aws-ha-32",
+      "automation-dell-r650-altname-voltmesh"
+    ]
+  }
+  ```
 
 ### Tested OS Platforms
 
@@ -107,27 +136,27 @@ eval $(poetry env activate)
 
 ## Credentials
 
-The script uses a F5XC API Token to access a Tenant's configuration.
+The script uses a F5XC API token to access a tenant's configuration. In order to use the tool an API token needs to be generated.
 
-1. Create an API Token for our Tenant:
+1. Create an API token for our tenant
 
-   Sign in to the F5 XC Console with Administrative privileges and navigate to Administration. Under 'Personal Management' select 'Credentials'.
-   Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API Token for the next step.
+    Sign in to the F5 XC Console with administrative privileges and navigate to administration. Under 'Personal Management' select 'Credentials'.
+    Then click 'Add Credentials' and populate the window. Make sure to select 'API Token' as the 'Credential Type' field. Save the generated API token for the next step.
 
 2. Define environment variables
 
-Set environment variables with the API URL (replace tenant with your tenant name) and the generated API Token.
+    Set environment variables with the API URL (replace tenant with your tenant name) and the generated API token.
 
-```
-export f5xc_api_url="https://<tenant>.console.ves.volterra.io/api"
-export f5xc_api_token="............................"
-```
+    ```
+    export f5xc_api_url="https://<tenant>.console.ves.volterra.io/api"
+    export f5xc_api_token="............................"
+    ```
 
-Alternatively you can set command line options instead when running the script.
+    Alternatively you can set command line options instead when running the script.
 
 ## Usage
 
-`site-query` will only process site objects:
+The tool will only process site objects:
 
 - with state being __APPLIED__
 - which can be identified by the __kind__ key
@@ -179,7 +208,7 @@ options:
 docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns-prod.json -q --log-stdout
 ```
 
-#### Manual
+#### Executable Call
 
 ```bash
 ./get-sites.py -f ./json/all-ns-prod.json -q --log-stdout
@@ -193,7 +222,7 @@ docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_
 docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./get-sites-specific-ns.json -n default -q --log-stdout
 ```
 
-#### Manual
+#### Executable Call
 
 ```bash
 ./get-sites.py -f ./get-sites-specific-ns.json -n default -q --log-stdout
@@ -207,7 +236,7 @@ docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_
 docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-stdout
 ```
 
-#### Manual
+#### Executable Call
 
 ```bash
 ./get-sites.py -f ./get-sites-specific-site.json -q -s f5xc-waap-demo --log-stdout
@@ -327,32 +356,40 @@ A site data comparison is only possible if:
   
 Below steps illustrating how to run comparison function:
 
-- Run query for `siteA` and write data to `siteA.json`
-  - Docker
-    ```bash
-      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `/data/siteA.json` -q -s `siteA` --log-stdout
-    ```
-       - Run query for `siteB` and write data to `siteB.json`
-          ```bash
-          docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `/data/siteB.json` -q -s `siteB` --log-stdout
-          ``` 
-      - Run compare for `siteA` and `siteB` with table output
-          ```bash
-           docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-table --log-stdout
-          ```
-  - Manual 
-    ```bash
-    ./get-sites.py -f `./siteA.json` -q -s `siteA` --log-stdout
-    ```
-    - Run query for `siteB` and write data to `siteB.json`
+Run query for `siteA` and write data to `siteA.json`:
+
+- Docker
+  ```bash
+    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `/data/siteA.json` -q -s `siteA` --log-stdout
+  ```
+     - Run query for `siteB` and write data to `siteB.json`
         ```bash
-        ./get-sites.py -f `/data/siteB.json` -q -s `siteB` --log-stdout
+        docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f `/data/siteB.json` -q -s `siteB` --log-stdout
         ``` 
-    - Run compare for `siteA` and `siteB` with table output
+    - Run compare for `siteA` and `siteB` with stdout table output
         ```bash
-         ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
+         docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-table --log-stdout
         ```
-- Output
+- Executable Call 
+  ```bash
+  ./get-sites.py -f `./data/siteA.json` -q -s `siteA` --log-stdout
+  ```
+  - Run query for `siteB` and write data to `siteB.json`
+      ```bash
+      ./get-sites.py -f `/data/siteB.json` -q -s `siteB` --log-stdout
+      ``` 
+  - Run compare for `siteA` and `siteB` with stdout table output
+      ```bash
+       ./get-sites.py -c --old-site `siteA` --old-site-file `./data/siteA.json` --new-site `siteB` --new-site-file `/data/siteB.json` --diff-table --log-stdout
+      ```
+
+> [!IMPORTANT]
+> Everytime a change in site data has been done `site query must be re run` to take those changes into consideration
+
+#### Stdout table output example
+
+Below table shows differences for a couple of items between __site A__ and __site B__. 
+Table presents items which are available in site A aka the old site and not available in the new site B.
 
 ```bash
 ┌────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -606,34 +643,23 @@ Below steps illustrating how to run comparison function:
 └────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Above table shows differences for a couple of items between __site A__ and __site B__. Table presents items which are available in site A aka the old site and not available in the new site B.
-
-> [!IMPORTANT]
-> Everytime a change in site data has been done `site query must be re run` to take those changes into consideration
-
 #### XLSX
 
-- Run Compare for `siteA` and `siteB` xslx file output
-  - Docker
-    ```bash
-    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/json/siteA.json` --new-site `siteB` --new-site-file `/data/json/siteB.json` --diff-file-xlsx `/data/xlsx/diff_site_a_and_site_b.xls` --log-stdout
-    ```
-  - Manual
-    ```bash
-    ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-xlsx ./xlsx/diff_site_a_and_site_b.xlsx --log-stdout
-    ```
+Run Compare for `siteA` and `siteB` xlsx file output.
 
-#### Stdout
+- Docker
+  ```bash
+  docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/json/siteA.json` --new-site `siteB` --new-site-file `/data/json/siteB.json` --diff-file-xlsx `/data/xlsx/diff_site_a_and_site_b.xls` --log-stdout
+  ```
+- Executable Call
+  ```bash
+  ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-file-xlsx ./xlsx/diff_site_a_and_site_b.xlsx --log-stdout
+  ```
 
-- Run Compare for `siteA` and `siteB` stdout file output
-  - Docker
-    ```bash
-    docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -c --old-site `siteA` --old-site-file `/data/json/siteA.json` --new-site `siteB` --new-site-file `/data/json/siteB.json` --diff-table --log-stdout
-    ```
-  - Manual
-    ```bash
-    ./get-sites.py -c --old-site `siteA` --old-site-file `./siteA.json` --new-site `siteB` --new-site-file `/siteB.json` --diff-table --log-stdout
-    ```
+#### XLSX file output example
+Below image shows example of XLSX compare summary sheet 
+
+![XSLS_Compare_Summary_Sheet](images/xlsx_compare.png "XLSX Summary Sheet")
 
 ### Export inventory
 
@@ -649,7 +675,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
     ```bash
      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json -q --log-stdout
     ```
-  - Manual
+  - Executable Call
     ```bash
     ./get-sites.py -f ./all-ns.json -q --log-stdout
     ```
@@ -658,7 +684,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
     ```bash
      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json --build-inventory --inventory-file-xlsx /data/xlsx/inventory-prod-playground.xlsx --log-stdout
     ```
-  - Manual
+  - Executable Call
       ```bash
       ./get-sites.py -f ./all-ns.json --build-inventory --inventory-file-xlsx ./inventory.xlsx --log-stdout
       ```
@@ -670,7 +696,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
      ```bash
      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json -q --log-stdout
      ```
-  - Manual
+  - Executable Call
      ```bash
      ./get-sites.py -f ./all-ns.json -q --log-stdout
      ```
@@ -680,7 +706,7 @@ This tool offers functions to create an inventory of a tenant. Supported invento
      docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json --build-inventory --inventory-table --log-stdout
     ```
   
-  - Manual
+  - Executable Call
     ```bash
     ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
     ```
