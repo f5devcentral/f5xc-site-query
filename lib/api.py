@@ -397,14 +397,12 @@ class Api(object):
 
 
         if items:
-            #print(items)
             while len(items) > 0:
                 item = items[0]
-                #print(item)
                 items.pop(0)
 
                 if isinstance(root, list) and item.isdigit():
-                    #Skip inserted elements on new site
+                    # Skip inserted elements on new site
                     if int(item) <= len(root)-1:
                         self._get_by_path(root[int(item)], items, resp)
                     #else:
@@ -505,32 +503,27 @@ class Api(object):
                                 self.logger.debug(f"APPEND NEW ITEM15: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                         elif key.label == "replace":
                             self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
-                            for item in compared.get(key):
-                                if parent_key == "namespaces":
-                                    resp.append(f"{parent_key}")
-                                    for namespace in data_old[c.SITES_KEY][old_site]['namespaces']:
-                                        self.logger.debug(f"APPEND NEW ITEM1: {f"{parent_key}/{namespace}"}")
-                                        if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
-                                            for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                                if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
-                                                    resp.append(f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
-                                                    for lb_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'][lb_type.split("_")[0]]:
-                                                        self.logger.debug(f"APPEND NEW ITEM2: {f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}/{lb_name}"}")
-                                        if "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
-                                            resp.append(f"{parent_key}/{namespace}/origin_pools")
-                                            for op_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['origin_pools']:
-                                                self.logger.debug(f"APPEND NEW ITEM3: {f"{parent_key}/{namespace}/origin_pools/{op_name}"}")
-                                        if "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
-                                            resp.append(f"{parent_key}/{namespace}/proxys")
-                                            for proxy_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['proxys']:
-                                                self.logger.debug(f"APPEND NEW ITEM4: {f"{parent_key}/{namespace}/proxys/{proxy_name}"}")
-                                if parent_key == "loadbalancer":
-                                    namespace = parent_key.split("/")[1]
+                            if parent_key == "namespaces":
+                                resp.append(f"{parent_key}")
+                                for namespace in data_old[c.SITES_KEY][old_site]['namespaces']:
+                                    self.logger.debug(f"APPEND NEW ITEM1: {f"{parent_key}/{namespace}"}")
                                     if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                         for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                            resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
                                             if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
-                                                self.logger.debug(f"APPEND NEW ITEM5: {f"{parent_key}/{item}/{lb_type.split("_")[0]}"}")
+                                                resp.append(f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
+                                                for lb_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'][lb_type.split("_")[0]]:
+                                                    self.logger.debug(f"APPEND NEW ITEM2: {f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}/{lb_name}"}")
+                                    if "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                        resp.append(f"{parent_key}/{namespace}/origin_pools")
+                                        for op_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['origin_pools']:
+                                            self.logger.debug(f"APPEND NEW ITEM3: {f"{parent_key}/{namespace}/origin_pools/{op_name}"}")
+                                    if "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                        resp.append(f"{parent_key}/{namespace}/proxys")
+                                        for proxy_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['proxys']:
+                                            self.logger.debug(f"APPEND NEW ITEM4: {f"{parent_key}/{namespace}/proxys/{proxy_name}"}")
+                            else:
+                                resp.append(f"{parent_key}" if parent_key else None)
+                                self.logger.debug(f"APPEND NEW ITEM5: {f"{parent_key}"}")
                         #elif key.label == "insert":
                         #    self.logger.info(f"INSERT: {parent_key} -- {key} -- {compared.get(key)}")
                             #resp.append(f"{parent_key}" if parent_key else f"{key}")
@@ -542,7 +535,7 @@ class Api(object):
                         self.logger.debug(f"APPEND NEW ITEM100: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                     else:
                         if isinstance(compared.get(key), str):
-                            if key not in c.EXCLUDE_COMPARE_ATTRIBUTES:
+                            if not any(list(map(lambda regex: re.match(regex, key), c.EXCLUDE_COMPARE_ATTRIBUTES))):
                                 self.logger.debug(f"STRING: {parent_key} -- {key} -- {compared.get(key)}")
                                 resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
                                 self.logger.debug(f"APPEND NEW ITEM101: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
@@ -596,6 +589,11 @@ class Api(object):
                 r = []
                 # build list of key paths
                 dict_keys = self._get_keys(None, compared, r, source, data_source)
+
+                #for key in dict_keys:
+                #    if not any(list(map(lambda regex: re.match(regex, key), c.EXCLUDE_COMPARE_ATTRIBUTES))):
+                #        print(key)
+
                 table = PrettyTable()
                 table.set_style(TableStyle.SINGLE_BORDER)
                 table.field_names = ["path", "values"]
@@ -605,16 +603,12 @@ class Api(object):
                     table.title = self.site
 
                 for k in dict_keys:
-                    #print(k.split("/"))
                     response = list()
                     # get list of items to be added as table row data
                     values_from_path = self._get_by_path(data_source[c.SITES_KEY][source], k.split("/"), response)
-                    #print("VALUE_FROM_PATH", k, values_from_path)
 
                     if values_from_path:
-                        check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
-
-                        if not any(check):
+                        if not any(list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))):
                             if re.match(c.COMPARE_REGEX_HW_INFO_CPU_FLAGS, k):
                                 start = 0
                                 item_counter = 0

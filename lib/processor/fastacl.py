@@ -7,6 +7,8 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+__DEPENDENCIES__ = ["site"]
+
 
 class FastAcl(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
@@ -58,11 +60,10 @@ class FastAcl(Base):
                 self.logger.info(f"process proxies add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
                 """
             except Exception as e:
-                #self.logger.info("site_type:", site_type)
+                # self.logger.info("site_type:", site_type)
                 self.logger.info("namespace:", r["metadata"]["namespace"])
                 self.logger.info("system_metadata:", r['system_metadata'])
                 self.logger.info("Exception:", e)
-
 
         urls = list()
 

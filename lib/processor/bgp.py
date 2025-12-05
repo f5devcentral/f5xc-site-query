@@ -7,6 +7,7 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+__DEPENDENCIES__ = ["site"]
 
 class Bgp(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
@@ -80,20 +81,15 @@ class Bgp(Base):
 
                             if 'where' in r['spec']:
                                 for site_type in r['spec']['where'].keys():
-                                    if self.must_break:
-                                        break
-                                    else:
-                                        if site_type in c.F5XC_SITE_TYPES:
-                                            # Referenced site must exist
-                                            if r['spec']['where'][site_type]["ref"][0]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
-                                                # Only processing sites which are not in failed state
-                                                if r['spec']['where'][site_type]["ref"][0]['name'] not in self.data["failed"]:
-                                                    if self.site:
-                                                        if self.site == r['spec']['where'][site_type]["ref"][0]['name']:
-                                                            self.must_break = True
-                                                            process()
-                                                            break
-                                                    else:
+                                    if site_type in c.F5XC_SITE_TYPES:
+                                        # Referenced site must exist
+                                        if r['spec']['where'][site_type]["ref"][0]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
+                                            # Only processing sites which are not in failed state
+                                            if r['spec']['where'][site_type]["ref"][0]['name'] not in self.data["failed"]:
+                                                if self.site:
+                                                    if self.site == r['spec']['where'][site_type]["ref"][0]['name']:
                                                         process()
+                                                else:
+                                                    process()
 
         return self.data

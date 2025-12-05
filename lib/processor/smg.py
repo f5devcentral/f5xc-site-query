@@ -6,6 +6,8 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+__DEPENDENCIES__ = ["vsite", "site"]
+
 
 class Smg(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
@@ -44,21 +46,21 @@ class Smg(Base):
 
                 # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
                 if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
-                   self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
                 else:
                     merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
                     self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
 
-                # Add secure mesh site to site data
-                # If secure mesh site virtual site name is in list of virtual sites this site is a member of
+                # Add secure mesh site group to site data
+                # If secure mesh site group virtual site name is in list of virtual sites this site is a member of
                 if "smg" not in self.data[c.SITES_KEY][site].keys():
-                   self.data[c.SITES_KEY][site]["smg"] = dict()
+                    self.data[c.SITES_KEY][site]["smg"] = dict()
 
                 for smg in site_mesh_groups:
                     if len(smg['data']['spec']['virtual_site']) > 0:
                         if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:
-                           self.data[c.SITES_KEY][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]] = dict()
-                           self.data[c.SITES_KEY][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["metadata"] = smg["data"]["metadata"]
-                           self.data[c.SITES_KEY][site]["smg"][smg["data"]["spec"]["virtual_site"][0]["name"]]["spec"] = smg["data"]["spec"]
+                            self.data[c.SITES_KEY][site]["smg"][smg["data"]["metadata"]["name"]] = dict()
+                            self.data[c.SITES_KEY][site]["smg"][smg["data"]["metadata"]["name"]]["metadata"] = smg["data"]["metadata"]
+                            self.data[c.SITES_KEY][site]["smg"][smg["data"]["metadata"]["name"]]["spec"] = smg["data"]["spec"]
 
         return self.data

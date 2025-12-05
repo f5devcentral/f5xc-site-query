@@ -7,6 +7,8 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+__DEPENDENCIES__ = ["site"]
+
 QUERY_STRING_LB_HTTP = "/http_loadbalancers/"
 QUERY_STRING_LB_TCP = "/tcp_loadbalancers/"
 QUERY_STRING_LB_UDP = "/udp_loadbalancers/"
