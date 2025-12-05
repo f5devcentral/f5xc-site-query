@@ -675,13 +675,13 @@ class Site(Base):
                                 if "local_subnet" in node:
                                     self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["local_subnet"]
 
-                                elif "outside_subnet" in node:
+                                if "outside_subnet" in node:
                                     self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
 
-                                elif nic_setup == "ingress_egress_gw":
+                                if nic_setup == "ingress_egress_gw":
                                     if "inside_subnet" in node:
                                         self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
-                                    elif "workload_subnet" in node:
+                                    if "workload_subnet" in node:
                                         self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
         return self.data

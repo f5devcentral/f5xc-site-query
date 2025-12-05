@@ -80,7 +80,6 @@ COMPARE_REGEX_SPEC = "spec/.*"
 COMPARE_REGEX_METADATA = "metadata/.*"
 COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT= "nodes/.*/interfaces/1/ethernet_interface/segment_network"
 COMPARE_REGEX_NODE_HW_INFO_BIOS = "nodes/.*/hw_info/bios/"
-#EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity", COMPARE_REGEX_HW_INFO_USB, COMPARE_REGEX_HW_INFO_CPU_FLAGS, COMPARE_REGEX_NODES, COMPARE_REGEX_SPEC, COMPARE_REGEX_METADATA]
 EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity", COMPARE_REGEX_HW_INFO_USB, COMPARE_REGEX_HW_INFO_CPU_FLAGS,
                               COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT, COMPARE_REGEX_NODE_HW_INFO_BIOS]
 SITE_OBJECT_TYPE_SMS = "sms"
