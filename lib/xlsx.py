@@ -251,7 +251,9 @@ class Xlsx(object):
 
         """
 
-        sites = data["sites"]
+
+
+        sites = data[c.SITES_KEY]
 
         # WS Infrastructure Tab
         ws_infrastructure = self.wb.create_sheet("Infrastructure", order)
@@ -347,16 +349,11 @@ class Xlsx(object):
         with get_manager() as manager:
             with manager.counter(total=None, desc='Processing infrastructure for', unit='sites') as pbar:
                 for site, site_data in sites.items():
-                    if self.must_break:
-                        break
-                    else:
-                        if self.site:
-                            if self.site == site:
-                                self.must_break = True
-                                process()
-                                break
-                        else:
+                    if self.site:
+                        if self.site == site:
                             process()
+                    else:
+                        process()
 
     def build_inventory_service(self, order: int = None, data: dict = None):
         """
@@ -375,11 +372,11 @@ class Xlsx(object):
 
         # WS Services Tab
         ws_services = self.wb.create_sheet("Services", order)
-        ws_services.column_dimensions['A'].width = 10
-        ws_services.column_dimensions['B'].width = 50
-        ws_services.column_dimensions['C'].width = 15
-        ws_services.column_dimensions['D'].width = 40
-        ws_services.column_dimensions['F'].width = 60
+        ws_services.column_dimensions['A'].width = 20
+        ws_services.column_dimensions['B'].width = 100
+        ws_services.column_dimensions['C'].width = 20
+        ws_services.column_dimensions['D'].width = 100
+        ws_services.column_dimensions['F'].width = 100
 
         def process():
             pbar.update()
@@ -445,16 +442,11 @@ class Xlsx(object):
         with get_manager() as manager:
             with manager.counter(total=None, desc='Processing services for', unit='sites') as pbar:
                 for site, site_data in sites.items():
-                    if self.must_break:
-                        break
-                    else:
-                        if self.site:
-                            if self.site == site:
-                                self.must_break = True
-                                process()
-                                break
-                        else:
+                    if self.site:
+                        if self.site == site:
                             process()
+                    else:
+                        process()
 
     def build_inventory(self, data: dict = None):
         """
