@@ -705,20 +705,31 @@ class Xlsx(object):
             ("Main Node Count", data_source["main_node_count"], data_target["main_node_count"]),
             ("Worker Node Count", data_source["worker_node_count"] if "worker_node_count" in data_source else 0,
              data_target["worker_node_count"] if "worker_node_count" in data_target else 0),
-            ("Node0 Hostname", data_source["nodes"]["node0"]["hostname"], data_target["nodes"]["node0"]["hostname"]),
-            ("Node0 CPU Count", data_source["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node0"] else 0,
-             data_target["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
-            ("Node0 CPU Model", data_source["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node0"] else 0,
-             data_target["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
-            ("Node0 Memory Size (MB)", data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node0"] else 0,
-             data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node0"] else 0),
-            ("Node0 Interface Count", len(data_source["nodes"]["node0"]["interfaces"]) if "interfaces" in data_source["nodes"]["node0"] else 0,
-             len(data_target["nodes"]["node0"]["interfaces"]) if "interfaces" in data_target["nodes"]["node0"] else 0),
-            ("Node0 OS Name", data_source["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node0"] else "None",
-              data_target["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
-            ("Node0 OS Version", data_source["nodes"]["node0"]["hw_info"]["os"]["version"] if "hw_info" in data_source["nodes"]["node0"] else "None",
-             data_target["nodes"]["node0"]["hw_info"]["os"]["version"] if "hw_info" in data_target["nodes"]["node0"] else "None")
+
         ]
+
+        if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1 or data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+            table_data_infrastructure.append(("Labels", join_dict_items(data_source["sms"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])))
+        else:
+            table_data_infrastructure.append(("Labels", data_source["legacy"]["metadata"]["labels"], data_target["legacy"]["metadata"]["labels"]))
+
+        table_data_infrastructure.extend(
+            [
+                ("Node0 Hostname", data_source["nodes"]["node0"]["hostname"], data_target["nodes"]["node0"]["hostname"]),
+                ("Node0 CPU Count", data_source["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node0"] else 0,
+                 data_target["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
+                ("Node0 CPU Model", data_source["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node0"] else 0,
+                 data_target["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
+                ("Node0 Memory Size (MB)", data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node0"] else 0,
+                 data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node0"] else 0),
+                ("Node0 Interface Count", len(data_source["nodes"]["node0"]["interfaces"]) if "interfaces" in data_source["nodes"]["node0"] else 0,
+                 len(data_target["nodes"]["node0"]["interfaces"]) if "interfaces" in data_target["nodes"]["node0"] else 0),
+                ("Node0 OS Name", data_source["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node0"] else "None",
+                 data_target["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
+                ("Node0 OS Version", data_source["nodes"]["node0"]["hw_info"]["os"]["version"] if "hw_info" in data_source["nodes"]["node0"] else "None",
+                 data_target["nodes"]["node0"]["hw_info"]["os"]["version"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
+            ]
+        )
 
         if "hw_info" in data_source["nodes"]["node0"] and "hw_info" in data_target["nodes"]["node0"]:
             for storage_source, storage_target in zip(data_source["nodes"]["node0"]["hw_info"]["storage"], data_target["nodes"]["node0"]["hw_info"]["storage"]):
@@ -760,7 +771,6 @@ class Xlsx(object):
                     source_node2_storage_size = storage_source["size_gb"]
                     target_node2_storage_size = storage_target["size_gb"]
                     table_data_infrastructure.append((f"Node2 Storage {storage_source["name"]} Size (GB)", source_node2_storage_size, target_node2_storage_size))
-        "".join("a")
 
         # Node0 Interface computation
         source_node0_interfaces = list()
