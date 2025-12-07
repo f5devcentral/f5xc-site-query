@@ -274,9 +274,8 @@ class Api(object):
 
         if data:
             try:
-                data = json.loads(data)
                 xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
-                xlsx.build_compare(data=data, data_source=data_source, data_target=data_target)
+                xlsx.build_compare(data_source=data_source, data_target=data_target)
                 xlsx.write()
                 self.logger.info(f"{self.build_compare_xlsx.__name__} done.")
             except json.decoder.JSONDecodeError as e:
