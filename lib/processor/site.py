@@ -7,7 +7,7 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
-__DEPENDENCIES__ = []
+__DEPENDENCIES__ = ["vs"]
 
 
 class Site(Base):

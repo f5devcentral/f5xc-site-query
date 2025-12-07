@@ -394,19 +394,13 @@ class Api(object):
         :return: list of items obtained by path
         """
 
-
-
         if items:
             while len(items) > 0:
                 item = items[0]
                 items.pop(0)
 
                 if isinstance(root, list) and item.isdigit():
-                    # Skip inserted elements on new site
-                    if int(item) <= len(root)-1:
-                        self._get_by_path(root[int(item)], items, resp)
-                    #else:
-                    #    self._get_by_path(root[len(root)-1], items, resp)
+                    resp.append(root[int(item)])
                 elif isinstance(root, dict):
                     new_root = root.get(int(item)) if item.isdigit() else root.get(item)
 
@@ -417,8 +411,13 @@ class Api(object):
                         elif isinstance(new_root, int):
                             self.logger.debug(f"INT: {new_root}")
                             resp.append(new_root)
-                        elif isinstance(root, list):
+                        elif isinstance(new_root, list):
                             self.logger.debug(f"LIST: {new_root}")
+                            if all(isinstance(root_item, str) for root_item in new_root):
+                                self._get_by_path(new_root, items, resp)
+                            else:
+                                for root_item in new_root:
+                                    self._get_by_path(root_item, items, resp)
                         elif isinstance(root, dict):
                             self.logger.debug(f"DICT: {new_root}")
                             if len(items) == 0:
@@ -434,7 +433,6 @@ class Api(object):
                                 elif type(_tmp) == dict:
                                     for item in list(new_root.keys()):
                                         resp.append(item)
-
                                 else:
                                     self.logger.debug(f"DICT: {new_root}")
                                     for item in list(new_root.keys()):
@@ -500,7 +498,7 @@ class Api(object):
                                                 self.logger.debug(f"APPEND NEW ITEM14: {f"{parent_key}/{item}/{lb_type.split("_")[0]}"}")
                                 else:
                                     resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
-                                self.logger.debug(f"APPEND NEW ITEM15: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                    self.logger.debug(f"APPEND NEW ITEM15: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                         elif key.label == "replace":
                             self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
                             if parent_key == "namespaces":
@@ -589,10 +587,6 @@ class Api(object):
                 r = []
                 # build list of key paths
                 dict_keys = self._get_keys(None, compared, r, source, data_source)
-
-                #for key in dict_keys:
-                #    if not any(list(map(lambda regex: re.match(regex, key), c.EXCLUDE_COMPARE_ATTRIBUTES))):
-                #        print(key)
 
                 table = PrettyTable()
                 table.set_style(TableStyle.SINGLE_BORDER)
