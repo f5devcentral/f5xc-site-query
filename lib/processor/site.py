@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 from logging import Logger
+from typing import Any
 
 from requests import Session
 
@@ -259,15 +260,32 @@ class Site(Base):
         return self.data
 
     def process_virtual_site(self):
+        print(100*"#")
+        print("VS SITE LOGIC")
+        name = "./json/all-ns-staging-automation.json"
+
+        with open(name, 'r') as fd:
+            self._data = json.load(fp=fd)
+            if c.SITES_KEY in self._data and c.VIRTUAL_SITES_KEY in self._data:
+                self.logger.info(
+                    f"{len(self._data[c.SITES_KEY])} {c.SITES_KEY if len(self._data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self._data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(self._data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
+            else:
+                self.logger.info(f"Error reading data from file {name}. No site data available")
+
         for site in self.data[c.SITES_KEY].keys():
             # Store virtual sites current site is a member of. This step requires virtual site processor already done
             site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site)
+            if site == "aswins-test-smg-ce1":
+                print("site_is_member_of_virtual_sites", site_is_member_of_virtual_sites)
+
             # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
             if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
                 self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
             else:
                 merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
                 self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
+
+        print(100 * "#")
 
     def process_efp(self) -> dict | None:
         """
@@ -299,7 +317,6 @@ class Site(Base):
                                         'enhanced_firewall_policies']:
                                         urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = \
                                         self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
-
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
                         if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:

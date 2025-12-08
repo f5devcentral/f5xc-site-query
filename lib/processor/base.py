@@ -1,4 +1,5 @@
 import concurrent.futures
+import re
 from abc import abstractmethod, ABC
 from logging import Logger
 from typing import Any
@@ -6,6 +7,119 @@ from typing import Any
 from requests import Response, Session
 
 import lib.const as c
+
+FILTER_TYPE_1_AND_2 = "COMPARISON (Typ 1 oder 2)"
+FILTER_TYPE_4 = "ASSIGNMENT (Typ 4)"
+FILTER_TYPE_3 = "IN_LIST (Typ 3)"
+
+COMPARISON_REGEX = re.compile(r"""
+    ^\s* # Start with optional space
+    (?P<key>[\w./-]+)                   # Key (e.g. ves.io/siteType)
+    \s* # Optional space
+    (?P<operator>[=!]=?)                # Operator (=, ==, oder !=)
+    \s* # Optional space
+    (?:                                 # Start of value alternatives
+        '(?P<value_quoted>[\w./-]+)'    # Quoted Value (e.g. 'value')
+    |
+        (?P<value_unquoted>[\w./-]+)    # Unquoted Value (e.g. value)
+    )
+    \s*$                                # Optional space at the end
+""", re.VERBOSE)
+
+VALUE_PATTERN = r"(?:'[\w./-]+'|[\w./-]+)"  # Pattern for single value only quoted oder unquoted
+
+IN_LIST_REGEX = re.compile(r"""
+    ^\s* # Start with optional space
+    (?P<key>[\w./-]+)                   # Key
+    \s+in\s+                            # 'in' Operator
+    \(                                  # Opening brace
+        (?P<list_content>
+            """ + VALUE_PATTERN + r""" # first element
+            (?:,\s*""" + VALUE_PATTERN + r""")* # Null or more elements
+        )
+    \)
+    \s*$                                # Optional space at the end
+""", re.VERBOSE)
+
+
+def _parse_single_filter(filter_string):
+    """
+    Try to parse a single filter expression  (Type1, Type2, Type3 or Type4)
+    """
+
+    # Try IN-LIST-REGEX (Typ 3)
+    match_in = IN_LIST_REGEX.match(filter_string)
+    if match_in:
+        data = match_in.groupdict()
+        list_content = data['list_content']
+
+        # Extract quoted or unquoted values. Search for quoted or unquoted string
+        # and store into separate capture groups
+        value_pattern_for_extract = r"'([\w./-]+)'|([\w./-]+)"
+        extracted = re.findall(value_pattern_for_extract, list_content)
+
+        # 'extracted' is a list of tuples, e.g.[('valueA', ''), ('', 'valueB')].
+        # Always choose the none empty string out of the tuple.
+        values = [q or u for q, u in extracted]
+
+        return {
+            "filter_type": FILTER_TYPE_3,
+            "key": data['key'],
+            "operator": "in",
+            "values": values
+        }
+
+    # Try COMPARISON_REGEX (Typ 1, 2 & 4)
+    match_comp = COMPARISON_REGEX.match(filter_string)
+    if match_comp:
+        data = match_comp.groupdict()
+        operator = data['operator']
+
+        # Process if value is quoted or unquoted
+        is_quoted = data['value_quoted'] is not None
+        value = data['value_quoted'] if is_quoted else data['value_unquoted']
+
+        filter_type = FILTER_TYPE_1_AND_2
+        if operator == '=':
+            filter_type = FILTER_TYPE_4
+
+        return {
+            "filter_type": filter_type,
+            "key": data['key'],
+            "operator": operator,
+            "value": value,
+            "value_quoted": is_quoted
+        }
+
+    # If there is no match
+    return {"filter_type": "INVALID", "input": filter_string}
+
+
+def _split_filter_string(full_string: str):
+    """
+    Split a filter string into individual filters expressions
+    and ignore comma inside braces.
+    """
+    parts = []
+    balance = 0
+    start_index = 0
+
+    for i, char in enumerate(full_string):
+        if char == '(':
+            balance += 1
+        elif char == ')':
+            balance -= 1
+        # Do not ignore comma inside quotes ('....') since IN-List-Type is this only filter type which allows for comma inside braces.
+        elif char == ',' and balance == 0:
+            # Comma outside of braces found (Seperator for Type 4 filter expression)
+            parts.append(full_string[start_index:i].strip())
+            start_index = i + 1
+
+    # add last part
+    if start_index < len(full_string):
+        parts.append(full_string[start_index:].strip())
+
+    return parts
 
 
 class Base(ABC):
@@ -71,37 +185,80 @@ class Base(ABC):
         # Store virtual sites current site is a member of
         site_is_member_of_virtual_sites = set()
 
+
+        def _process_site(_filter: dict):
+            for label, value in self.data["sites"][site]["metadata"]["labels"].items():
+                #print("Label:", label)
+                #print("Value:", value)
+                #print(_filter)
+                if label == _filter["key"] and value == _filter["value"]:
+                    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                #for expression in filter:
+                   # if label == expression["key"] and value == expression["value"]:
+                   #     site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                   # elif label == expression["key"] and value in expression["value"]:
+                    #    if site == "aswins-test-smg-ce1":
+                    #        pass
+                            # print("LABEL:", label, "==", "expression[key]:", expression["key"])
+                            # print("VALUE:", value, "==", "expression[value]", expression["value"])
+                        # print(vs_attr["metadata"]["name"])
+                        # site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+
         for vs_name, vs_attr in self.data[c.VIRTUAL_SITES_KEY].items():
             _expressions = list()
 
             for exp in vs_attr["spec"]["site_selector"]["expressions"]:
-                if " " in exp:
-                    _expressions.append(exp.split(" ", 2))
-                else:
-                    _exp = exp.split("=")
-                    _exp.insert(1, "=")
-                    _expressions.append(_exp)
+                if site == "aswins-test-smg-ce1":
+                    #self.logger.info("#" * 80)
 
-            expressions = list()
+                    # Split into single expression each
+                    individual_filters = _split_filter_string(exp)
 
-            for expression in _expressions:
-                # Check if expression is of from ["key", "operand", "value"]
-                if len(expression) == 3:
-                    # If virtual site site_selector expression is a comma separated list of items split these
-                    if expression[2].startswith("(") and expression[2].endswith(")"):
-                        val = [a.strip("() ") for a in expression[2].split(",")]
-                        expressions.append({"key": expression[0], "operator": expression[1], "value": val})
-                    else:
-                        expressions.append({"key": expression[0], "operator": expression[1], "value": expression[2]})
-                else:
-                    self.logger.info(f"Found unsupported selector expression: {expression}")
+                    #self.logger.info(f"-> Found individual filter ({len(individual_filters)}): {individual_filters}")
+                    #self.logger.info("-" * 80)
 
-            for label, value in self.data["sites"][site]["metadata"]["labels"].items():
-                for expression in expressions:
-                    if label == expression["key"] and value == expression["value"]:
-                        site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
-                    elif label == expression["key"] and value in expression["value"]:
-                        site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                    parsed_results = []
+                    for i, filter_str in enumerate(individual_filters):
+                        result = _parse_single_filter(filter_str)
+                        parsed_results.append(result)
+
+                        self.logger.info(f"--- Filter: {i + 1} ---")
+                        #self.logger.info(f"INPUT: {filter_str}")
+
+                        for k, v in result.items():
+                            self.logger.debug(f"  {k.ljust(15)}: {v}")
+
+                    #print(parsed_results)
+                    for label, value in self.data["sites"][site]["metadata"]["labels"].items():
+                        # print("Label:", label)
+                        # print("Value:", value)
+                        # print(_filter)
+                        for _filter in parsed_results:
+                            if _filter['filter_type'] == FILTER_TYPE_1_AND_2:
+                                if label == _filter["key"] and value in _filter["value"]:
+                                    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                            elif _filter['filter_type'] == FILTER_TYPE_3:
+                                if label == _filter["key"] and value in _filter["values"]:
+                                    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                            elif _filter['filter_type'] == FILTER_TYPE_4:
+                                pass
+                            #    if v == FILTER_TYPE_1_AND_2:
+                            #        pass
+                            # print("------------------------ Filter TYPE 1 or Type 2 -------------------------")
+                            #    elif v == FILTER_TYPE_3:
+                            #        pass
+                            # print("------------------------ Filter TYPE 3 -------------------------")
+                            #    elif v == FILTER_TYPE_4:
+                            #        print("------------------------ Filter TYPE 4 -------------------------")
+                            # self.logger.info(f"  {k.ljust(15)}: {v}")
+                            #        self.logger.info(f"{result}")
+                            # _process_site(result)
+                            #print(_filter)
+                            #print(_filter["key"], _filter["value"])
+                            #if label == _filter["key"] and value == _filter["value"]:
+                            #    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+
+                    #self.logger.info("=" * 80)
 
         return site_is_member_of_virtual_sites
 

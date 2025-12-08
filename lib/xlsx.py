@@ -711,7 +711,7 @@ class Xlsx(object):
         if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1 or data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
             table_data_infrastructure.append(("Labels", join_dict_items(data_source["sms"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])))
         else:
-            table_data_infrastructure.append(("Labels", data_source["legacy"]["metadata"]["labels"], data_target["legacy"]["metadata"]["labels"]))
+            table_data_infrastructure.append(("Labels", data_source["legacy"]["metadata"]["labels"], data_target["sms"]["metadata"]["labels"]))
 
         table_data_infrastructure.extend(
             [
