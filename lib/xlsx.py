@@ -740,12 +740,19 @@ class Xlsx(object):
         if data_source["main_node_count"] > 1 and data_target["main_node_count"] > 1:
             table_data_infrastructure.extend(
                 [
+                    ("Node1 Hostname", data_source["nodes"]["node1"]["hostname"], data_target["nodes"]["node1"]["hostname"]),
                     ("Node1 CPU Count", data_source["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node1"] else 0,
                      data_target["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node1"] else 0),
+                    ("Node1 CPU Model", data_source["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node1"] else 0,
+                     data_target["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node1"] else "None"),
                     ("Node1 Memory Size (MB)", data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node1"] else 0,
                      data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node1"] else 0),
                     ("Node1 Interface Count", len(data_source["nodes"]["node1"]["interfaces"]) if "interfaces" in data_source["nodes"]["node1"] else 0,
                      len(data_target["nodes"]["node1"]["interfaces"]) if "interfaces" in data_target["nodes"]["node1"] else 0),
+                    ("Node1 OS Name", data_source["nodes"]["node1"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node1"] else "None",
+                     data_target["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
+                    ("Node1 OS Version", data_source["nodes"]["node1"]["hw_info"]["os"]["version"] if "hw_info" in data_source["nodes"]["node1"] else "None",
+                     data_target["nodes"]["node1"]["hw_info"]["os"]["version"] if "hw_info" in data_target["nodes"]["node1"] else "None"),
                 ]
             )
 
@@ -757,12 +764,19 @@ class Xlsx(object):
 
             table_data_infrastructure.extend(
                 [
+                    ("Node2 Hostname", data_source["nodes"]["node2"]["hostname"], data_target["nodes"]["node2"]["hostname"]),
                     ("Node2 CPU Count", data_source["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node2"] else 0,
                      data_target["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node2"] else 0),
+                    ("Node2 CPU Model", data_source["nodes"]["node2"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node2"] else 0,
+                     data_target["nodes"]["node2"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node2"] else "None"),
                     ("Node2 Memory Size (MB)", data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node2"] else 0,
                      data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node2"] else 0),
                     ("Node2 Interface Count", len(data_source["nodes"]["node2"]["interfaces"]) if "interfaces" in data_source["nodes"]["node2"] else 0,
                      len(data_target["nodes"]["node2"]["interfaces"]) if "interfaces" in data_target["nodes"]["node2"] else 0),
+                    ("Node2 OS Name", data_source["nodes"]["node2"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node2"] else "None",
+                     data_target["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
+                    ("Node2 OS Version", data_source["nodes"]["node2"]["hw_info"]["os"]["version"] if "hw_info" in data_source["nodes"]["node2"] else "None",
+                     data_target["nodes"]["node2"]["hw_info"]["os"]["version"] if "hw_info" in data_target["nodes"]["node2"] else "None"),
                 ]
             )
 
