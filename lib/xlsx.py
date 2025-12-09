@@ -26,6 +26,17 @@ COLUMN_DIMENSIONS_A_WIDTH = 30
 COLUMN_DIMENSIONS_B_WIDTH = 25
 
 
+def join_dict_items(data_dict: dict, separator="\n"):
+    """
+    Joins all key-value pairs in a dictionary into a single string,
+    separated by a specified separator (default is a newline).
+    """
+
+    formatted_items = separator.join(f"{key}: {value}" for key, value in data_dict.items())
+
+    return formatted_items
+
+
 class Xlsx(object):
     """
     """
@@ -154,7 +165,7 @@ class Xlsx(object):
             ]
 
             ws_summary.append([f"Summary: {site}"] if title_prefix is None else [f"{title_prefix}: {site}"])
-            ws_summary.merge_cells(f"A{ws_summary.max_row}:F{ws_summary.max_row}")
+            ws_summary.merge_cells(f"A{ws_summary.max_row}:C{ws_summary.max_row}")
             for cell in ws_summary[ws_summary.max_row]:
                 cell.fill = GREY_FILL
                 cell.font = HEADER_FONT
@@ -252,106 +263,306 @@ class Xlsx(object):
         """
 
         sites = data[c.SITES_KEY]
+        site = None
+
+        if self.site != "":
+            site = sites[self.site]
 
         # WS Infrastructure Tab
         ws_infrastructure = self.wb.create_sheet("Infrastructure", order)
-        ws_infrastructure.column_dimensions['A'].width = 15
-        ws_infrastructure.column_dimensions['B'].width = 25
-        ws_infrastructure.column_dimensions['C'].width = 35
-        ws_infrastructure.column_dimensions['F'].width = 40
+        ws_infrastructure.column_dimensions['A'].width = 30
+        ws_infrastructure.column_dimensions['B'].width = 80
+        ws_infrastructure.column_dimensions['C'].width = 80
 
-        def process():
-            pbar.update()
+        table_data_infrastructure = [
+            ("Kind", site["kind"]),
+            ("Provider Type", site["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in site["metadata"]["labels"] else "Unknown"),
+            ("Main Node Count", site["main_node_count"]),
+            ("Worker Node Count", site["worker_node_count"] if "worker_node_count" in data else 0),
+        ]
 
-            ws_infrastructure.append([f"Infrastructure: {site}"])
-            ws_infrastructure.merge_cells(f"A{ws_infrastructure.max_row}:F{ws_infrastructure.max_row}")
+        if site["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+            table_data_infrastructure.append(("Labels", join_dict_items(site["sms"]["metadata"]["labels"])))
+        else:
+            table_data_infrastructure.append(("Labels", join_dict_items(site["legacy"]["metadata"]["labels"])))
 
-            for cell in ws_infrastructure[ws_infrastructure.max_row]:
-                cell.fill = GREY_FILL
-                cell.font = HEADER_FONT
-                cell.alignment = LEFT_CENTER_ALIGNMENT
+        table_data_infrastructure.extend(
+            [
+                ("Node0 Hostname", site["nodes"]["node0"]["hostname"]),
+                ("Node0 CPU Count", site["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node0"] else 0),
+                ("Node0 CPU Model", site["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node0"] else 0),
+                ("Node0 Memory Size (MB)", site["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in site["nodes"]["node0"] else 0),
+                ("Node0 Interface Count", len(site["nodes"]["node0"]["interfaces"]) if "interfaces" in site["nodes"]["node0"] else 0),
+                ("Node0 OS Name", site["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node0"] else "None"),
+                ("Node0 OS Version", site["nodes"]["node0"]["hw_info"]["os"]["version"] if "hw_info" in site["nodes"]["node0"] else "None")
+            ]
+        )
 
-            append_count = 0
-            for key, value in sites[site].items():
-                if isinstance(value, str):
-                    ws_infrastructure.append([key, value])
-                    append_count = append_count + 1
-                elif isinstance(value, int):
-                    ws_infrastructure.append([key, value])
-                    append_count = append_count + 1
-                elif isinstance(value, dict):
-                    if key in c.XLSX_INFRASTRUCTURE_EXPORT_KEYS:
-                        if key == "spec":
-                            if isinstance(value, dict):
-                                for spec_key, spec_value in value.items():
-                                    if isinstance(spec_value, str):
-                                        if spec_value != "":
-                                            ws_infrastructure.append([key, spec_key, spec_value])
-                                            append_count = append_count + 1
-                                    elif isinstance(spec_value, int):
-                                        ws_infrastructure.append([key, spec_key, spec_value])
-                                        append_count = append_count + 1
-                                    elif isinstance(spec_value, list):
-                                        for item in spec_value:
-                                            if isinstance(value, dict):
-                                                for k1, v1 in item.items():
-                                                    if isinstance(spec_value, str):
-                                                        if spec_value != "":
-                                                            ws_infrastructure.append([key, spec_key, k1, v1])
-                                                            append_count = append_count + 1
-                                                    elif isinstance(spec_value, int):
-                                                        ws_infrastructure.append([key, spec_key, k1, v1])
-                                                        append_count = append_count + 1
-                        elif key == "spoke":
-                            if sites[site]["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
-                                # TODO add azure support
-                                pass
-                            elif sites[site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                                ws_infrastructure.append([key, len(value["vpc_list"])])
-                                append_count = append_count + 1
-                        elif key == "nodes":
-                            for node, attrs in value.items():
-                                if "interfaces" in attrs:
-                                    ws_infrastructure.append(["node", node, "interfaces", len(attrs["interfaces"])])
-                                    append_count = append_count + 1
-                                if "hw_info" in attrs:
-                                    for k, v in c.HW_INFO_ITEMS_TO_PROCESS.items():
-                                        if k == "storage":
-                                            for s in attrs["hw_info"][k]:
-                                                for item in v:
-                                                    if s[item] != 0:
-                                                        ws_infrastructure.append(["node", node, "hw_info", k, s["name"], s[item]])
-                                                        append_count = append_count + 1
-                                        else:
-                                            for item in v:
-                                                ws_infrastructure.append(["node", node, "hw_info", k, item, attrs["hw_info"][k][item]])
-                                                append_count = append_count + 1
+        if "hw_info" in site["nodes"]["node0"] and "hw_info" in site["nodes"]["node0"]:
+            for storage_source in site["nodes"]["node0"]["hw_info"]["storage"]:
+                source_node0_storage_size = storage_source["size_gb"]
+                table_data_infrastructure.append((f"Node0 Storage {storage_source["name"]} Size (GB)", source_node0_storage_size))
 
-            start = ws_infrastructure.max_row
-            end = ws_infrastructure.max_row + 1
+        if site["main_node_count"] > 1 and site["main_node_count"] > 1:
+            table_data_infrastructure.extend(
+                [
+                    ("Node1 Hostname", site["nodes"]["node1"]["hostname"]),
+                    ("Node1 CPU Count", site["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node1"] else 0),
+                    ("Node1 CPU Model", site["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node1"] else 0),
+                    ("Node1 Memory Size (MB)", site["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data["nodes"]["node1"] else 0),
+                    ("Node1 Interface Count", len(site["nodes"]["node1"]["interfaces"]) if "interfaces" in site["nodes"]["node1"] else 0),
+                    ("Node1 OS Name", data["nodes"]["node1"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node1"] else "None"),
+                    ("Node1 OS Version", data["nodes"]["node1"]["hw_info"]["os"]["version"] if "hw_info" in data["nodes"]["node1"] else "None"),
+                ]
+            )
 
-            if append_count > 1:
-                start = ws_infrastructure.max_row - (append_count - 1)
+            if "hw_info" in site["nodes"]["node1"]:
+                for storage_site in site["nodes"]["node1"]["hw_info"]["storage"]:
+                    site_node1_storage_size = storage_site["size_gb"]
+                    table_data_infrastructure.append((f"Node1 Storage {storage_site["name"]} Size (GB)", site_node1_storage_size))
 
-            for idx in range(start, end):
-                value_cell = ws_infrastructure[idx][1]
-                value_cell.alignment = RIGHT_ALIGNMENT
+            table_data_infrastructure.extend(
+                [
+                    ("Node2 Hostname", site["nodes"]["node2"]["hostname"]),
+                    ("Node2 CPU Count", site["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node2"] else 0),
+                    ("Node2 CPU Model", site["nodes"]["node2"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node2"] else 0),
+                    ("Node2 Memory Size (MB)", site["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in site["nodes"]["node2"] else 0),
+                    ("Node2 Interface Count", len(site["nodes"]["node2"]["interfaces"]) if "interfaces" in site["nodes"]["node2"] else 0),
+                    ("Node2 OS Name", site["nodes"]["node2"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node2"] else "None"),
+                    ("Node2 OS Version", site["nodes"]["node2"]["hw_info"]["os"]["version"] if "hw_info" in site["nodes"]["node2"] else "None")
+                ]
+            )
 
-                # Check if the row number is EVEN
-                if append_count > 1:
-                    if idx % 2 != 0:
-                        # Apply the grey fill to every cell in the current row
-                        for cell in ws_infrastructure[idx]:
-                            cell.fill = LIGHT_GREY_FILL
+            if "hw_info" in site["nodes"]["node2"]:
+                for storage_site in site["nodes"]["node2"]["hw_info"]["storage"]:
+                    site_node2_storage_size = site["size_gb"],
+                    table_data_infrastructure.append((f"Node2 Storage {storage_site["name"]} Size (GB)", site_node2_storage_size))
 
-        with get_manager() as manager:
-            with manager.counter(total=None, desc='Processing infrastructure for', unit='sites') as pbar:
-                for site, site_data in sites.items():
-                    if self.site:
-                        if self.site == site:
-                            process()
-                    else:
-                        process()
+        # Node0 Interface computation
+        site_node0_interfaces = list()
+        if site["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+            for interface in site["nodes"]["node0"]["interfaces"]:
+                interface_details = dict()
+                if "dedicated_interface" in interface.keys():
+                    interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
+                    interface_details["device_name"] = interface["dedicated_interface"]["device"]
+                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                    interface_details["interface_type"] = "dedicated_interface"
+                    _interfaces = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                    site_node0_interfaces.append(_interfaces)
+                if "ethernet_interface" in interface.keys():
+                    interface_details["mtu"] = interface["ethernet_interface"]["mtu"]
+                    interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
+                    interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                    interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                    if "dhcp_server" in interface["ethernet_interface"].keys():
+                        network_prefixes = list()
+                        for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
+                            network_prefixes.append(network["network_prefix"])
+                        interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                    interface_details["interface_type"] = "ethernet_interface"
+                    interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface[
+                        "ethernet_interface"].keys() else "None"
+                    _interface = ["Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                    site_node0_interfaces.append(_interface)
+        else:
+            # Legacy sites
+            for interface_name, interface_attrs in site["nodes"]["node0"]["interfaces"].items():
+                interface_details = dict()
+                interface_details["device_name"] = interface_name
+                interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
+                interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                _interface = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                site_node0_interfaces.append(_interface)
+
+        table_data_infrastructure_interfaces = []
+        for site_interface in site_node0_interfaces:
+            table_data_infrastructure_interfaces.append(tuple(site_interface))
+
+        if site["main_node_count"] > 1:
+            # Node1 Interface computation
+            site_node1_interfaces = list()
+            if site["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                for interface in site["nodes"]["node1"]["interfaces"]:
+                    interface_details = dict()
+                    if "dedicated_interface" in interface.keys():
+                        interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
+                        interface_details["device_name"] = interface["dedicated_interface"]["device"]
+                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                        interface_details["interface_type"] = "dedicated_interface"
+                        _interfaces = [f"Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                        site_node1_interfaces.append(_interfaces)
+                    if "ethernet_interface" in interface.keys():
+                        interface_details["mtu"] = interface["ethernet_interface"]["mtu"]
+                        interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
+                        interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                        interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                        if "dhcp_server" in interface["ethernet_interface"].keys():
+                            network_prefixes = list()
+                            for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
+                                network_prefixes.append(network["network_prefix"])
+                            interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                        interface_details["interface_type"] = "ethernet_interface"
+                        interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface[
+                            "ethernet_interface"].keys() else "None"
+                        _interface = ["Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                        site_node1_interfaces.append(_interface)
+            else:
+                # Legacy sites
+                for interface_name, interface_attrs in site["nodes"]["node1"]["interfaces"].items():
+                    interface_details = dict()
+                    interface_details["device_name"] = interface_name
+                    interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                    interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
+                    interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                    _interface = [f"Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                    site_node1_interfaces.append(_interface)
+
+            for site_interface in site_node1_interfaces:
+                table_data_infrastructure_interfaces.append(tuple(site_interface))
+
+            # Node2 Interface computation
+            site_node2_interfaces = list()
+            if site["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                for interface in site["nodes"]["node2"]["interfaces"]:
+                    interface_details = dict()
+                    if "dedicated_interface" in interface.keys():
+                        interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
+                        interface_details["device_name"] = interface["dedicated_interface"]["device"]
+                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                        interface_details["interface_type"] = "dedicated_interface"
+                        _interfaces = [f"Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                        site_node2_interfaces.append(_interfaces)
+                    if "ethernet_interface" in interface.keys():
+                        interface_details["mtu"] = interface["ethernet_interface"]["mtu"]
+                        interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
+                        interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                        interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                        if "dhcp_server" in interface["ethernet_interface"].keys():
+                            network_prefixes = list()
+                            for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
+                                network_prefixes.append(network["network_prefix"])
+                            interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                        interface_details["interface_type"] = "ethernet_interface"
+                        interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface[
+                            "ethernet_interface"].keys() else "None"
+                        _interface = ["Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                        site_node2_interfaces.append(_interface)
+            else:
+                # Legacy sites
+                for interface_name, interface_attrs in site["nodes"]["node2"]["interfaces"].items():
+                    interface_details = dict()
+                    interface_details["device_name"] = interface_name
+                    interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                    interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
+                    interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                    _interface = [f"Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                    site_node2_interfaces.append(_interface)
+
+            for site_interface in site_node2_interfaces:
+                table_data_infrastructure_interfaces.append(tuple(site_interface))
+
+        ws_infrastructure.append([f"Infrastructure: {site["metadata"]["name"]}"])
+        ws_infrastructure.merge_cells(f"A{ws_infrastructure.max_row}:C{ws_infrastructure.max_row}")
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
+            cell.fill = GREY_FILL
+            cell.font = HEADER_FONT
+            cell.alignment = LEFT_CENTER_ALIGNMENT
+
+        # Nodes section
+        ws_infrastructure.append(["Hardware/Software", ""])
+
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
+            cell.fill = GREY_FILL_SECTION
+            cell.font = SECTION_FONT
+
+        header = ["Item", "Value"]
+        ws_infrastructure.append(header)
+
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
+            cell.fill = GREY_FILL_SECTION
+            if cell.column != 1:
+                cell.alignment = LEFT_ALIGNMENT
+
+        append_count = 0
+        for item, source in table_data_infrastructure:
+            ws_infrastructure.append([item, source])
+            append_count = append_count + 1
+
+        start = 4
+        end = ws_infrastructure.max_row + 1
+
+        for row_num in range(start, end):
+            value_cell_site = ws_infrastructure[row_num][1]
+            value_cell_site.alignment = RIGHT_ALIGNMENT
+            value_cell_site.font = Font(color='FF8B0000', bold=False)
+
+            # Check if the row number is EVEN
+            if row_num % 2 == 0:
+                # Apply the grey fill to every cell in the current row
+                for cell in ws_infrastructure[row_num]:
+                    cell.fill = LIGHT_GREY_FILL
+
+        # Nodes interfaces section
+        ws_infrastructure.append(["Interfaces", ""])
+
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
+            cell.fill = GREY_FILL_SECTION
+            cell.font = SECTION_FONT
+
+        header = ["Node", "Interface", "Values"]
+        ws_infrastructure.append(header)
+
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
+            cell.fill = GREY_FILL_SECTION
+            if cell.column != 1:
+                cell.alignment = LEFT_ALIGNMENT
+
+        append_count_interface = 0
+        for node, source_iface, source_iface_values in table_data_infrastructure_interfaces:
+            ws_infrastructure.append([node, source_iface, source_iface_values])
+            append_count_interface = append_count_interface + 1
+
+        start = ws_infrastructure.max_row - append_count_interface + 1
+        end = ws_infrastructure.max_row + 1
+
+        for row_num in range(start, end):
+            node_cell = ws_infrastructure[row_num][0]
+            interface_cell_site = ws_infrastructure[row_num][1]
+            value_cell_site = ws_infrastructure[row_num][2]
+
+            node_cell.alignment = Alignment(horizontal="center", vertical='center')
+            interface_cell_site.alignment = Alignment(horizontal="center", vertical='center')
+            value_cell_site.font = Font(color='FF8B0000', bold=False)
+
+            # Check if the row number is EVEN
+            if row_num % 2 == 0:
+                # Apply the grey fill to every cell in the current row
+                for cell in ws_infrastructure[row_num]:
+                    cell.fill = LIGHT_GREY_FILL
+
+            max_height_for_row = 0
+
+            for col_letter in ["C"]:
+                cell = ws_infrastructure[f'{col_letter}{row_num}']
+
+                if cell.value == "N/A":
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                else:
+                    cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+                cell_c = ws_infrastructure[f'C{row_num}']
+                required_height = len(str(cell_c.value)) + 10
+
+                if required_height is not None and required_height > max_height_for_row:
+                    max_height_for_row = required_height
+
+                if max_height_for_row > 0:
+                    ws_infrastructure.row_dimensions[row_num].height = max_height_for_row
 
     def build_inventory_service(self, order: int = None, data: dict = None):
         """
@@ -367,84 +578,109 @@ class Xlsx(object):
         """
 
         sites = data[c.SITES_KEY]
+        site = None
+
+        if self.site != "":
+            site = sites[self.site]
+
 
         # WS Services Tab
         ws_services = self.wb.create_sheet("Services", order)
-        ws_services.column_dimensions['A'].width = 20
-        ws_services.column_dimensions['B'].width = 100
+        ws_services.column_dimensions['A'].width = 25
+        ws_services.column_dimensions['B'].width = 60
         ws_services.column_dimensions['C'].width = 20
-        ws_services.column_dimensions['D'].width = 100
-        ws_services.column_dimensions['F'].width = 100
 
-        def process():
-            pbar.update()
+        site_ns = list()
+        site_lbs = list()
+        site_ops = list()
+        site_proxies = list()
 
-            ws_services.append([f"Services: {site}"])
-            ws_services.merge_cells(f"A{ws_services.max_row}:F{ws_services.max_row}")
+        if "namespaces" in site:
+            for namespace in site["namespaces"]:
+                site_ns.append(namespace)
+            for site_item in site["namespaces"].values():
+                if "loadbalancer" in site_item.keys():
+                    for source_lb_type in site_item["loadbalancer"].keys():
+                        site_lbs.append(list(site_item["loadbalancer"][source_lb_type].keys())[0])
 
-            for cell in ws_services[ws_services.max_row]:
-                cell.fill = GREY_FILL
-                cell.font = HEADER_FONT
-                cell.alignment = LEFT_CENTER_ALIGNMENT
+                if "proxys" in site_item.keys():
+                    for source_proxy_type in site_item["proxys"].keys():
+                        site_proxies.append(site_item["proxys"][source_proxy_type]["metadata"]["name"])
 
-            append_count = 0
-            for key, value in sites[site].items():
-                if isinstance(value, dict):
-                    if key in c.XLSX_SERVICE_EXPORT_KEYS:
-                        if key == "spoke":
-                            if sites[site]["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
-                                # TODO add azure support
-                                pass
-                            elif sites[site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                                ws_services.append([key, len(value["vpc_list"])])
-                                append_count = append_count + 1
-                        elif key == "namespaces":
-                            for namespace, attrs in value.items():
-                                for ns_item, ns_item_value in attrs.items():
-                                    if ns_item == "loadbalancer":
-                                        for lb, lb_values in ns_item_value.items():
-                                            ws_services.append(
-                                                [key, namespace, ns_item, lb, "", '\n'.join(list(lb_values.keys())) if len(lb_values.keys()) > 1 else list(lb_values.keys())[0]])
-                                            append_count = append_count + 1
-                                    else:
-                                        ws_services.append(
-                                            [key, namespace, ns_item, '\n'.join(list(ns_item_value.keys())) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0],
-                                             ""])
-                                        append_count = append_count + 1
-                        else:
-                            for name in value:
-                                ws_services.append([key, name])
-                                append_count = append_count + 1
-                elif isinstance(value, list):
-                    if len(value) > 0:
-                        ws_services.append([key, ", ".join(value)])
-                        append_count = append_count + 1
+            for site_item in site["namespaces"].values():
+                if "origin_pools" in site_item.keys():
+                    site_ops.append(list(site_item["origin_pools"].keys())[0])
 
-            start = ws_services.max_row
-            end = ws_services.max_row + 1
+        table_data_services = [
+            ('NS', "\n".join(site_ns) if len(site_ns) > 0 else "None"),
+            ('LB', "\n".join(site_lbs) if len(site_lbs) > 0 else "None"),
+            ('OP', "\n".join(site_ops) if len(site_ops) > 0 else "None"),
+            ('EFP', "\n".join(site["efp"].keys()) if "efp" in site else "None"),
+            ('FPP', "\n".join(site["fpp"].keys()) if "fpp" in site else "None"),
+            ('SMG', "\n".join(site["smg"].keys()) if len(site["smg"]) > 0 else "None"),
+            ('DCCG', "\n".join(site["dc_cluster_group"].keys()) if "dc_cluster_group" in site else "None"),
+            ('Proxies', "\n".join(site_proxies) if len(site_proxies) > 0 else "None"),
+            ('Segments', "\n".join(site["segments"].keys()) if "segments" in site else "None"),
+            ('BGP Policies', "\n".join(site["bgp"].keys()) if "bgp" in site else "None"),
+            ('Virtual Sites', "\n".join(site["vsites"]) if len(site["vsites"]) > 0 else "None"),
+        ]
 
-            if append_count > 1:
-                start = ws_services.max_row - (append_count - 1)
+        ws_services.append([f"Services: {site["metadata"]["name"]}"])
+        ws_services.merge_cells(f"A{ws_services.max_row}:C{ws_services.max_row}")
+        for cell in ws_services[ws_services.max_row]:
+            cell.fill = GREY_FILL
+            cell.font = HEADER_FONT
+            cell.alignment = LEFT_CENTER_ALIGNMENT
 
-            for idx in range(start, end):
-                value_cell = ws_services[idx][1]
-                value_cell.alignment = RIGHT_ALIGNMENT
+        ws_services.append(["Services", ""])
 
-                # Check if the row number is EVEN
-                if append_count > 1:
-                    if idx % 2 != 0:
-                        # Apply the grey fill to every cell in the current row
-                        for cell in ws_services[idx]:
-                            cell.fill = LIGHT_GREY_FILL
+        for cell in ws_services[ws_services.max_row]:
+            cell.fill = GREY_FILL_SECTION
+            cell.font = SECTION_FONT
 
-        with get_manager() as manager:
-            with manager.counter(total=None, desc='Processing services for', unit='sites') as pbar:
-                for site, site_data in sites.items():
-                    if self.site:
-                        if self.site == site:
-                            process()
-                    else:
-                        process()
+        header = ["Item", "Value",]
+        ws_services.append(header)
+
+        for cell in ws_services[ws_services.max_row]:
+            cell.fill = GREY_FILL_SECTION
+            if cell.column != 1:
+                cell.alignment = LEFT_ALIGNMENT
+
+        append_count = 0
+        for item, source_value in table_data_services:
+            ws_services.append([item, source_value])
+            append_count += 1
+
+        for row_num in range(ws_services.max_row - append_count + 1, ws_services.max_row + 1):
+            value_cell = ws_services[row_num][1]
+            value_cell.alignment = LEFT_ALIGNMENT
+            value_cell.font = Font(color='FF8B0000', bold=False)
+
+            # Check if the row number is EVEN
+            if row_num % 2 == 0:
+                # Apply the grey fill to every cell in the current row
+                for cell in ws_services[row_num]:
+                    cell.fill = LIGHT_GREY_FILL
+
+            max_height_for_row = 0
+
+            for col_letter in ["B", "C"]:
+                cell = ws_services[f'{col_letter}{row_num}']
+                cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+                cell_b = ws_services[f'B{row_num}']
+                required_height = len(str(cell_b.value)) + 10
+
+                if required_height is not None and required_height > max_height_for_row:
+                    max_height_for_row = required_height
+
+                if max_height_for_row > 0:
+                    ws_services.row_dimensions[row_num].height = max_height_for_row
+
+        for col_letter in ["A"]:
+            for row_num in range(4, ws_services.max_row + 1):
+                cell = ws_services[f'{col_letter}{row_num}']
+                cell.alignment = Alignment(horizontal='center', vertical='center')
 
     def build_inventory(self, data: dict = None):
         """
@@ -680,23 +916,13 @@ class Xlsx(object):
 
         """
 
-        def join_dict_items(data_dict, separator="\n"):
-            """
-            Joins all key-value pairs in a dictionary into a single string,
-            separated by a specified separator (default is a newline).
-            """
-
-            formatted_items = separator.join(f"{key}: {value}" for key, value in data_dict.items())
-
-            return formatted_items
-
         # WS Infrastructure Tab
-        ws_services = self.wb.create_sheet("Infrastructure", order)
-        ws_services.column_dimensions['A'].width = 30
-        ws_services.column_dimensions['B'].width = 80
-        ws_services.column_dimensions['C'].width = 80
-        ws_services.column_dimensions['D'].width = 20
-        ws_services.column_dimensions['E'].width = 60
+        ws_infrastructure = self.wb.create_sheet("Infrastructure", order)
+        ws_infrastructure.column_dimensions['A'].width = 30
+        ws_infrastructure.column_dimensions['B'].width = 80
+        ws_infrastructure.column_dimensions['C'].width = 80
+        ws_infrastructure.column_dimensions['D'].width = 20
+        ws_infrastructure.column_dimensions['E'].width = 60
 
         table_data_infrastructure = [
             ("Kind", data_source["kind"], data_target["kind"]),
@@ -705,7 +931,6 @@ class Xlsx(object):
             ("Main Node Count", data_source["main_node_count"], data_target["main_node_count"]),
             ("Worker Node Count", data_source["worker_node_count"] if "worker_node_count" in data_source else 0,
              data_target["worker_node_count"] if "worker_node_count" in data_target else 0),
-
         ]
 
         if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
@@ -998,39 +1223,39 @@ class Xlsx(object):
                 for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["Node2", "N/A", "N/A"]):
                     table_data_infrastructure_interfaces.append(tuple(source + target))
 
-        ws_services.append([f"Infrastructure comparison: {data_source["metadata"]["name"]} with {data_target["metadata"]["name"]}"])
-        ws_services.merge_cells(f"A{ws_services.max_row}:F{ws_services.max_row}")
-        for cell in ws_services[ws_services.max_row]:
+        ws_infrastructure.append([f"Infrastructure comparison: {data_source["metadata"]["name"]} with {data_target["metadata"]["name"]}"])
+        ws_infrastructure.merge_cells(f"A{ws_infrastructure.max_row}:F{ws_infrastructure.max_row}")
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
             cell.fill = GREY_FILL
             cell.font = HEADER_FONT
             cell.alignment = LEFT_CENTER_ALIGNMENT
 
         # Nodes section
-        ws_services.append(["Hardware/Software", ""])
+        ws_infrastructure.append(["Hardware/Software", ""])
 
-        for cell in ws_services[ws_services.max_row]:
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
             cell.fill = GREY_FILL_SECTION
             cell.font = SECTION_FONT
 
         header = ["Item", "Source", "Target"]
-        ws_services.append(header)
+        ws_infrastructure.append(header)
 
-        for cell in ws_services[ws_services.max_row]:
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
             cell.fill = GREY_FILL_SECTION
             if cell.column != 1:
                 cell.alignment = LEFT_ALIGNMENT
 
         append_count = 0
         for item, source, target in table_data_infrastructure:
-            ws_services.append([item, source, target])
+            ws_infrastructure.append([item, source, target])
             append_count = append_count + 1
 
         start = 4
-        end = ws_services.max_row + 1
+        end = ws_infrastructure.max_row + 1
 
         for row_num in range(start, end):
-            value_cell_source = ws_services[row_num][1]
-            value_cell_target = ws_services[row_num][2]
+            value_cell_source = ws_infrastructure[row_num][1]
+            value_cell_target = ws_infrastructure[row_num][2]
             value_cell_source.alignment = RIGHT_ALIGNMENT
             value_cell_target.alignment = RIGHT_ALIGNMENT
 
@@ -1041,38 +1266,38 @@ class Xlsx(object):
             # Check if the row number is EVEN
             if row_num % 2 == 0:
                 # Apply the grey fill to every cell in the current row
-                for cell in ws_services[row_num]:
+                for cell in ws_infrastructure[row_num]:
                     cell.fill = LIGHT_GREY_FILL
 
         # Nodes interfaces section
-        ws_services.append(["Interfaces", ""])
+        ws_infrastructure.append(["Interfaces", ""])
 
-        for cell in ws_services[ws_services.max_row]:
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
             cell.fill = GREY_FILL_SECTION
             cell.font = SECTION_FONT
 
         header = ["Node", "Source Interface", "Values", "Target Interface", "Values"]
-        ws_services.append(header)
+        ws_infrastructure.append(header)
 
-        for cell in ws_services[ws_services.max_row]:
+        for cell in ws_infrastructure[ws_infrastructure.max_row]:
             cell.fill = GREY_FILL_SECTION
             if cell.column != 1:
                 cell.alignment = LEFT_ALIGNMENT
 
         append_count_interface = 0
         for node, source_iface, source_iface_values, target_iface, target_iface_values in table_data_infrastructure_interfaces:
-            ws_services.append([node, source_iface, source_iface_values, target_iface, target_iface_values])
+            ws_infrastructure.append([node, source_iface, source_iface_values, target_iface, target_iface_values])
             append_count_interface = append_count_interface + 1
 
-        start = ws_services.max_row - append_count_interface + 1
-        end = ws_services.max_row + 1
+        start = ws_infrastructure.max_row - append_count_interface + 1
+        end = ws_infrastructure.max_row + 1
 
         for row_num in range(start, end):
-            node_cell = ws_services[row_num][0]
-            interface_cell_source = ws_services[row_num][1]
-            interface_cell_target = ws_services[row_num][3]
-            value_cell_source = ws_services[row_num][2]
-            value_cell_target = ws_services[row_num][4]
+            node_cell = ws_infrastructure[row_num][0]
+            interface_cell_source = ws_infrastructure[row_num][1]
+            interface_cell_target = ws_infrastructure[row_num][3]
+            value_cell_source = ws_infrastructure[row_num][2]
+            value_cell_target = ws_infrastructure[row_num][4]
 
             node_cell.alignment = Alignment(horizontal="center", vertical='center')
             interface_cell_source.alignment = Alignment(horizontal="center", vertical='center')
@@ -1085,28 +1310,28 @@ class Xlsx(object):
             # Check if the row number is EVEN
             if row_num % 2 == 0:
                 # Apply the grey fill to every cell in the current row
-                for cell in ws_services[row_num]:
+                for cell in ws_infrastructure[row_num]:
                     cell.fill = LIGHT_GREY_FILL
 
             max_height_for_row = 0
 
             for col_letter in ["C", "E"]:
-                cell = ws_services[f'{col_letter}{row_num}']
+                cell = ws_infrastructure[f'{col_letter}{row_num}']
 
                 if cell.value == "N/A":
                     cell.alignment = Alignment(horizontal='center', vertical='center')
                 else:
                     cell.alignment = Alignment(wrap_text=True, vertical='top')
 
-                cell_b = ws_services[f'B{row_num}']
-                cell_c = ws_services[f'C{row_num}']
+                cell_b = ws_infrastructure[f'B{row_num}']
+                cell_c = ws_infrastructure[f'C{row_num}']
                 required_height = max(len(str(cell_b.value)), len(str(cell_c.value))) + 10
 
                 if required_height is not None and required_height > max_height_for_row:
                     max_height_for_row = required_height
 
                 if max_height_for_row > 0:
-                    ws_services.row_dimensions[row_num].height = max_height_for_row
+                    ws_infrastructure.row_dimensions[row_num].height = max_height_for_row
 
     def build_compare_service(self, order: int = None, data_source: dict = None, data_target: dict = None):
         # WS Services Comparison Tab
