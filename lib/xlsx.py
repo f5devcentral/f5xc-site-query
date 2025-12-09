@@ -1,4 +1,5 @@
 import itertools
+import sys
 from logging import Logger
 
 from enlighten import get_manager
@@ -309,10 +310,10 @@ class Xlsx(object):
                     ("Node1 Hostname", site["nodes"]["node1"]["hostname"]),
                     ("Node1 CPU Count", site["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node1"] else 0),
                     ("Node1 CPU Model", site["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node1"] else 0),
-                    ("Node1 Memory Size (GB)", round(site["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data["nodes"]["node1"] else 0),
+                    ("Node1 Memory Size (GB)", round(site["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in site["nodes"]["node1"] else 0),
                     ("Node1 Interface Count", len(site["nodes"]["node1"]["interfaces"]) if "interfaces" in site["nodes"]["node1"] else 0),
-                    ("Node1 OS Name", data["nodes"]["node1"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node1"] else "None"),
-                    ("Node1 OS Version", data["nodes"]["node1"]["hw_info"]["os"]["version"] if "hw_info" in data["nodes"]["node1"] else "None"),
+                    ("Node1 OS Name", site["nodes"]["node1"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node1"] else "None"),
+                    ("Node1 OS Version", site["nodes"]["node1"]["hw_info"]["os"]["version"] if "hw_info" in site["nodes"]["node1"] else "None"),
                 ]
             )
 
@@ -333,10 +334,10 @@ class Xlsx(object):
                 ]
             )
 
-            if "hw_info" in site["nodes"]["node2"]:
-                for storage_site in site["nodes"]["node2"]["hw_info"]["storage"]:
-                    site_node2_storage_size = site["size_gb"],
-                    table_data_infrastructure.append((f"Node2 Storage {storage_site["name"]} Size (GB)", site_node2_storage_size))
+        if "hw_info" in site["nodes"]["node2"]:
+            for storage_site in site["nodes"]["node2"]["hw_info"]["storage"]:
+                site_node1_storage_size = storage_site["size_gb"]
+                table_data_infrastructure.append((f"Node2 Storage {storage_site["name"]} Size (GB)", site_node1_storage_size))
 
         # Node0 Interface computation
         site_node0_interfaces = list()
@@ -560,8 +561,8 @@ class Xlsx(object):
                 cell.alignment = LEFT_ALIGNMENT
 
         append_count = 0
-        for item, source in table_data_infrastructure:
-            ws_infrastructure.append([item, source])
+        for item, value in table_data_infrastructure:
+            ws_infrastructure.append([item, value])
             append_count = append_count + 1
 
         start = 4
@@ -752,7 +753,7 @@ class Xlsx(object):
                 cell = ws_services[f'{col_letter}{row_num}']
                 cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    def build_inventory(self, data: dict = None):
+    def build_inventory(self, data: dict = None) -> bool:
         """
 
         Parameters
@@ -764,12 +765,16 @@ class Xlsx(object):
 
         """
 
-        if self.site is None:
+        if self.site == "":
             self.logger.info(f"Building inventory failed. Site name required. use -s option to provide site name")
 
-        self.build_inventory_summary(0, data)
-        self.build_inventory_infrastructure(1, data)
-        self.build_inventory_service(2, data)
+            return False
+        else:
+            self.build_inventory_summary(0, data)
+            self.build_inventory_infrastructure(1, data)
+            self.build_inventory_service(2, data)
+
+            return True
 
     def build_compare_summary(self, order: int = None, data_source: dict = None, data_target: dict = None):
         """

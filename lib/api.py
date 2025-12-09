@@ -298,9 +298,11 @@ class Api(object):
 
         if data:
             xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
-            xlsx.build_inventory(data=data)
-            xlsx.write()
-            self.logger.info(f"{self.build_inventory_xlsx.__name__} done.")
+            status = xlsx.build_inventory(data=data)
+
+            if status:
+                xlsx.write()
+                self.logger.info(f"{self.build_inventory_xlsx.__name__} done.")
 
     def build_inventory_csv(self, json_file: str = None) -> PrettyTable | None:
         """
