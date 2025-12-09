@@ -1359,7 +1359,6 @@ class Xlsx(object):
                 cell.alignment = LEFT_ALIGNMENT
 
         append_count_interface = 0
-        print(table_data_infrastructure_interfaces)
         for node, source_iface, source_iface_values, target_iface, target_iface_values in table_data_infrastructure_interfaces:
             ws_infrastructure.append([node, source_iface, source_iface_values, target_iface, target_iface_values])
             append_count_interface = append_count_interface + 1
