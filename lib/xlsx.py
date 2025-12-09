@@ -98,7 +98,7 @@ class Xlsx(object):
                 ("Main Node Count", sites[site]["main_node_count"]),
                 ("Worker Node Count", sites[site]["worker_node_count"] if "worker_node_count" in sites[site] else 0),
                 ("Node0 CPU Count", sites[site]["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in sites[site]["nodes"]["node0"] else 0),
-                ("Node0 Memory Size (MB)", sites[site]["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in sites[site]["nodes"]["node0"] else 0),
+                ("Node0 Memory Size (GB)", round(sites[site]["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in sites[site]["nodes"]["node0"] else 0),
                 ("Node0 Interface Count", len(sites[site]["nodes"]["node0"]["interfaces"]) if "interfaces" in sites[site]["nodes"]["node0"] else 0),
             ]
 
@@ -111,7 +111,7 @@ class Xlsx(object):
                 table_data_infrastructure.extend(
                     [
                         ("Node1 CPU Count", sites[site]["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in sites[site]["nodes"]["node1"] else 0),
-                        ("Node1 Memory Size (MB)", sites[site]["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in sites[site]["nodes"]["node1"] else 0),
+                        ("Node1 Memory Size (GB)", round(sites[site]["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in sites[site]["nodes"]["node1"] else 0),
                         ("Node1 Interface Count", len(sites[site]["nodes"]["node1"]["interfaces"]) if "interfaces" in sites[site]["nodes"]["node1"] else 0),
                     ]
                 )
@@ -124,7 +124,7 @@ class Xlsx(object):
                 table_data_infrastructure.extend(
                     [
                         ("Node2 CPU Count", sites[site]["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in sites[site]["nodes"]["node2"] else 0),
-                        ("Node2 Memory Size (MB)", sites[site]["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in sites[site]["nodes"]["node2"] else 0),
+                        ("Node2 Memory Size (GB)", round(sites[site]["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in sites[site]["nodes"]["node2"] else 0),
                         ("Node2 Interface Count", len(sites[site]["nodes"]["node2"]["interfaces"]) if "interfaces" in sites[site]["nodes"]["node2"] else 0),
                     ]
                 )
@@ -281,7 +281,7 @@ class Xlsx(object):
             ("Worker Node Count", site["worker_node_count"] if "worker_node_count" in data else 0),
         ]
 
-        if site["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+        if site["kind"] == c.F5XC_SITE_TYPE_SMS_V1 or site["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
             table_data_infrastructure.append(("Labels", join_dict_items(site["sms"]["metadata"]["labels"])))
         else:
             table_data_infrastructure.append(("Labels", join_dict_items(site["legacy"]["metadata"]["labels"])))
@@ -291,7 +291,7 @@ class Xlsx(object):
                 ("Node0 Hostname", site["nodes"]["node0"]["hostname"]),
                 ("Node0 CPU Count", site["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node0"] else 0),
                 ("Node0 CPU Model", site["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node0"] else 0),
-                ("Node0 Memory Size (MB)", site["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in site["nodes"]["node0"] else 0),
+                ("Node0 Memory Size (GB)", round(site["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in site["nodes"]["node0"] else 0),
                 ("Node0 Interface Count", len(site["nodes"]["node0"]["interfaces"]) if "interfaces" in site["nodes"]["node0"] else 0),
                 ("Node0 OS Name", site["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node0"] else "None"),
                 ("Node0 OS Version", site["nodes"]["node0"]["hw_info"]["os"]["version"] if "hw_info" in site["nodes"]["node0"] else "None")
@@ -309,7 +309,7 @@ class Xlsx(object):
                     ("Node1 Hostname", site["nodes"]["node1"]["hostname"]),
                     ("Node1 CPU Count", site["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node1"] else 0),
                     ("Node1 CPU Model", site["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node1"] else 0),
-                    ("Node1 Memory Size (MB)", site["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data["nodes"]["node1"] else 0),
+                    ("Node1 Memory Size (GB)", round(site["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data["nodes"]["node1"] else 0),
                     ("Node1 Interface Count", len(site["nodes"]["node1"]["interfaces"]) if "interfaces" in site["nodes"]["node1"] else 0),
                     ("Node1 OS Name", data["nodes"]["node1"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node1"] else "None"),
                     ("Node1 OS Version", data["nodes"]["node1"]["hw_info"]["os"]["version"] if "hw_info" in data["nodes"]["node1"] else "None"),
@@ -326,7 +326,7 @@ class Xlsx(object):
                     ("Node2 Hostname", site["nodes"]["node2"]["hostname"]),
                     ("Node2 CPU Count", site["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in site["nodes"]["node2"] else 0),
                     ("Node2 CPU Model", site["nodes"]["node2"]["hw_info"]["cpu"]["model"] if "hw_info" in site["nodes"]["node2"] else 0),
-                    ("Node2 Memory Size (MB)", site["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in site["nodes"]["node2"] else 0),
+                    ("Node2 Memory Size (GB)", round(site["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in site["nodes"]["node2"] else 0),
                     ("Node2 Interface Count", len(site["nodes"]["node2"]["interfaces"]) if "interfaces" in site["nodes"]["node2"] else 0),
                     ("Node2 OS Name", site["nodes"]["node2"]["hw_info"]["os"]["name"] if "hw_info" in site["nodes"]["node2"] else "None"),
                     ("Node2 OS Version", site["nodes"]["node2"]["hw_info"]["os"]["version"] if "hw_info" in site["nodes"]["node2"] else "None")
@@ -366,6 +366,29 @@ class Xlsx(object):
                         "ethernet_interface"].keys() else "None"
                     _interface = ["Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                     site_node0_interfaces.append(_interface)
+        elif  site["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+            for interface in site["nodes"]["node0"]["interfaces"]:
+                interface_details = dict()
+                interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                interface_details["is_management"] =  interface["is_management"] if "is_management" in interface else "None"
+                interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface["network_option"].keys() else "None"
+                _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
+                if "dhcp_server" in interface.keys():
+                    network_prefixes = list()
+                    for network in interface["dhcp_server"]["dhcp_networks"]:
+                        network_prefixes.append(network["network_prefix"])
+                    interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                if "ethernet_interface" in interface.keys():
+                    interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                    interface_details["interface_type"] = "ethernet_interface"
+                    interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                site_node0_interfaces.append(_interface)
         else:
             # Legacy sites
             for interface_name, interface_attrs in site["nodes"]["node0"]["interfaces"].items():
@@ -410,6 +433,30 @@ class Xlsx(object):
                             "ethernet_interface"].keys() else "None"
                         _interface = ["Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                         site_node1_interfaces.append(_interface)
+            elif site["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                for interface in site["nodes"]["node1"]["interfaces"]:
+                    interface_details = dict()
+                    interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                    interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                    interface_details["is_management"] = interface["is_management"] if "is_management" in interface else "None"
+                    interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                    interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                    interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                    interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                    interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
+                        "network_option"].keys() else "None"
+                    _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
+                    if "dhcp_server" in interface.keys():
+                        network_prefixes = list()
+                        for network in interface["dhcp_server"]["dhcp_networks"]:
+                            network_prefixes.append(network["network_prefix"])
+                        interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                    if "ethernet_interface" in interface.keys():
+                        interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                        interface_details["interface_type"] = "ethernet_interface"
+                        interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                    site_node1_interfaces.append(_interface)
             else:
                 # Legacy sites
                 for interface_name, interface_attrs in site["nodes"]["node1"]["interfaces"].items():
@@ -452,6 +499,30 @@ class Xlsx(object):
                             "ethernet_interface"].keys() else "None"
                         _interface = ["Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                         site_node2_interfaces.append(_interface)
+            elif site["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                for interface in site["nodes"]["node2"]["interfaces"]:
+                    interface_details = dict()
+                    interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                    interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                    interface_details["is_management"] = interface["is_management"] if "is_management" in interface else "None"
+                    interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                    interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                    interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                    interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                    interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
+                        "network_option"].keys() else "None"
+                    _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
+                    if "dhcp_server" in interface.keys():
+                        network_prefixes = list()
+                        for network in interface["dhcp_server"]["dhcp_networks"]:
+                            network_prefixes.append(network["network_prefix"])
+                        interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                    if "ethernet_interface" in interface.keys():
+                        interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                        interface_details["interface_type"] = "ethernet_interface"
+                        interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                    site_node2_interfaces.append(_interface)
             else:
                 # Legacy sites
                 for interface_name, interface_attrs in site["nodes"]["node2"]["interfaces"].items():
@@ -727,8 +798,8 @@ class Xlsx(object):
              data_target["worker_node_count"] if "worker_node_count" in data_target else 0),
             ("Node0 CPU Count", data_source["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node0"] else 0,
              data_target["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node0"] else 0),
-            ("Node0 Memory Size (MB)", data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node0"] else 0,
-             data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node0"] else 0),
+            ("Node0 Memory Size (GB)", round(data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node0"] else 0,
+             round(data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node0"] else 0),
             ("Node0 Interface Count", len(data_source["nodes"]["node0"]["interfaces"]) if "interfaces" in data_source["nodes"]["node0"] else 0,
              len(data_target["nodes"]["node0"]["interfaces"]) if "interfaces" in data_target["nodes"]["node0"] else 0)
         ]
@@ -744,8 +815,8 @@ class Xlsx(object):
                 [
                     ("Node1 CPU Count", data_source["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node1"] else 0,
                      data_target["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node1"] else 0),
-                    ("Node1 Memory Size (MB)", data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node1"] else 0,
-                     data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node1"] else 0),
+                    ("Node1 Memory Size (GB)", data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024 if "hw_info" in data_source["nodes"]["node1"] else 0,
+                     round(data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"]) / 1024 if "hw_info" in data_target["nodes"]["node1"] else 0),
                     ("Node1 Interface Count", len(data_source["nodes"]["node1"]["interfaces"]) if "interfaces" in data_source["nodes"]["node1"] else 0,
                      len(data_target["nodes"]["node1"]["interfaces"]) if "interfaces" in data_target["nodes"]["node1"] else 0),
                 ]
@@ -761,8 +832,8 @@ class Xlsx(object):
                 [
                     ("Node2 CPU Count", data_source["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node2"] else 0,
                      data_target["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node2"] else 0),
-                    ("Node2 Memory Size (MB)", data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node2"] else 0,
-                     data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node2"] else 0),
+                    ("Node2 Memory Size (GB)", data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024 if "hw_info" in data_source["nodes"]["node2"] else 0,
+                     round(data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node2"] else 0),
                     ("Node2 Interface Count", len(data_source["nodes"]["node2"]["interfaces"]) if "interfaces" in data_source["nodes"]["node2"] else 0,
                      len(data_target["nodes"]["node2"]["interfaces"]) if "interfaces" in data_target["nodes"]["node2"] else 0),
                 ]
@@ -908,8 +979,9 @@ class Xlsx(object):
 
         Parameters
         ----------
+        data_source
+        data_target
         order: int
-        data: dict
 
         Returns
         -------
@@ -945,8 +1017,8 @@ class Xlsx(object):
                  data_target["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
                 ("Node0 CPU Model", data_source["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node0"] else 0,
                  data_target["nodes"]["node0"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node0"] else "None"),
-                ("Node0 Memory Size (MB)", data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node0"] else 0,
-                 data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node0"] else 0),
+                ("Node0 Memory Size (GB)", round(data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node0"] else 0,
+                 round(data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node0"] else 0),
                 ("Node0 Interface Count", len(data_source["nodes"]["node0"]["interfaces"]) if "interfaces" in data_source["nodes"]["node0"] else 0,
                  len(data_target["nodes"]["node0"]["interfaces"]) if "interfaces" in data_target["nodes"]["node0"] else 0),
                 ("Node0 OS Name", data_source["nodes"]["node0"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node0"] else "None",
@@ -970,8 +1042,8 @@ class Xlsx(object):
                      data_target["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node1"] else 0),
                     ("Node1 CPU Model", data_source["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node1"] else 0,
                      data_target["nodes"]["node1"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node1"] else "None"),
-                    ("Node1 Memory Size (MB)", data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node1"] else 0,
-                     data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node1"] else 0),
+                    ("Node1 Memory Size (GB)", round(data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node1"] else 0,
+                     round(data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node1"] else 0),
                     ("Node1 Interface Count", len(data_source["nodes"]["node1"]["interfaces"]) if "interfaces" in data_source["nodes"]["node1"] else 0,
                      len(data_target["nodes"]["node1"]["interfaces"]) if "interfaces" in data_target["nodes"]["node1"] else 0),
                     ("Node1 OS Name", data_source["nodes"]["node1"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node1"] else "None",
@@ -994,8 +1066,8 @@ class Xlsx(object):
                      data_target["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node2"] else 0),
                     ("Node2 CPU Model", data_source["nodes"]["node2"]["hw_info"]["cpu"]["model"] if "hw_info" in data_source["nodes"]["node2"] else 0,
                      data_target["nodes"]["node2"]["hw_info"]["cpu"]["model"] if "hw_info" in data_target["nodes"]["node2"] else "None"),
-                    ("Node2 Memory Size (MB)", data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_source["nodes"]["node2"] else 0,
-                     data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] if "hw_info" in data_target["nodes"]["node2"] else 0),
+                    ("Node2 Memory Size (GB)", round(data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node2"] else 0,
+                     round(data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node2"] else 0),
                     ("Node2 Interface Count", len(data_source["nodes"]["node2"]["interfaces"]) if "interfaces" in data_source["nodes"]["node2"] else 0,
                      len(data_target["nodes"]["node2"]["interfaces"]) if "interfaces" in data_target["nodes"]["node2"] else 0),
                     ("Node2 OS Name", data_source["nodes"]["node2"]["hw_info"]["os"]["name"] if "hw_info" in data_source["nodes"]["node2"] else "None",
@@ -1043,36 +1115,36 @@ class Xlsx(object):
             for interface_name, interface_attrs in data_source["nodes"]["node0"]["interfaces"].items():
                 interface_details = dict()
                 interface_details["device_name"] = interface_name
+                interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
                 interface_details["existing_subnet_id"] =  interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
                 _interface = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                 source_node0_interfaces.append(_interface)
 
         target_node0_interfaces = list()
-        for interface in data_target["nodes"]["node0"]["interfaces"]:
-            if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+        if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+            for interface in data_target["nodes"]["node0"]["interfaces"]:
                 interface_details = dict()
-                if "dedicated_interface" in interface.keys():
-                    interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
-                    interface_details["device_name"] = interface["dedicated_interface"]["device"]
-                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
-                    interface_details["interface_type"] = "dedicated_interface"
-                    _interface = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
-                    target_node0_interfaces.append(_interface)
+                interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                interface_details["is_management"] = interface["is_management"] if "is_management" in interface else "None"
+                interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface["network_option"].keys() else "None"
+                if "dhcp_server" in interface.keys():
+                    network_prefixes = list()
+                    for network in interface["dhcp_server"]["dhcp_networks"]:
+                        network_prefixes.append(network["network_prefix"])
+                    interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                 if "ethernet_interface" in interface.keys():
-                    interface_details["mtu"] = interface["mtu"]
-                    interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
-                    interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
                     interface_details["device_name"] = interface["ethernet_interface"]["device"]
-                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
-                    if "dhcp_server" in interface["ethernet_interface"].keys():
-                        network_prefixes = list()
-                        for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
-                            network_prefixes.append(network["network_prefix"])
-                        interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                     interface_details["interface_type"] = "ethernet_interface"
-                    interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
-                    _interface = [f"{interface_details["device_name"]}", join_dict_items(interface_details)]
-                    target_node0_interfaces.append(_interface)
+                    interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                _interface = [f"{interface["name"]}", join_dict_items(interface_details)]
+                target_node0_interfaces.append(_interface)
 
         table_data_infrastructure_interfaces = []
         if len(source_node0_interfaces) >= len(target_node0_interfaces):
@@ -1115,36 +1187,37 @@ class Xlsx(object):
                 for interface_name, interface_attrs in data_source["nodes"]["node1"]["interfaces"].items():
                     interface_details = dict()
                     interface_details["device_name"] = interface_name
+                    interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                    interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
                     interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
                     _interface = [f"Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                     source_node1_interfaces.append(_interface)
 
             target_node1_interfaces = list()
-            for interface in data_target["nodes"]["node1"]["interfaces"]:
-                interface_details = dict()
-                if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
-                    if "dedicated_interface" in interface.keys():
-                        interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
-                        interface_details["device_name"] = interface["dedicated_interface"]["device"]
-                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
-                        interface_details["interface_type"] = "dedicated_interface"
-                        _interface = [f"Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
-                        target_node1_interfaces.append(_interface)
+            if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                for interface in data_target["nodes"]["node1"]["interfaces"]:
+                    interface_details = dict()
+                    interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                    interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                    interface_details["is_management"] = interface["is_management"] if "is_management" in interface else "None"
+                    interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                    interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                    interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                    interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                    interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
+                        "network_option"].keys() else "None"
+                    if "dhcp_server" in interface.keys():
+                        network_prefixes = list()
+                        for network in interface["dhcp_server"]["dhcp_networks"]:
+                            network_prefixes.append(network["network_prefix"])
+                        interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                     if "ethernet_interface" in interface.keys():
-                        interface_details["mtu"] = interface["mtu"]
-                        interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
-                        interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
                         interface_details["device_name"] = interface["ethernet_interface"]["device"]
-                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
-                        if "dhcp_server" in interface["ethernet_interface"].keys():
-                            network_prefixes = list()
-                            for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
-                                network_prefixes.append(network["network_prefix"])
-                            interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                         interface_details["interface_type"] = "ethernet_interface"
-                        interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
-                        _interface = [f"{interface_details["device_name"]}", join_dict_items(interface_details)]
-                        target_node1_interfaces.append(_interface)
+                        interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                    _interface = [f"{interface["name"]}", join_dict_items(interface_details)]
+                    target_node1_interfaces.append(_interface)
 
             if len(source_node1_interfaces) >= len(target_node1_interfaces):
                 for source, target in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["N/A", "N/A"]):
@@ -1185,6 +1258,8 @@ class Xlsx(object):
                 for interface_name, interface_attrs in data_source["nodes"]["node2"]["interfaces"].items():
                     interface_details = dict()
                     interface_details["device_name"] = interface_name
+                    interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                    interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
                     interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
                     _interface = [f"Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                     source_node2_interfaces.append(_interface)
@@ -1193,28 +1268,27 @@ class Xlsx(object):
             if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
                 for interface in data_target["nodes"]["node2"]["interfaces"]:
                     interface_details = dict()
-                    if "dedicated_interface" in interface.keys():
-                        interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
-                        interface_details["device_name"] = interface["dedicated_interface"]["device"]
-                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
-                        interface_details["interface_type"] = "dedicated_interface"
-                        _interface = [f"Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
-                        target_node2_interfaces.append(_interface)
+                    interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                    interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                    interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                    interface_details["is_management"] = interface["is_management"] if "is_management" in interface else "None"
+                    interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                    interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                    interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                    interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                    interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
+                        "network_option"].keys() else "None"
+                    if "dhcp_server" in interface.keys():
+                        network_prefixes = list()
+                        for network in interface["dhcp_server"]["dhcp_networks"]:
+                            network_prefixes.append(network["network_prefix"])
+                        interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                     if "ethernet_interface" in interface.keys():
-                        interface_details["mtu"] = interface["mtu"]
-                        interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
-                        interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
                         interface_details["device_name"] = interface["ethernet_interface"]["device"]
-                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
-                        if "dhcp_server" in interface["ethernet_interface"].keys():
-                            network_prefixes = list()
-                            for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
-                                network_prefixes.append(network["network_prefix"])
-                            interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                         interface_details["interface_type"] = "ethernet_interface"
-                        interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
-                        _interface = [f"{interface_details["device_name"]}", join_dict_items(interface_details)]
-                        target_node2_interfaces.append(_interface)
+                        interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                    _interface = [f"{interface["name"]}", join_dict_items(interface_details)]
+                    target_node1_interfaces.append(_interface)
 
             if len(source_node2_interfaces) >= len(target_node2_interfaces):
                 for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["N/A", "N/A"]):
@@ -1285,6 +1359,7 @@ class Xlsx(object):
                 cell.alignment = LEFT_ALIGNMENT
 
         append_count_interface = 0
+        print(table_data_infrastructure_interfaces)
         for node, source_iface, source_iface_values, target_iface, target_iface_values in table_data_infrastructure_interfaces:
             ws_infrastructure.append([node, source_iface, source_iface_values, target_iface, target_iface_values])
             append_count_interface = append_count_interface + 1
@@ -1323,9 +1398,9 @@ class Xlsx(object):
                 else:
                     cell.alignment = Alignment(wrap_text=True, vertical='top')
 
-                cell_b = ws_infrastructure[f'B{row_num}']
                 cell_c = ws_infrastructure[f'C{row_num}']
-                required_height = max(len(str(cell_b.value)), len(str(cell_c.value))) + 10
+                cell_e = ws_infrastructure[f'E{row_num}']
+                required_height = max(len(str(cell_c.value)), len(str(cell_e.value))) + 10
 
                 if required_height is not None and required_height > max_height_for_row:
                     max_height_for_row = required_height
@@ -1334,6 +1409,19 @@ class Xlsx(object):
                     ws_infrastructure.row_dimensions[row_num].height = max_height_for_row
 
     def build_compare_service(self, order: int = None, data_source: dict = None, data_target: dict = None):
+        """
+
+        Parameters
+        ----------
+        order
+        data_source
+        data_target
+
+        Returns
+        -------
+
+        """
+
         # WS Services Comparison Tab
         ws_services = self.wb.create_sheet("Services", order)
         ws_services.column_dimensions['A'].width = 25

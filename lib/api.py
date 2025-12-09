@@ -570,8 +570,16 @@ class Api(object):
         self.logger.debug(f"DATA_OLD: {data_source}")
         self.logger.debug(f"DATA_NEW: {data_target}")
 
+
         if data_source and data_target:
-            # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
+            if source in data_source["failed"]:
+                self.logger.info(f"Comparing source site <{source}> failed. Error site <{source}> is in <{data_source["failed"][source]}> state")
+                return None
+
+            if target in data_target["failed"]:
+                self.logger.info(f"Comparing target site <{target}> failed. Error site <{target}> is in <{data_target["failed"][target]}> state")
+                return None
+
             if not target in data_target[c.SITES_KEY]:
                 self.logger.info(f"Comparing new site <{target}> not found in file {target_file}.")
                 return None
@@ -580,10 +588,12 @@ class Api(object):
                 self.logger.info(f"Comparing new site <{source}> not found in file {source_file}.")
                 return None
 
+            # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
             legacy_to_smv2 = data_source[c.SITES_KEY][source]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC, c.F5XC_SITE_TYPE_AZURE_VNET] and data_target[c.SITES_KEY][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
             smv1_to_smv2 = data_source[c.SITES_KEY][source]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_target[c.SITES_KEY][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
 
             if legacy_to_smv2 or smv1_to_smv2:
+                print(1)
                 compared = diff(data_source[c.SITES_KEY][source], data_target[c.SITES_KEY][target], syntax="compact")
                 r = []
                 # build list of key paths

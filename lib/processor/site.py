@@ -636,8 +636,8 @@ class Site(Base):
                                 if "outside_subnet" in node:
                                     self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
 
-                                if "workload_subnet" in node:
-                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
+                                #if "workload_subnet" in node:
+                                #    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
                 elif self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_GCP_VPC:
                     nic_setup = self.get_site_nic_mode(site=site)
@@ -706,8 +706,8 @@ class Site(Base):
                                 if nic_setup == "ingress_egress_gw":
                                     if "inside_subnet" in node:
                                         self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
-                                    if "workload_subnet" in node:
-                                        self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
+                                    #if "workload_subnet" in node:
+                                    #    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
         return self.data
 
