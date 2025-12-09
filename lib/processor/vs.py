@@ -81,4 +81,8 @@ class Vs(Base):
                         self.logger.debug(json.dumps(r, indent=2))
                         process()
 
+        # Generate filter expressions for each virtual site
+        self.data["filter_expressions_per_virtual_site"] = list()
+        self.data["filter_expressions_per_virtual_site"] = self.gen_filter_expressions_per_virtual_site()
+
         return self.data

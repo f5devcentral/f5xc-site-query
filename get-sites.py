@@ -90,7 +90,7 @@ def main():
 
     if args.query:
         q.run()
-        # q.write_json_file(args.file)
+        q.write_json_file(args.file)
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         logger.info(f'Query time: {int(elapsed_time)} seconds with {args.workers} workers')

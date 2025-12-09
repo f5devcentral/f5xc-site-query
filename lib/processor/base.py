@@ -167,7 +167,38 @@ class Base(ABC):
     def __repr__(self):
         return f"class: {self.__class__.__name__}, api_url: {self.api_url}, site: {self._site}, workers: {self.workers}"
 
-    def get_site_member_of_virtual_sites(self, site: str) -> set | None:
+    def gen_filter_expressions_per_virtual_site(self) -> list | None:
+        vs_details = list()
+
+        for vs_name, vs_attr in self.data[c.VIRTUAL_SITES_KEY].items():
+            parsed_results = []
+
+            for exp in vs_attr["spec"]["site_selector"]["expressions"]:
+                self.logger.debug("#" * 80)
+
+                # Split into single expression each
+                individual_filters = _split_filter_string(exp)
+
+                self.logger.debug(f"-> Found individual filter ({len(individual_filters)}): {individual_filters}")
+                self.logger.debug("-" * 80)
+
+                for i, filter_str in enumerate(individual_filters):
+                    result = _parse_single_filter(filter_str)
+                    parsed_results.append(result)
+
+                    self.logger.debug(f"--- Filter: {i + 1} ---")
+                    self.logger.debug(f"INPUT: {filter_str}")
+
+                    for k, v in result.items():
+                        self.logger.debug(f"  {k.ljust(15)}: {v}")
+
+                self.logger.debug("=" * 80)
+
+            vs_details.append({"vs_name": vs_name, "filter_expressions": parsed_results})
+
+        return vs_details
+
+    def get_site_member_of_virtual_sites(self, site: str, filter_expressions_per_virtual_site: list) -> set | None:
         """
         Evaluate site_selector expression in virtual site data
         Split expression into key, operator, value parts. If value is a comma separated list of items split these
@@ -185,80 +216,27 @@ class Base(ABC):
         # Store virtual sites current site is a member of
         site_is_member_of_virtual_sites = set()
 
+        for label, value in self.data["sites"][site]["metadata"]["labels"].items():
+            for item in filter_expressions_per_virtual_site:
+                multiple = dict()
 
-        def _process_site(_filter: dict):
-            for label, value in self.data["sites"][site]["metadata"]["labels"].items():
-                #print("Label:", label)
-                #print("Value:", value)
-                #print(_filter)
-                if label == _filter["key"] and value == _filter["value"]:
-                    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
-                #for expression in filter:
-                   # if label == expression["key"] and value == expression["value"]:
-                   #     site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
-                   # elif label == expression["key"] and value in expression["value"]:
-                    #    if site == "aswins-test-smg-ce1":
-                    #        pass
-                            # print("LABEL:", label, "==", "expression[key]:", expression["key"])
-                            # print("VALUE:", value, "==", "expression[value]", expression["value"])
-                        # print(vs_attr["metadata"]["name"])
-                        # site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
+                for filter_expression in item["filter_expressions"]:
+                    if filter_expression['filter_type'] == FILTER_TYPE_1_AND_2:
+                        if label == filter_expression["key"] and value == filter_expression["value"]:
+                            site_is_member_of_virtual_sites.add(item["vs_name"])
+                    elif filter_expression['filter_type'] == FILTER_TYPE_3:
+                        if label == filter_expression["key"] and value in filter_expression["values"]:
+                            site_is_member_of_virtual_sites.add(item["vs_name"])
+                    elif filter_expression['filter_type'] == FILTER_TYPE_4:
+                        if label == filter_expression["key"] and value == filter_expression["value"]:
+                            multiple[f"{item["vs_name"]}"] = True
+                        else:
+                            multiple[f"{item["vs_name"]}"] = False
 
-        for vs_name, vs_attr in self.data[c.VIRTUAL_SITES_KEY].items():
-            _expressions = list()
-
-            for exp in vs_attr["spec"]["site_selector"]["expressions"]:
-                if site == "aswins-test-smg-ce1":
-                    #self.logger.info("#" * 80)
-
-                    # Split into single expression each
-                    individual_filters = _split_filter_string(exp)
-
-                    #self.logger.info(f"-> Found individual filter ({len(individual_filters)}): {individual_filters}")
-                    #self.logger.info("-" * 80)
-
-                    parsed_results = []
-                    for i, filter_str in enumerate(individual_filters):
-                        result = _parse_single_filter(filter_str)
-                        parsed_results.append(result)
-
-                        self.logger.info(f"--- Filter: {i + 1} ---")
-                        #self.logger.info(f"INPUT: {filter_str}")
-
-                        for k, v in result.items():
-                            self.logger.debug(f"  {k.ljust(15)}: {v}")
-
-                    #print(parsed_results)
-                    for label, value in self.data["sites"][site]["metadata"]["labels"].items():
-                        # print("Label:", label)
-                        # print("Value:", value)
-                        # print(_filter)
-                        for _filter in parsed_results:
-                            if _filter['filter_type'] == FILTER_TYPE_1_AND_2:
-                                if label == _filter["key"] and value in _filter["value"]:
-                                    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
-                            elif _filter['filter_type'] == FILTER_TYPE_3:
-                                if label == _filter["key"] and value in _filter["values"]:
-                                    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
-                            elif _filter['filter_type'] == FILTER_TYPE_4:
-                                pass
-                            #    if v == FILTER_TYPE_1_AND_2:
-                            #        pass
-                            # print("------------------------ Filter TYPE 1 or Type 2 -------------------------")
-                            #    elif v == FILTER_TYPE_3:
-                            #        pass
-                            # print("------------------------ Filter TYPE 3 -------------------------")
-                            #    elif v == FILTER_TYPE_4:
-                            #        print("------------------------ Filter TYPE 4 -------------------------")
-                            # self.logger.info(f"  {k.ljust(15)}: {v}")
-                            #        self.logger.info(f"{result}")
-                            # _process_site(result)
-                            #print(_filter)
-                            #print(_filter["key"], _filter["value"])
-                            #if label == _filter["key"] and value == _filter["value"]:
-                            #    site_is_member_of_virtual_sites.add(vs_attr["metadata"]["name"])
-
-                    #self.logger.info("=" * 80)
+                if multiple:
+                    if all(multiple.values()):
+                        self.logger.debug(f"MULTIPLE: {all(multiple.values())} --> {multiple}")
+                        site_is_member_of_virtual_sites.add(item["vs_name"])
 
         return site_is_member_of_virtual_sites
 

@@ -67,8 +67,7 @@ SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 #
 # Site query
 #
-#API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
-API_PROCESSORS = ["site"]
+API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
 CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces", "vsites"]
 XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces", "vsites"]
@@ -78,15 +77,15 @@ COMPARE_REGEX_HW_INFO_CPU_FLAGS = "nodes/.*/hw_info/cpu/flags"
 COMPARE_REGEX_HW_INFO_USB = "nodes/.*/hw_info/usb"
 COMPARE_REGEX_NODES = "nodes/.*"
 COMPARE_REGEX_SPEC = "spec/.*"
+COMPARE_REGEX_LEGACY_KEY = "legacy"
 COMPARE_REGEX_METADATA = "metadata/.*"
 COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT= "nodes/.*/interfaces/1/ethernet_interface/segment_network"
 COMPARE_REGEX_NODE_HW_INFO_BIOS = "nodes/.*/hw_info/bios/"
 EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity", COMPARE_REGEX_HW_INFO_USB, COMPARE_REGEX_HW_INFO_CPU_FLAGS,
-                              COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT, COMPARE_REGEX_NODE_HW_INFO_BIOS]
+                              COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT, COMPARE_REGEX_NODE_HW_INFO_BIOS, COMPARE_REGEX_LEGACY_KEY]
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-#SITE_OBJECT_PROCESSORS = ["site_details", "virtual_site", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
-SITE_OBJECT_PROCESSORS = ["site_details", "virtual_site"]
+SITE_OBJECT_PROCESSORS = ["site_details", "virtual_site", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,

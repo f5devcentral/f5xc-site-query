@@ -692,7 +692,7 @@ class Xlsx(object):
 
         # WS Infrastructure Tab
         ws_services = self.wb.create_sheet("Infrastructure", order)
-        ws_services.column_dimensions['A'].width = 25
+        ws_services.column_dimensions['A'].width = 30
         ws_services.column_dimensions['B'].width = 80
         ws_services.column_dimensions['C'].width = 80
         ws_services.column_dimensions['D'].width = 20
@@ -708,10 +708,10 @@ class Xlsx(object):
 
         ]
 
-        if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1 or data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+        if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
             table_data_infrastructure.append(("Labels", join_dict_items(data_source["sms"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])))
         else:
-            table_data_infrastructure.append(("Labels", data_source["legacy"]["metadata"]["labels"], data_target["sms"]["metadata"]["labels"]))
+            table_data_infrastructure.append(("Labels", join_dict_items(data_source["legacy"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])))
 
         table_data_infrastructure.extend(
             [
@@ -788,9 +788,9 @@ class Xlsx(object):
 
         # Node0 Interface computation
         source_node0_interfaces = list()
-        for interface in data_source["nodes"]["node0"]["interfaces"]:
-            interface_details = dict()
-            if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+        if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+            for interface in data_source["nodes"]["node0"]["interfaces"]:
+                interface_details = dict()
                 if "dedicated_interface" in interface.keys():
                     interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
                     interface_details["device_name"] = interface["dedicated_interface"]["device"]
@@ -813,11 +813,19 @@ class Xlsx(object):
                     interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
                     _interface = ["Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                     source_node0_interfaces.append(_interface)
+        else:
+            # Legacy sites
+            for interface_name, interface_attrs in data_source["nodes"]["node0"]["interfaces"].items():
+                interface_details = dict()
+                interface_details["device_name"] = interface_name
+                interface_details["existing_subnet_id"] =  interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                _interface = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                source_node0_interfaces.append(_interface)
 
         target_node0_interfaces = list()
         for interface in data_target["nodes"]["node0"]["interfaces"]:
-            interface_details = dict()
             if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                interface_details = dict()
                 if "dedicated_interface" in interface.keys():
                     interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
                     interface_details["device_name"] = interface["dedicated_interface"]["device"]
@@ -842,16 +850,19 @@ class Xlsx(object):
                     target_node0_interfaces.append(_interface)
 
         table_data_infrastructure_interfaces = []
-
-        for source, target in itertools.zip_longest(source_node0_interfaces, target_node0_interfaces, fillvalue=["N/A", "N/A"]):
-            table_data_infrastructure_interfaces.append(tuple(source + target))
+        if len(source_node0_interfaces) >= len(target_node0_interfaces):
+            for source, target in itertools.zip_longest(source_node0_interfaces, target_node0_interfaces, fillvalue=["N/A", "N/A"]):
+                table_data_infrastructure_interfaces.append(tuple(source + target))
+        else:
+            for source, target in itertools.zip_longest(source_node0_interfaces, target_node0_interfaces, fillvalue=["Node0", "N/A", "N/A"]):
+                table_data_infrastructure_interfaces.append(tuple(source + target))
 
         if data_source["main_node_count"] > 1 and data_target["main_node_count"] > 1:
             # Node1 Interface computation
             source_node1_interfaces = list()
-            for interface in data_source["nodes"]["node1"]["interfaces"]:
-                interface_details = dict()
-                if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+            if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                for interface in data_source["nodes"]["node1"]["interfaces"]:
+                    interface_details = dict()
                     if "dedicated_interface" in interface.keys():
                         interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
                         interface_details["device_name"] = interface["dedicated_interface"]["device"]
@@ -874,6 +885,14 @@ class Xlsx(object):
                         interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
                         _interface = ["Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                         source_node1_interfaces.append(_interface)
+            else:
+                # Legacy sites
+                for interface_name, interface_attrs in data_source["nodes"]["node1"]["interfaces"].items():
+                    interface_details = dict()
+                    interface_details["device_name"] = interface_name
+                    interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                    _interface = [f"Node1", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                    source_node1_interfaces.append(_interface)
 
             target_node1_interfaces = list()
             for interface in data_target["nodes"]["node1"]["interfaces"]:
@@ -902,14 +921,18 @@ class Xlsx(object):
                         _interface = [f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                         target_node1_interfaces.append(_interface)
 
-            for source, target in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["N/A", "N/A"]):
-                table_data_infrastructure_interfaces.append(tuple(source + target))
+            if len(source_node1_interfaces) >= len(target_node1_interfaces):
+                for source, target in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(source + target))
+            else:
+                for source, target in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["Node1", "N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(source + target))
 
             # Node2 Interface computation
             source_node2_interfaces = list()
-            for interface in data_source["nodes"]["node2"]["interfaces"]:
-                interface_details = dict()
-                if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+            if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                for interface in data_source["nodes"]["node2"]["interfaces"]:
+                    interface_details = dict()
                     if "dedicated_interface" in interface.keys():
                         interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
                         interface_details["device_name"] = interface["dedicated_interface"]["device"]
@@ -932,11 +955,19 @@ class Xlsx(object):
                         interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
                         _interface = ["Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                         source_node2_interfaces.append(_interface)
+            else:
+                # Legacy sites
+                for interface_name, interface_attrs in data_source["nodes"]["node2"]["interfaces"].items():
+                    interface_details = dict()
+                    interface_details["device_name"] = interface_name
+                    interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                    _interface = [f"Node2", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                    source_node2_interfaces.append(_interface)
 
             target_node2_interfaces = list()
-            for interface in data_target["nodes"]["node2"]["interfaces"]:
-                interface_details = dict()
-                if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+            if data_target["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                for interface in data_target["nodes"]["node2"]["interfaces"]:
+                    interface_details = dict()
                     if "dedicated_interface" in interface.keys():
                         interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
                         interface_details["device_name"] = interface["dedicated_interface"]["device"]
@@ -960,8 +991,12 @@ class Xlsx(object):
                         _interface = [f"{interface_details["device_name"]}", join_dict_items(interface_details)]
                         target_node2_interfaces.append(_interface)
 
-            for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["N/A", "N/A"]):
-                table_data_infrastructure_interfaces.append(tuple(source + target))
+            if len(source_node2_interfaces) >= len(target_node2_interfaces):
+                for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(source + target))
+            else:
+                for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["Node2", "N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(source + target))
 
         ws_services.append([f"Infrastructure comparison: {data_source["metadata"]["name"]} with {data_target["metadata"]["name"]}"])
         ws_services.merge_cells(f"A{ws_services.max_row}:F{ws_services.max_row}")
@@ -987,7 +1022,6 @@ class Xlsx(object):
 
         append_count = 0
         for item, source, target in table_data_infrastructure:
-            #print(item, "---", source, "---", target)
             ws_services.append([item, source, target])
             append_count = append_count + 1
 

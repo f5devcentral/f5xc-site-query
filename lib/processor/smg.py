@@ -41,15 +41,13 @@ class Smg(Base):
             site_mesh_groups = self.execute(name="site mesh group", urls=urls_smg)
 
             for site in self.data[c.SITES_KEY].keys():
-                # Store virtual sites current site is a member of
-                site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site)
-
                 # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
                 if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
+                    site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site, filter_expressions_per_virtual_site=self.data["filter_expressions_per_virtual_site"])
                     self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
-                else:
-                    merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
-                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
+                #else:
+                #    merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | self.site_is_member_of_virtual_sites
+                #    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
 
                 # Add secure mesh site group to site data
                 # If secure mesh site group virtual site name is in list of virtual sites this site is a member of
@@ -58,7 +56,7 @@ class Smg(Base):
 
                 for smg in site_mesh_groups:
                     if len(smg['data']['spec']['virtual_site']) > 0:
-                        if smg['data']["spec"]["virtual_site"][0]["name"] in site_is_member_of_virtual_sites:
+                        if smg['data']["spec"]["virtual_site"][0]["name"] in self.data[c.SITES_KEY][site]["vsites"]:
                             self.data[c.SITES_KEY][site]["smg"][smg["data"]["metadata"]["name"]] = dict()
                             self.data[c.SITES_KEY][site]["smg"][smg["data"]["metadata"]["name"]]["metadata"] = smg["data"]["metadata"]
                             self.data[c.SITES_KEY][site]["smg"][smg["data"]["metadata"]["name"]]["spec"] = smg["data"]["spec"]

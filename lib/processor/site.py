@@ -1,7 +1,6 @@
 import concurrent.futures
 import json
 from logging import Logger
-from typing import Any
 
 from requests import Session
 
@@ -260,32 +259,41 @@ class Site(Base):
         return self.data
 
     def process_virtual_site(self):
-        print(100*"#")
-        print("VS SITE LOGIC")
-        name = "./json/all-ns-staging-automation.json"
+        """
+        process_virtual_site depends on API processor "vs". API processor must be executed to get site vs memberships
+        process_virtual_site depends on shared list variable <filter_expressions_per_virtual_site>
+        process_virtual_site sets site vs memberships
+        Returns
+        -------
 
-        with open(name, 'r') as fd:
-            self._data = json.load(fp=fd)
-            if c.SITES_KEY in self._data and c.VIRTUAL_SITES_KEY in self._data:
-                self.logger.info(
-                    f"{len(self._data[c.SITES_KEY])} {c.SITES_KEY if len(self._data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self._data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(self._data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
-            else:
-                self.logger.info(f"Error reading data from file {name}. No site data available")
+        """
 
         for site in self.data[c.SITES_KEY].keys():
-            # Store virtual sites current site is a member of. This step requires virtual site processor already done
-            site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site)
-            if site == "aswins-test-smg-ce1":
-                print("site_is_member_of_virtual_sites", site_is_member_of_virtual_sites)
+            if self.site != "":
+                if site == self.site:
+                    # Store virtual sites current site is a member of. This step requires virtual site processor already done
+                    site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site, filter_expressions_per_virtual_site=self.data["filter_expressions_per_virtual_site"])
+                    self.logger.info(f"site: <{site}> is member of <{len(site_is_member_of_virtual_sites)}> virtual_sites")
+                    self.logger.info(f"site: <{site}> is member of: {site_is_member_of_virtual_sites}")
 
-            # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
-            if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
-                self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                    # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
+                    if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
+                        self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                    else:
+                        merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
+                        self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
             else:
-                merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
-                self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
+                # Store virtual sites current site is a member of. This step requires virtual site processor already done
+                site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site, filter_expressions_per_virtual_site=self.data["filter_expressions_per_virtual_site"])
+                self.logger.info(f"site: <{site}> is member of <{len(site_is_member_of_virtual_sites)}> virtual_sites")
+                self.logger.info(f"site: <{site}> is member of: {site_is_member_of_virtual_sites}")
 
-        print(100 * "#")
+                # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
+                if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
+                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                else:
+                    merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
+                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
 
     def process_efp(self) -> dict | None:
         """

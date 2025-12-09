@@ -235,6 +235,8 @@ class Api(object):
         if name not in ['stdout', '-', '']:
             try:
                 with open(name, 'w') as fd:
+                    if "filter_expressions_per_virtual_site" in self.data:
+                        del self.data["filter_expressions_per_virtual_site"]
                     fd.write(json.dumps(self.data, indent=2))
                     self.logger.info(f"{len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self.data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(self.data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} written to {name}")
             except OSError as e:
@@ -497,7 +499,7 @@ class Api(object):
                                                 self.logger.debug(f"APPEND NEW ITEM14: {f"{parent_key}/{item}/{lb_type.split("_")[0]}"}")
                                 else:
                                     resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
-                                    self.logger.debug(f"APPEND NEW ITEM15: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                    self.logger.debug(f"APPEND NEW ITEM16: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                         elif key.label == "replace":
                             self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
                             if parent_key == "namespaces":
@@ -621,7 +623,14 @@ class Api(object):
                                             table.add_row([k, {k1: v}])
                                 table.add_divider()
                             else:
-                                table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
+                                # Catch vsites to attach namespace to the path. All vsites should be moved below namespaces key.
+                                # Each namespace should have its own vsites name list.
+                                if k.split("/")[0] == "vsites":
+                                    namespace = data_source["virtual_sites"][values_from_path[0] if len(values_from_path) == 1 else values_from_path]["metadata"]["namespace"]
+                                    self.logger.debug(f"APPEND TABLE ROW: namespaces/{namespace}/vsites")
+                                    table.add_row([f"namespaces/{namespace}/vsites", values_from_path[0] if len(values_from_path) == 1 else values_from_path])
+                                else:
+                                    table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
                                 table.add_divider()
 
                 return table
