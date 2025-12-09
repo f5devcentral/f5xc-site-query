@@ -654,7 +654,6 @@ class Xlsx(object):
         if self.site != "":
             site = sites[self.site]
 
-
         # WS Services Tab
         ws_services = self.wb.create_sheet("Services", order)
         ws_services.column_dimensions['A'].width = 25
@@ -764,6 +763,9 @@ class Xlsx(object):
         -------
 
         """
+
+        if self.site is None:
+            self.logger.info(f"Building inventory failed. Site name required. use -s option to provide site name")
 
         self.build_inventory_summary(0, data)
         self.build_inventory_infrastructure(1, data)
