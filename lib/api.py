@@ -9,7 +9,7 @@ import sys
 
 from collections import OrderedDict
 from logging import Logger
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 
 import jsondiff
 import requests
@@ -23,36 +23,85 @@ from lib.xlsx import Xlsx
 
 def custom_key_sorter(key: str) -> Tuple[int, int, str]:
     """
-    Creates a sorting tuple for each key: (Priority, Node_Index, Key_Name).
+    Sorting function for Node keys.
+    Priority 1: Node-related keys (node0_*, node1_*, etc.)
+    Sorts by node number (n=0, 1, 2...), then alphabetically.
+    """
+    if key.startswith('node') and key[4:5].isdigit():
+        match = re.match(r'node(\d+)(.*)', key)
+        if match:
+            node_number = int(match.group(1))
+            # Returns: (Priority Level, Node Index, Key Name)
+            return 1, node_number, key
 
-    Priority 0: General/Top-level keys (Highest priority)
-    Priority 1: Node-related keys (Grouped by index, then name)
-    Priority 2: Namespace-scoped keys
-    Priority 99: Divider/Title keys (Lowest priority, pushed to the end of blocks)
+    # Priority 0: All other keys
+    # Returns: (Priority Level, Sub-Index, Key Name)
+    return 0, 0, key
+
+
+def build_master_key_list(source_keys: List[str], target_keys: List[str]) -> List[str]:
+    """
+    Builds the final, sorted master list of keys by inserting target-only keys
+    into the logical group structure of the source keys.
     """
 
-    # Priority 99: Divider and Title keys
-    if key.startswith('add_section_title_') or key.startswith('add_divider_'):
-        # Pushes these items far down the list.
-        return (99, 0, key)
+    source_set = set(source_keys)
+    target_set = set(target_keys)
 
-    # Priority 1: Node-related keys (node0_*, node1_*, etc.)
-    match = re.match(r'([a-z_]+)(\d+)(.*)', key)
-    if match:
-        # Extract the node number
-        number = int(match.group(2))
+    # Keys that exist only in the Target
+    target_only_set = target_set - source_set
 
-        # FIXED: Sorts first by node number (0, 1, 2, 3...), then alphabetically by key name.
-        # This ensures ALL node0 details are together, followed by ALL node1 details, etc.
-        return (1, number, key)
+    # Master list of keys
+    master_keys = []
 
-        # Priority 2: Namespace-scoped keys (e.g., 'default[proxys]')
-    if '[' in key and ']' in key:
-        return (2, 0, key)
+    # Regular keys and keys that exist in both
+    for key in source_keys:
+        master_keys.append(key)
 
-    # Priority 0: General/Top-level keys (name, kind, count variables).
-    # These remain at the top of the entire comparison.
-    return (0, 0, key)
+    # Identify and sort Target-Only Keys
+    # Note: custom_key_sorter is assumed to exist and sort based on 'node' numbers.
+    target_only_keys_sorted = sorted(list(target_only_set), key=custom_key_sorter)
+
+    # Supplement the master list with Target-Only Keys at the correct position
+    final_master_keys = []
+
+    # Iterate over the Source list and try to insert target keys in between
+    for key in master_keys:
+        final_master_keys.append(key)
+
+        # Logic: After each logical group in Source (Node, EFP/FPP, Namespace-Pools, etc.),
+        # we check if Target-Only Keys fall into this group.
+
+        # Insert all Target-Only Node keys AFTER the last Source Node key (e.g., after node2_interfaces)
+        if key.startswith('node') and key[4:5].isdigit():
+            # Find the highest node number in the Source list (e.g., 2)
+            node_numbers = [int(re.match(r'node(\d+)', k).group(1)) for k in final_master_keys if re.match(r'node\d+', k)]
+            max_source_node = max(node_numbers) if node_numbers else -1
+
+            # Check if this is the last node key in the Source list (nodeX_interfaces)
+            # This is a heuristic, based on the assumption that node_interfaces is the last in the group.
+            # Alternative: Insert all Target-Only Nodes after the last node key of the Source
+            if key == f'node{max_source_node}_interfaces':
+                # Filter Target-Only Node keys (e.g., node3_interfaces, node4_interfaces,...)
+                target_only_node_keys = [k for k in target_only_keys_sorted
+                                         if re.match(r'node(\d+)', k) and int(re.match(r'node(\d+)', k).group(1)) > max_source_node]
+
+                if target_only_node_keys:
+                    final_master_keys.extend(target_only_node_keys)
+
+                    # Remove them from the Target-Only list to prevent double use later
+                    target_only_set -= set(target_only_node_keys)
+                    target_only_keys_sorted = sorted(list(target_only_set), key=custom_key_sorter)
+
+    # --- Remaining Target-Only Keys (Namespace Pools, etc.) ---
+    # These are appended at the end, as they do not have a direct relation to a specific
+    # Source key at a particular position (other than the Nodes).
+    # Here they are simply added as a second 'Target-Only' group at the very end.
+    if target_only_keys_sorted:
+        final_master_keys.extend(target_only_keys_sorted)
+
+    return final_master_keys
+
 
 def join_dict_items(data_dict: dict, separator="\n"):
     """
@@ -744,15 +793,15 @@ class Api(object):
                                     node_interfaces = list()
                                     for interface in node_values["interfaces"]:
                                         interface_details = dict()
-                                        #table_data.extend([f"add_section_title_{node_name}_interfaces", "node_interfaces"])
+                                        # table_data.extend([f"add_section_title_{node_name}_interfaces", "node_interfaces"])
                                         if "dedicated_interface" in interface.keys():
                                             interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
                                             interface_details["device_name"] = interface["dedicated_interface"]["device"]
                                             interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
                                             interface_details["interface_type"] = "dedicated_interface"
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
                                             node_interfaces.append(interface_details["device_name"])
                                         if "ethernet_interface" in interface.keys():
                                             interface_details["mtu"] = interface["ethernet_interface"]["mtu"]
@@ -766,21 +815,21 @@ class Api(object):
                                                     network_prefixes.append(network["network_prefix"])
                                                 interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
                                             interface_details["interface_type"] = "ethernet_interface"
-                                            interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface["ethernet_interface"].keys() else "None"
+                                            interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface[
+                                                "ethernet_interface"].keys() else "None"
                                             node_interfaces.append(interface_details["device_name"])
 
-                                           # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
-                                           # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
-                                           # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
-                                           # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_server", interface_details["dhcp_server"]])
-                                           # if "dhcp_networks" in interface_details.keys():
-                                           #     table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_networks", interface_details["dhcp_networks"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_server", interface_details["dhcp_server"]])
+                                        # if "dhcp_networks" in interface_details.keys():
+                                        #     table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_networks", interface_details["dhcp_networks"]])
                                     table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
                             elif data["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
                                 for node_name, node_values in data[key_path[0]].items():
                                     node_interfaces = list()
                                     for interface in node_values["interfaces"]:
-                                        #print(node_name, interface["name"])
                                         interface_details = dict()
                                         interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
                                         interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
@@ -790,7 +839,8 @@ class Api(object):
                                         interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
                                         interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
                                         interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
-                                        interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface["network_option"].keys() else "None"
+                                        interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
+                                            "network_option"].keys() else "None"
                                         if "dhcp_server" in interface.keys():
                                             network_prefixes = list()
                                             for network in interface["dhcp_server"]["dhcp_networks"]:
@@ -801,18 +851,16 @@ class Api(object):
                                             interface_details["interface_type"] = "ethernet_interface"
                                             interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface[
                                                 "ethernet_interface"].keys() else "None"
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_site_local_network", interface_details["site_local_network"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_site_local_inside_network", interface_details["site_local_inside_network"]])
-                                            #table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_server", interface_details["dhcp_server"]])
-                                            #if "dhcp_networks" in interface_details.keys():
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_site_local_network", interface_details["site_local_network"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_site_local_inside_network", interface_details["site_local_inside_network"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_server", interface_details["dhcp_server"]])
+                                            # if "dhcp_networks" in interface_details.keys():
                                             #    table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_networks", interface_details["dhcp_networks"]])
                                         node_interfaces.append(interface["name"])
                                     table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
-                                    #print(len(node_interfaces))
-                                    print(node_name, node_interfaces)
                             else:
                                 pass
 
@@ -824,14 +872,12 @@ class Api(object):
                             origin_pool_count = 0
                             for namespace, values in data.items():
                                 table_data.extend(["add_section_title_op", "origin_pools"])
-                                table_data.extend(["add_divider_op", "divider_origin_pools"])
                                 for item, item_values in values.items():
                                     if item == "origin_pools":
                                         origin_pools = values.get(key_path[0])
                                         origin_pool_count = origin_pool_count + len(origin_pools.keys())
                                         table_data.extend([f"origin_pool_count", origin_pool_count])
                                         table_data.extend([f"{namespace}[origin_pools]", format_list_with_newlines(list(origin_pools.keys()))])
-                                table_data.extend(["add_divider_op", "origin_pools"])
                         elif key_path[0] == "loadbalancer":
                             load_balancer_count = 0
                             for namespace, values in data.items():
@@ -841,7 +887,7 @@ class Api(object):
                                         for lb_type, load_balancer in item_values.items():
                                             load_balancer_count = load_balancer_count + len(load_balancer.keys())
                                             table_data.extend([f"load_balancer_count", load_balancer_count])
-                                            table_data.extend([f"{namespace}[load_balancer]", format_list_with_newlines(list(load_balancer.keys()))])
+                                            table_data.extend([f"{namespace}[load_balancer][{lb_type}]", format_list_with_newlines(list(load_balancer.keys()))])
                         elif key_path[0] == "proxys":
                             proxys_count = 0
                             for namespace, values in data.items():
@@ -880,9 +926,6 @@ class Api(object):
                 for allowed_path in compare_paths:
                     p = allowed_path.split("/")
                     recurse(p, data_source[c.SITES_KEY][source], source_table_data)
-
-                for allowed_path in compare_paths:
-                    p = allowed_path.split("/")
                     recurse(p, data_target[c.SITES_KEY][target], target_table_data)
 
                 # Convert flat lists into ordered Dictionaries (using OrderedDict for robustness across Python versions)
@@ -890,41 +933,24 @@ class Api(object):
                 source_dict = OrderedDict(zip(source_table_data[0::2], source_table_data[1::2]))
                 target_dict = OrderedDict(zip(target_table_data[0::2], target_table_data[1::2]))
 
-                #print(source_dict)
-                #print(target_dict)
+                self.logger.debug(source_dict)
+                self.logger.debug(target_dict)
 
-                # Create an Ordered Union of all keys (keys_list)
-                # We use a standard dict (Python 3.7+) or OrderedDict as a helper to collect unique keys
-                # in the order they are encountered.
-                # Start with source keys
-                all_keys_ordered = {k: None for k in source_dict.keys()}
-                # Add target keys (existing keys keep their position)
-                for key in target_dict.keys():
-                    all_keys_ordered[key] = None
-
-                keys_list = list(all_keys_ordered.keys())
                 # Build the final result list using the unified keys
                 placeholder = 'N/A'
 
-                for key in keys_list:
-                #for key in final_keys_list:
-                    if key.startswith("add_divider_"):
-                        pass
-                        # table.add_divider()
-                    elif key.startswith("add_section_title_"):
-                        # section_title = source_dict.get(key)
+                # Master Key Liste generieren
+                source_keys = list(source_dict.keys())
+                target_keys = list(target_dict.keys())
+                final_master_keys = build_master_key_list(source_keys, target_keys)
+
+                for key in final_master_keys:
+                    val1 = source_dict.get(key, placeholder)
+                    val2 = target_dict.get(key, placeholder)
+
+                    if key.startswith("add_section_title_"):
                         table.add_divider()
-                        # table.add_row([40 * "-", 40 * "-", 40 * "-"])
-                        # table.add_row([f"#############################", f"", f""])
-                        # table.add_row([f"###### {section_title} ######", f"", f""])
-                        # table.add_row([f"#############################", f"", f""])
-                        # table.add_row([f"----- {section_title} ------", f"----- {section_title} ------", f"----- {section_title} ------"])
-                        # table.add_row([40 * "-", 40 * "-", 40 * "-"])
-                        # table.add_row(["", "", ""])
-                    # Use dict.get() with the placeholder to safely retrieve values
                     else:
-                        val1 = source_dict.get(key, placeholder)
-                        val2 = target_dict.get(key, placeholder)
                         table.add_row([key, val1, val2])
 
                 return table
