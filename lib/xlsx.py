@@ -334,10 +334,10 @@ class Xlsx(object):
                 ]
             )
 
-        if "hw_info" in site["nodes"]["node2"]:
-            for storage_site in site["nodes"]["node2"]["hw_info"]["storage"]:
-                site_node1_storage_size = storage_site["size_gb"]
-                table_data_infrastructure.append((f"Node2 Storage {storage_site["name"]} Size (GB)", site_node1_storage_size))
+            if "hw_info" in site["nodes"]["node2"]:
+                for storage_site in site["nodes"]["node2"]["hw_info"]["storage"]:
+                    site_node1_storage_size = storage_site["size_gb"]
+                    table_data_infrastructure.append((f"Node2 Storage {storage_site["name"]} Size (GB)", site_node1_storage_size))
 
         # Node0 Interface computation
         site_node0_interfaces = list()
@@ -822,8 +822,8 @@ class Xlsx(object):
                 [
                     ("Node1 CPU Count", data_source["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node1"] else 0,
                      data_target["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node1"] else 0),
-                    ("Node1 Memory Size (GB)", data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024 if "hw_info" in data_source["nodes"]["node1"] else 0,
-                     round(data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"]) / 1024 if "hw_info" in data_target["nodes"]["node1"] else 0),
+                    ("Node1 Memory Size (GB)", round(data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node1"] else 0,
+                     round(data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node1"] else 0),
                     ("Node1 Interface Count", len(data_source["nodes"]["node1"]["interfaces"]) if "interfaces" in data_source["nodes"]["node1"] else 0,
                      len(data_target["nodes"]["node1"]["interfaces"]) if "interfaces" in data_target["nodes"]["node1"] else 0),
                 ]
@@ -839,7 +839,7 @@ class Xlsx(object):
                 [
                     ("Node2 CPU Count", data_source["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node2"] else 0,
                      data_target["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node2"] else 0),
-                    ("Node2 Memory Size (GB)", data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024 if "hw_info" in data_source["nodes"]["node2"] else 0,
+                    ("Node2 Memory Size (GB)", round(data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node2"] else 0,
                      round(data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node2"] else 0),
                     ("Node2 Interface Count", len(data_source["nodes"]["node2"]["interfaces"]) if "interfaces" in data_source["nodes"]["node2"] else 0,
                      len(data_target["nodes"]["node2"]["interfaces"]) if "interfaces" in data_target["nodes"]["node2"] else 0),
