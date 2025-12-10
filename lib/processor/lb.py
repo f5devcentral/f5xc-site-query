@@ -7,6 +7,8 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+__DEPENDENCIES__ = ["site"]
+
 QUERY_STRING_LB_HTTP = "/http_loadbalancers/"
 QUERY_STRING_LB_TCP = "/tcp_loadbalancers/"
 QUERY_STRING_LB_UDP = "/udp_loadbalancers/"
@@ -58,44 +60,44 @@ class Lb(Base):
                 lb_name = r["metadata"]["name"]
                 site_name = site_info[site_type][site_type]['name']
                 namespace = r["metadata"]["namespace"]
-                if site_name not in self.data[site_type].keys():
-                    self.data[site_type][site_name] = dict()
-                if 'namespaces' not in self.data[site_type][site_name].keys():
-                    self.data[site_type][site_name]['namespaces'] = dict()
-                if namespace not in self.data[site_type][site_name]['namespaces'].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace] = dict()
-                if "loadbalancer" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"] = dict()
+                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
+                if 'namespaces' not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
+                if namespace not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace] = dict()
+                if "loadbalancer" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"] = dict()
                 if QUERY_STRING_LB_TCP in future_to_ds[future]:
-                    if "tcp" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
-                        self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['spec'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['metadata'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['system_metadata'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['spec'] = r['spec']
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['metadata'] = r['metadata']
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['system_metadata'] = r['system_metadata']
+                    if "tcp" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"].keys():
+                        self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['spec'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['metadata'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["tcp"][lb_name]['system_metadata'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['spec'] = r['spec']
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['metadata'] = r['metadata']
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["tcp"][lb_name]['system_metadata'] = r['system_metadata']
                 if QUERY_STRING_LB_UDP in future_to_ds[future]:
-                    if "udp" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
-                        self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["udp"] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name]['spec'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name]['metadata'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name]['system_metadata'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["udp"][lb_name]['spec'] = r['spec']
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["udp"][lb_name]['metadata'] = r['metadata']
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["udp"][lb_name]['system_metadata'] = r['system_metadata']
+                    if "udp" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"].keys():
+                        self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["udp"] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name]['spec'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name]['metadata'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["udp"][lb_name]['system_metadata'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["udp"][lb_name]['spec'] = r['spec']
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["udp"][lb_name]['metadata'] = r['metadata']
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["udp"][lb_name]['system_metadata'] = r['system_metadata']
                 if QUERY_STRING_LB_HTTP in future_to_ds[future]:
-                    if "http" not in self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"].keys():
-                        self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['spec'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['metadata'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['system_metadata'] = dict()
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['spec'] = r['spec']
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['metadata'] = r['metadata']
-                    self.data[site_type][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['system_metadata'] = r['system_metadata']
+                    if "http" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"].keys():
+                        self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["http"] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['spec'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['metadata'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["loadbalancer"]["http"][lb_name]['system_metadata'] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['spec'] = r['spec']
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['metadata'] = r['metadata']
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['loadbalancer']["http"][lb_name]['system_metadata'] = r['system_metadata']
                 self.logger.info(f"process loadbalancer add data: [namespace: {namespace} loadbalancer: {lb_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 self.logger.info("site_type:", site_type)
@@ -140,7 +142,7 @@ class Lb(Base):
                                     for site_type in site_info.keys():
                                         if site_type in c.F5XC_SITE_TYPES:
                                             # Referenced site must exist
-                                            if site_info[site_type][site_type]['name'] in self.data[site_type]:
+                                            if site_info[site_type][site_type]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
                                                 # Only processing sites which are not in failed state
                                                 if site_info[site_type][site_type]['name'] not in self.data["failed"]:
                                                     if self.site:

@@ -1,12 +1,13 @@
 import concurrent.futures
 import json
-import pprint
 from logging import Logger
 
 from requests import Session
 
 import lib.const as c
 from lib.processor.base import Base
+
+__DEPENDENCIES__ = ["vs"]
 
 
 class Site(Base):
@@ -153,11 +154,11 @@ class Site(Base):
                     state, msg = get_site_status(site_kind=site['data']['system_metadata']['owner_view']["kind"])
 
                     if state:
-                        self.data['site'][site["object"]] = dict()
-                        self.data['site'][site["object"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
-                        self.data['site'][site["object"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
-                        self.data['site'][site["object"]]['metadata'] = site['data']['metadata']
-                        self.data['site'][site["object"]]['spec'] = site['data']['spec']
+                        self.data[c.SITES_KEY][site["object"]] = dict()
+                        self.data[c.SITES_KEY][site["object"]]['kind'] = site['data']['system_metadata']['owner_view']["kind"]
+                        self.data[c.SITES_KEY][site["object"]]['main_node_count'] = len(site['data']['spec']['main_nodes'])
+                        self.data[c.SITES_KEY][site["object"]]['metadata'] = site['data']['metadata']
+                        self.data[c.SITES_KEY][site["object"]]['spec'] = site['data']['spec']
             else:
                 if "untyped" not in self.data:
                     self.data['untyped'] = list()
@@ -181,7 +182,7 @@ class Site(Base):
         urls = dict()
 
         # Build urls for site
-        for site, values in self.data['site'].items():
+        for site, values in self.data[c.SITES_KEY].items():
             if 'kind' in values.keys():
                 urls[self.build_url(c.SITE_TYPE_TO_URI_MAP[values['kind']].format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=site))] = site
 
@@ -204,17 +205,44 @@ class Site(Base):
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
 
-                        if urls[future_to_ds[future]] in self.data['site']:
-                            if self.get_key_from_site_kind(urls[future_to_ds[future]]) not in self.data['site'][urls[future_to_ds[future]]].keys():
-                                self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])] = dict()
+                        if urls[future_to_ds[future]] in self.data[c.SITES_KEY]:
+                            if self.get_key_from_site_kind(urls[future_to_ds[future]]) not in self.data[c.SITES_KEY][urls[future_to_ds[future]]].keys():
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])] = dict()
 
-                            # Check if site is voltstack enabled
-                            self.data['site'][urls[future_to_ds[future]]]['sub_kind'] = c.F5XC_SITE_VOLT_STACK if "voltstack_cluster" in r["spec"] else None
-                            self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['metadata'] = r['metadata']
-                            self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'] = r['spec']
+                            # Check if site is VoltStack enabled
+                            self.data[c.SITES_KEY][urls[future_to_ds[future]]]['sub_kind'] = c.F5XC_SITE_VOLT_STACK if "voltstack_cluster" in r["spec"] else None
+                            self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['metadata'] = r['metadata']
+                            self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'] = r['spec']
 
+                            # Process worker nodes
+                            self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = 0
                             if "worker_nodes" in r['spec'].keys():
-                                self.data['site'][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+                                if self.data[c.SITES_KEY][urls[future_to_ds[future]]]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = len(r['spec']['worker_nodes'])
+                                else:
+                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['worker_nodes']
+                            elif "total_nodes" in r['spec'].keys():
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['total_nodes']
+                            elif "nodes_per_az" in r['spec'].keys():
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] = r['spec']['nodes_per_az']
+                            else:
+                                self.logger.info("process site details worker nodes: <worker_nodes>/<total_nodes> key not found. Processing node list...")
+
+                                if self.data[c.SITES_KEY][urls[future_to_ds[future]]]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                                    if c.F5XC_SMV2_PROVIDERS & set(
+                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'].keys()):
+                                        provider_key = list(c.F5XC_SMV2_PROVIDERS & set(
+                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'].keys()))[0]
+
+                                        if provider_key:
+                                            self.logger.info(f"process site details worker nodes: Processing node list for provider: {provider_key}")
+                                            for node in \
+                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]['spec'][provider_key][
+                                                'not_managed']['node_list']:
+                                                if node['type'] == "Worker":
+                                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['worker_node_count'] += 1
+
+                            self.logger.info("process site details worker nodes: <worker_nodes> key not found. Processing node list. Done.")
 
                             # check if sms or legacy object type
                             if self.get_key_from_site_kind(urls[future_to_ds[future]]) == c.SITE_OBJECT_TYPE_LEGACY:
@@ -223,10 +251,49 @@ class Site(Base):
 
                                 if nic_setup:
                                     # Set main node counter
-                                    if "az_nodes" in self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]["spec"][nic_setup]:
-                                        self.data['site'][urls[future_to_ds[future]]]['main_node_count'] = len(self.data['site'][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]["spec"][nic_setup]['az_nodes'])
+                                    if "az_nodes" in self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]["spec"][nic_setup]:
+                                        self.data[c.SITES_KEY][urls[future_to_ds[future]]]['main_node_count'] = len(
+                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]][self.get_key_from_site_kind(urls[future_to_ds[future]])]["spec"][nic_setup][
+                                                'az_nodes'])
 
         return self.data
+
+    def process_virtual_site(self):
+        """
+        process_virtual_site depends on API processor "vs". API processor must be executed to get site vs memberships
+        process_virtual_site depends on shared list variable <filter_expressions_per_virtual_site>
+        process_virtual_site sets site vs memberships
+        Returns
+        -------
+
+        """
+
+        for site in self.data[c.SITES_KEY].keys():
+            if self.site != "":
+                if site == self.site:
+                    # Store virtual sites current site is a member of. This step requires virtual site processor already done
+                    site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site, filter_expressions_per_virtual_site=self.data["filter_expressions_per_virtual_site"])
+                    self.logger.info(f"site: <{site}> is member of <{len(site_is_member_of_virtual_sites)}> virtual_sites")
+                    self.logger.info(f"site: <{site}> is member of: {site_is_member_of_virtual_sites}")
+
+                    # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
+                    if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
+                        self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                    else:
+                        merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
+                        self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
+            else:
+                # Store virtual sites current site is a member of. This step requires virtual site processor already done
+                site_is_member_of_virtual_sites = self.get_site_member_of_virtual_sites(site=site, filter_expressions_per_virtual_site=self.data["filter_expressions_per_virtual_site"])
+                self.logger.info(f"site: <{site}> is member of <{len(site_is_member_of_virtual_sites)}> virtual_sites")
+                self.logger.info(f"site: <{site}> is member of: {site_is_member_of_virtual_sites}")
+
+                # Add virtual sites current site is a member of below new key 'SITE_VIRTUAL_SITES'
+                if c.SITE_VIRTUAL_SITES_KEY not in self.data[c.SITES_KEY][site].keys():
+                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(site_is_member_of_virtual_sites)
+                else:
+                    merged = set(self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY]) | site_is_member_of_virtual_sites
+                    self.data[c.SITES_KEY][site][c.SITE_VIRTUAL_SITES_KEY] = list(merged)
 
     def process_efp(self) -> dict | None:
         """
@@ -239,50 +306,58 @@ class Site(Base):
         urls = dict()
 
         # Get efp name by iterating existing sms data
-        for site in self.data['site'].keys():
-            if "kind" in self.data['site'][site].keys():
-                if self.data['site'][site]['kind'] != "":
+        for site in self.data[c.SITES_KEY].keys():
+            if "kind" in self.data[c.SITES_KEY][site].keys():
+                if self.data[c.SITES_KEY][site]['kind'] != "":
                     # check if sms or legacy object type
                     if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
-                            if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
-                                for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
-                                    urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                        elif self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
-                            if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
-                                if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
-                                    for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
-                                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-
+                        if self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                            if "active_enhanced_firewall_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
+                                for efp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['active_enhanced_firewall_policies'][
+                                    'enhanced_firewall_policies']:
+                                    urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                            if "custom_network_config" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                if "active_enhanced_firewall_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                    for efp in \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_enhanced_firewall_policies'][
+                                        'enhanced_firewall_policies']:
+                                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
-                        if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                            if "tgw_security" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                        if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                            if "tgw_security" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
                                 # Check if tgw_security is not None
-                                if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
-                                    if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
-                                        for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
-                                            urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                    if "active_enhanced_firewall_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                        for efp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]['active_enhanced_firewall_policies'][
+                                            'enhanced_firewall_policies']:
+                                            urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = \
+                                            self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
                         else:
                             # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
                             nic_setup = self.get_site_nic_mode(site=site)
 
                             if nic_setup:
-                                if "active_enhanced_firewall_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
-                                    for efp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_enhanced_firewall_policies']['enhanced_firewall_policies']:
-                                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if "active_enhanced_firewall_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                                    for efp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_enhanced_firewall_policies'][
+                                        'enhanced_firewall_policies']:
+                                        urls[self.build_url(c.URI_F5XC_ENHANCED_FW_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=efp['name']))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls:
             efps = self.execute(name="enhanced firewall policy details", urls=urls)
 
             for efp in efps:
-                if efp["object"] in self.data['site']:
-                    if "efp" not in self.data['site'][efp["object"]]:
-                        self.data['site'][efp["object"]]['efp'] = dict()
+                if efp["object"] in self.data[c.SITES_KEY]:
+                    if "efp" not in self.data[c.SITES_KEY][efp["object"]]:
+                        self.data[c.SITES_KEY][efp["object"]]['efp'] = dict()
 
-                    self.data['site'][efp["object"]]['efp'][efp['data']['metadata']['name']] = dict()
-                    self.data['site'][efp["object"]]['efp'][efp['data']['metadata']['name']]['metadata'] = efp['data']['metadata']
-                    self.data['site'][efp["object"]]['efp'][efp['data']['metadata']['name']]['spec'] = efp['data']['spec']
+                    self.data[c.SITES_KEY][efp["object"]]['efp'][efp['data']['metadata']['name']] = dict()
+                    self.data[c.SITES_KEY][efp["object"]]['efp'][efp['data']['metadata']['name']]['metadata'] = efp['data']['metadata']
+                    self.data[c.SITES_KEY][efp["object"]]['efp'][efp['data']['metadata']['name']]['spec'] = efp['data']['spec']
 
         return self.data
 
@@ -297,50 +372,57 @@ class Site(Base):
         urls = dict()
 
         # Get fpp name by iterating existing sms data
-        for site in self.data['site'].keys():
-            if "kind" in self.data['site'][site].keys():
-                if self.data['site'][site]['kind'] != "":
+        for site in self.data[c.SITES_KEY].keys():
+            if "kind" in self.data[c.SITES_KEY][site].keys():
+                if self.data[c.SITES_KEY][site]['kind'] != "":
                     # check if sms or legacy object type
                     if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
-                            if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
-                                for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['active_forward_proxy_policies']['forward_proxy_policies']:
-                                    urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                        elif self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
-                            if "custom_network_config" in self.data['site'][site]["sms"]["spec"].keys():
-                                if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
-                                    for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_forward_proxy_policies']['forward_proxy_policies']:
-                                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        if self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                            if "active_forward_proxy_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
+                                for fpp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['active_forward_proxy_policies']['forward_proxy_policies']:
+                                    urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                            if "custom_network_config" in self.data[c.SITES_KEY][site]["sms"]["spec"].keys():
+                                if "active_forward_proxy_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                    for fpp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['active_forward_proxy_policies'][
+                                        'forward_proxy_policies']:
+                                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
-                        if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                            if "tgw_security" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                        if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                            if "tgw_security" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
                                 # Check if tgw_security is not None
-                                if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
-                                    if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
-                                        for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]['active_forward_proxy_policies']['forward_proxy_policies']:
-                                            urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                    if "active_forward_proxy_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]:
+                                        for fpp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["tgw_security"]['active_forward_proxy_policies'][
+                                            'forward_proxy_policies']:
+                                            urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = \
+                                            self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
                         else:
                             # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
                             nic_setup = self.get_site_nic_mode(site=site)
                             if nic_setup:
-                                if "active_forward_proxy_policies" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                    for fpp in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_forward_proxy_policies']['forward_proxy_policies']:
-                                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if "active_forward_proxy_policies" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    for fpp in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['active_forward_proxy_policies'][
+                                        'forward_proxy_policies']:
+                                        urls[self.build_url(c.URI_F5XC_FORWARD_PROXY_POLICY.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=fpp['name']))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls:
             fpps = self.execute(name="forward proxy policy details query", urls=urls)
 
             for fpp in fpps:
-                if fpp["object"] in self.data['site']:
-                    if "fpp" not in self.data['site'][fpp["object"]]:
-                        self.data['site'][fpp["object"]]['fpp'] = dict()
+                if fpp["object"] in self.data[c.SITES_KEY]:
+                    if "fpp" not in self.data[c.SITES_KEY][fpp["object"]]:
+                        self.data[c.SITES_KEY][fpp["object"]]['fpp'] = dict()
 
-                    self.data['site'][fpp["object"]]['fpp'][fpp['data']['metadata']['name']] = dict()
-                    self.data['site'][fpp["object"]]['fpp'][fpp['data']['metadata']['name']]['metadata'] = fpp['data']['metadata']
-                    self.data['site'][fpp["object"]]['fpp'][fpp['data']['metadata']['name']]['spec'] = fpp['data']['spec']
+                    self.data[c.SITES_KEY][fpp["object"]]['fpp'][fpp['data']['metadata']['name']] = dict()
+                    self.data[c.SITES_KEY][fpp["object"]]['fpp'][fpp['data']['metadata']['name']]['metadata'] = fpp['data']['metadata']
+                    self.data[c.SITES_KEY][fpp["object"]]['fpp'][fpp['data']['metadata']['name']]['spec'] = fpp['data']['spec']
 
         return self.data
 
@@ -356,51 +438,58 @@ class Site(Base):
         urls_sli = dict()
 
         # Get dc cluster group name by iterating existing sms data. Check for SLO and SLI interface if DC cluster group set.
-        for site in self.data['site'].keys():
-            if "kind" in self.data['site'][site].keys():
-                if self.data['site'][site]['kind'] != "":
+        for site in self.data[c.SITES_KEY].keys():
+            if "kind" in self.data[c.SITES_KEY][site].keys():
+                if self.data[c.SITES_KEY][site]['kind'] != "":
                     # check if sms or legacy object type
                     if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                        if self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
-                            if "dc_cluster_group_slo" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
-                                name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['dc_cluster_group_slo']['name']
-                                urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                            elif "dc_cluster_group_sli" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
-                                name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['dc_cluster_group_sli']['name']
-                                urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                        elif self.data['site'][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
-                            if "custom_network_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"].keys():
-                                if "slo_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config'].keys():
-                                    if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["slo_config"].keys():
-                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
-                                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                                elif "sli_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
-                                    if "dc_cluster_group" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["sli_config"].keys():
-                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
-                                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-
+                        if self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V2:
+                            if "dc_cluster_group_slo" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['dc_cluster_group_slo']['name']
+                                urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                            if "dc_cluster_group_sli" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['dc_cluster_group_sli']['name']
+                                urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                        elif self.data[c.SITES_KEY][site]['kind'] == c.F5XC_SITE_TYPE_SMS_V1:
+                            if "custom_network_config" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"].keys():
+                                if "slo_config" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config'].keys():
+                                    if "dc_cluster_group" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["slo_config"].keys():
+                                        name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['slo_config']['dc_cluster_group']['name']
+                                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if "sli_config" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']:
+                                    if "dc_cluster_group" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']["sli_config"].keys():
+                                        name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]['custom_network_config']['sli_config']['dc_cluster_group']['name']
+                                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
                     elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
                         # If AWS TGW does not provide interface mode
-                        if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                            if "vn_config" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                        if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                            if "vn_config" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
                                 # Check if vn_config is not None
-                                if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]:
-                                    if "dc_cluster_group_outside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"].keys():
-                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]['dc_cluster_group_outside_vn']['name']
-                                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                                    elif "dc_cluster_group_inside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"].keys():
-                                        name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]['dc_cluster_group_inside_vn']['name']
-                                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]:
+                                    if "dc_cluster_group_outside_vn" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"].keys():
+                                        name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]['dc_cluster_group_outside_vn']['name']
+                                        urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                    if "dc_cluster_group_inside_vn" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"].keys():
+                                        name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vn_config"]['dc_cluster_group_inside_vn']['name']
+                                        urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
                         else:
                             # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
                             nic_setup = self.get_site_nic_mode(site=site)
                             if nic_setup:
-                                if "dc_cluster_group_outside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
-                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_outside_vn']['name']
-                                    urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
-                                elif "dc_cluster_group_inside_vn" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
-                                    name = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_inside_vn']['name']
-                                    urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = self.data['site'][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if "dc_cluster_group_outside_vn" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                                    name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_outside_vn']['name']
+                                    urls_slo[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
+                                if "dc_cluster_group_inside_vn" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup].keys():
+                                    name = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]['dc_cluster_group_inside_vn']['name']
+                                    urls_sli[self.build_url(c.URI_F5XC_DC_CLUSTER_GROUP.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=name))] = \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]['metadata']['name']
 
         if urls_slo:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -422,14 +511,14 @@ class Site(Base):
                             dc_cg = result.json()
                             self.logger.debug(json.dumps(dc_cg, indent=2))
 
-                            if urls_slo[future_to_ds[future]] in self.data['site']:
-                                if "dc_cluster_group" not in self.data['site'][urls_slo[future_to_ds[future]]]:
-                                    self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'] = dict()
+                            if urls_slo[future_to_ds[future]] in self.data[c.SITES_KEY]:
+                                if "dc_cluster_group" not in self.data[c.SITES_KEY][urls_slo[future_to_ds[future]]]:
+                                    self.data[c.SITES_KEY][urls_slo[future_to_ds[future]]]['dc_cluster_group'] = dict()
 
-                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
-                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo'] = dict()
-                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['metadata'] = dc_cg['metadata']
-                                self.data['site'][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['spec'] = dc_cg['spec']
+                                self.data[c.SITES_KEY][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                                self.data[c.SITES_KEY][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo'] = dict()
+                                self.data[c.SITES_KEY][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['metadata'] = dc_cg['metadata']
+                                self.data[c.SITES_KEY][urls_slo[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['slo']['spec'] = dc_cg['spec']
         if urls_sli:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
                 self.logger.info("Prepare dc cluster group sli details query...")
@@ -450,14 +539,14 @@ class Site(Base):
                             dc_cg = result.json()
                             self.logger.debug(json.dumps(dc_cg, indent=2))
 
-                            if urls_sli[future_to_ds[future]] in self.data['site']:
-                                if "dc_cluster_group" not in self.data['site'][urls_sli[future_to_ds[future]]]:
-                                    self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'] = dict()
+                            if urls_sli[future_to_ds[future]] in self.data[c.SITES_KEY]:
+                                if "dc_cluster_group" not in self.data[c.SITES_KEY][urls_sli[future_to_ds[future]]]:
+                                    self.data[c.SITES_KEY][urls_sli[future_to_ds[future]]]['dc_cluster_group'] = dict()
 
-                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
-                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
-                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
-                                self.data['site'][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
+                                self.data[c.SITES_KEY][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']] = dict()
+                                self.data[c.SITES_KEY][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli'] = dict()
+                                self.data[c.SITES_KEY][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['metadata'] = dc_cg['metadata']
+                                self.data[c.SITES_KEY][urls_sli[future_to_ds[future]]]['dc_cluster_group'][dc_cg['metadata']['name']]['sli']['spec'] = dc_cg['spec']
 
         return self.data
 
@@ -467,26 +556,26 @@ class Site(Base):
         Processing cloudlink is part of processing site object since site object provided ref to cloudlink group object.
         :return: structure with cloudlink information being added
         """
-        for site, values in self.data['site'].items():
-            if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+        for site, values in self.data[c.SITES_KEY].items():
+            if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
                 pass
 
         return self.data
 
     def process_spokes(self) -> dict | None:
-        for site, values in self.data['site'].items():
+        for site, values in self.data[c.SITES_KEY].items():
             if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
-                if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                    if "vpc_attachments" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
-                        if self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]:
-                            if "vpc_list" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]:
-                                if len(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]["vpc_list"]) > 0:
-                                    self.data['site'][site]["spoke"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]
-                elif self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
+                if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                    if "vpc_attachments" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
+                        if self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]:
+                            if "vpc_list" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]:
+                                if len(self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]["vpc_list"]) > 0:
+                                    self.data[c.SITES_KEY][site]["spoke"] = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["vpc_attachments"]
+                elif self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AZURE_VNET:
                     nic_setup = self.get_site_nic_mode(site=site)
                     if nic_setup:
-                        if "hub" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                            self.data['site'][site]["spoke"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["hub"]
+                        if "hub" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                            self.data[c.SITES_KEY][site]["spoke"] = self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["hub"]
 
         return self.data
 
@@ -498,103 +587,127 @@ class Site(Base):
 
         self.logger.info("Process node interfaces...")
 
-        for site, values in self.data['site'].items():
+        for site, values in self.data[c.SITES_KEY].items():
             # check if sms or legacy object type
             if self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_SMS:
-                if "custom_network_config" in values[self.get_key_from_site_kind(site)]['spec'].keys():
-                    if "interface_list" in values[self.get_key_from_site_kind(site)]['spec']['custom_network_config'].keys():
-                        for idx, node in enumerate(values[self.get_key_from_site_kind(site)]['spec']["master_node_configuration"]):
-                            if "nodes" not in self.data['site'][site]:
-                                self.data['site'][site]['nodes'] = dict()
+                if values["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                    if "custom_network_config" in values[self.get_key_from_site_kind(site)]['spec'].keys():
+                        if "interface_list" in values[self.get_key_from_site_kind(site)]['spec']['custom_network_config'].keys():
+                            for idx, node in enumerate(values[self.get_key_from_site_kind(site)]['spec']["master_node_configuration"]):
+                                if "nodes" not in self.data[c.SITES_KEY][site]:
+                                    self.data[c.SITES_KEY][site]['nodes'] = dict()
 
-                            if f"node{idx}" not in self.data['site'][site]['nodes'].keys():
-                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
+                                if f"node{idx}" not in self.data[c.SITES_KEY][site]['nodes'].keys():
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"] = dict()
 
-                            if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"].keys():
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                                if "interfaces" not in self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"].keys():
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
-                            self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = values[self.get_key_from_site_kind(site)]['spec']['custom_network_config']['interface_list']['interfaces']
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = \
+                                values[self.get_key_from_site_kind(site)]['spec']['custom_network_config']['interface_list']['interfaces']
+                if values["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                    if c.F5XC_SMV2_PROVIDERS & set(values[self.get_key_from_site_kind(site)]['spec'].keys()):
+                        provider_key = list(c.F5XC_SMV2_PROVIDERS & set(values[self.get_key_from_site_kind(site)]['spec'].keys()))[0]
+                        if provider_key:
+                            if "not_managed" in values[self.get_key_from_site_kind(site)]['spec'][provider_key]:
+                                if "node_list" in values[self.get_key_from_site_kind(site)]['spec'][provider_key]['not_managed']:
+                                    if len(values[self.get_key_from_site_kind(site)]['spec'][provider_key]['not_managed']['node_list']) > 0:
+                                        for idx, node in enumerate(values[self.get_key_from_site_kind(site)]['spec'][provider_key]['not_managed']['node_list']):
+                                            if "nodes" not in self.data[c.SITES_KEY][site]:
+                                                self.data[c.SITES_KEY][site]['nodes'] = dict()
 
+                                            if f"node{idx}" not in self.data[c.SITES_KEY][site]['nodes'].keys():
+                                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"] = dict()
+
+                                            if "interfaces" not in self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"].keys():
+                                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+
+                                            self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = node['interface_list']
             elif self.get_key_from_site_kind(site) == c.SITE_OBJECT_TYPE_LEGACY:
-                if self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
-                    if "tgw_info" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
+                if self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_AWS_TGW:
+                    if "tgw_info" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
                         # TGW is always multi NIC hence no nic_setup check
-                        for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["aws_parameters"]["az_nodes"]):
-                            if "nodes" not in self.data['site'][site]:
-                                self.data['site'][site]['nodes'] = dict()
-                                self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                        for idx, node in enumerate(self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["aws_parameters"]["az_nodes"]):
+                            if "nodes" not in self.data[c.SITES_KEY][site]:
+                                self.data[c.SITES_KEY][site]['nodes'] = dict()
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"] = dict()
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
                                 if "outside_subnet" in node:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
 
-                                if "workload_subnet" in node:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
+                                #if "workload_subnet" in node:
+                                #    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
-                elif self.data['site'][site]["kind"] == c.F5XC_SITE_TYPE_GCP_VPC:
-                        nic_setup = self.get_site_nic_mode(site=site)
-                        if nic_setup:
-                            for idx in range(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["node_number"]):
-                                if "nodes" not in self.data['site'][site]:
-                                    self.data['site'][site]['nodes'] = dict()
-                                if f"node{idx}" not in self.data['site'][site]['nodes'].keys():
-                                    self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"].keys():
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                elif self.data[c.SITES_KEY][site]["kind"] == c.F5XC_SITE_TYPE_GCP_VPC:
+                    nic_setup = self.get_site_nic_mode(site=site)
+                    if nic_setup:
+                        for idx in range(self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["node_number"]):
+                            if "nodes" not in self.data[c.SITES_KEY][site]:
+                                self.data[c.SITES_KEY][site]['nodes'] = dict()
+                            if f"node{idx}" not in self.data[c.SITES_KEY][site]['nodes'].keys():
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"] = dict()
+                            if "interfaces" not in self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"].keys():
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
-                                if "inside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_network"]
-                                    if "inside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_subnet"]
+                            if "inside_network" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = \
+                                self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_network"]
+                                if "inside_subnet" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["sli"]["subnet"] = \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["inside_subnet"]
 
-                                if "outside_network" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_network"]
-                                    if "outside_subnet" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
-                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"]["subnet"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_subnet"]
+                            if "outside_network" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = \
+                                self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_network"]
+                                if "outside_subnet" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"]["subnet"] = \
+                                    self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["outside_subnet"]
                 else:
                     # Check if sub kind exist
-                    if self.data['site'][site]["sub_kind"]:
+                    if self.data[c.SITES_KEY][site]["sub_kind"]:
                         # Check if sub kind is voltstack type
-                        if self.data['site'][site]["sub_kind"] == c.F5XC_SITE_VOLT_STACK:
-                            for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["voltstack_cluster"]["az_nodes"]):
-                                if "nodes" not in self.data['site'][site]:
-                                    self.data['site'][site]['nodes'] = dict()
-                                if "node{idx}" not in self.data['site'][site]['nodes']:
-                                    self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                        if self.data[c.SITES_KEY][site]["sub_kind"] == c.F5XC_SITE_VOLT_STACK:
+                            for idx, node in enumerate(self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["voltstack_cluster"]["az_nodes"]):
+                                if "nodes" not in self.data[c.SITES_KEY][site]:
+                                    self.data[c.SITES_KEY][site]['nodes'] = dict()
+                                if "node{idx}" not in self.data[c.SITES_KEY][site]['nodes']:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"] = dict()
+                                if "interfaces" not in self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
                                 if "local_subnet" in node:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["local"] = node["local_subnet"]
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["local"] = node["local_subnet"]
                                 # Add cloud site info to every node even it's duplicate data for the sake of iterating through nodes made easier and needs no exception handling
-                                if "cloud_site_info" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]:
-                                    if "subnet_ids" in self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]:
-                                        self.data['site'][site]['nodes'][f"node{idx}"]["cloud_site"] = self.data['site'][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]["subnet_ids"]
+                                if "cloud_site_info" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]:
+                                    if "subnet_ids" in self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]:
+                                        self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]["cloud_site"] = \
+                                        self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"]["cloud_site_info"]["subnet_ids"]
                                     else:
                                         self.logger.info(f"failed to add cloud site info subnet IDs for site: {site}")
                     else:
                         # Evaluate if site object interface configration is ingress or ingress_egress and set dict key accordingly
                         nic_setup = self.get_site_nic_mode(site=site)
                         if nic_setup:
-                            for idx, node in enumerate(self.data['site'][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
-                                if "nodes" not in self.data['site'][site]:
-                                    self.data['site'][site]['nodes'] = dict()
-                                if "node{idx}" not in self.data['site'][site]['nodes']:
-                                    self.data['site'][site]['nodes'][f"node{idx}"] = dict()
-                                if "interfaces" not in self.data['site'][site]['nodes'][f"node{idx}"]:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
+                            for idx, node in enumerate(self.data[c.SITES_KEY][site][self.get_key_from_site_kind(site)]["spec"][nic_setup]["az_nodes"]):
+                                if "nodes" not in self.data[c.SITES_KEY][site]:
+                                    self.data[c.SITES_KEY][site]['nodes'] = dict()
+                                if "node{idx}" not in self.data[c.SITES_KEY][site]['nodes']:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"] = dict()
+                                if "interfaces" not in self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces'] = dict()
 
                                 if "local_subnet" in node:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["local_subnet"]
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["local_subnet"]
 
-                                elif "outside_subnet" in node:
-                                    self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
+                                if "outside_subnet" in node:
+                                    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["slo"] = node["outside_subnet"]
 
-                                elif nic_setup == "ingress_egress_gw":
+                                if nic_setup == "ingress_egress_gw":
                                     if "inside_subnet" in node:
-                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
-                                    elif "workload_subnet" in node:
-                                        self.data['site'][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
+                                        self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["sli"] = node["inside_subnet"]
+                                    #if "workload_subnet" in node:
+                                    #    self.data[c.SITES_KEY][site]['nodes'][f"node{idx}"]['interfaces']["workload"] = node["workload_subnet"]
 
         return self.data
 
@@ -608,7 +721,7 @@ class Site(Base):
         # Build ce node hardware info urls for given site
         urls = dict()
 
-        for site in self.data['site'].keys():
+        for site in self.data[c.SITES_KEY].keys():
             urls[self.build_url(c.URI_F5XC_SITE.format(namespace=c.F5XC_NAMESPACE_SYSTEM, name=site))] = site
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
@@ -629,19 +742,19 @@ class Site(Base):
                     if result:
                         r = result.json()
                         self.logger.debug(json.dumps(r, indent=2))
-                        if urls[future_to_ds[future]] in self.data['site']:
+                        if urls[future_to_ds[future]] in self.data[c.SITES_KEY]:
                             # Build nodes structure first if not already created. Since nodes available below ['status'] key not idempotent nodes are taken from ['spec'] which is. :(
                             # Build static mapping between node key and hostname e.g. node0 --> ip-192-168-0-88
                             node_key_to_hostname_map = dict()
-                            if "nodes" not in self.data['site'][urls[future_to_ds[future]]].keys():
-                                self.data['site'][urls[future_to_ds[future]]]['nodes'] = dict()
+                            if "nodes" not in self.data[c.SITES_KEY][urls[future_to_ds[future]]].keys():
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['nodes'] = dict()
 
                             for idx, node in enumerate(r['spec']['main_nodes']):
-                                if f"node{idx}" not in self.data['site'][urls[future_to_ds[future]]]['nodes']:
-                                    self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"] = dict()
+                                if f"node{idx}" not in self.data[c.SITES_KEY][urls[future_to_ds[future]]]['nodes']:
+                                    self.data[c.SITES_KEY][urls[future_to_ds[future]]]['nodes'][f"node{idx}"] = dict()
 
                                 # explicitly set hostname since used as filter when adding hw info
-                                self.data['site'][urls[future_to_ds[future]]]['nodes'][f"node{idx}"]['hostname'] = node['name']
+                                self.data[c.SITES_KEY][urls[future_to_ds[future]]]['nodes'][f"node{idx}"]['hostname'] = node['name']
                                 # add node name to hostname mapping
                                 node_key_to_hostname_map[node['name']] = f"node{idx}"
 
@@ -650,8 +763,10 @@ class Site(Base):
                                     if node['metadata']['creator_class'] == c.F5XC_CREATOR_CLASS_MAURICE and c.F5XC_NODE_PRIMARY in node['node_info']['role']:
                                         # Filter on hostname set in previous step :(.
                                         if node['node_info']['hostname'] in node_key_to_hostname_map:
-                                            self.data['site'][urls[future_to_ds[future]]]['nodes'][node_key_to_hostname_map[node['node_info']['hostname']]]['hw_info'] = node['hw_info']
+                                            self.data[c.SITES_KEY][urls[future_to_ds[future]]]['nodes'][node_key_to_hostname_map[node['node_info']['hostname']]]['hw_info'] = node[
+                                                'hw_info']
                                         else:
-                                            self.logger.info(f"Site {urls[future_to_ds[future]]} node {node['node_info']['hostname']} does not have hardware info available. No node name to hostname mapping found.")
+                                            self.logger.info(
+                                                f"Site {urls[future_to_ds[future]]} node {node['node_info']['hostname']} does not have hardware info available. No node name to hostname mapping found.")
 
         return self.data

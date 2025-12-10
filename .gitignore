@@ -437,3 +437,6 @@ ck.tf
 *.p12
 response.json
 .terraform.lock.hcl
+csv/
+xlsx/
+json/

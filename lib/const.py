@@ -28,13 +28,16 @@ URI_F5XC_SITE_MESH_GROUP = "/config/namespaces/{namespace}/site_mesh_groups/{nam
 URI_F5XC_SITE_MESH_GROUPS = "/config/namespaces/{namespace}/site_mesh_groups"
 URI_F5XC_DC_CLUSTER_GROUP = "/config/namespaces/{namespace}/dc_cluster_groups/{name}"
 URI_F5XC_ENHANCED_FW_POLICY = "/config/namespaces/{namespace}/enhanced_firewall_policys/{name}"
+URI_F5XC_FIREWALL_FAST_ACLS = "/config/namespaces/{namespace}/fast_acls"
 URI_F5XC_ENHANCED_FW_POLICIES = "/config/namespaces/{namespace}/enhanced_firewall_policys"
 URI_F5XC_FORWARD_PROXY_POLICY = "/config/namespaces/{namespace}/forward_proxy_policys/{name}"
 
 #
 # F5XC objects
 #
-F5XC_SITE_TYPES = ["site", "virtual_site"]  # "virtual_site_with_vip"
+F5XC_SITE = "site"
+F5XC_VIRTUAL_SITE = "virtual_site"
+F5XC_SITE_TYPES = [F5XC_SITE, F5XC_VIRTUAL_SITE]  # "virtual_site_with_vip"
 F5XC_SITE_VOLT_STACK = "voltstack_site"
 F5XC_SITE_TYPE_SMS_V1 = "securemesh_site"
 F5XC_SITE_TYPE_SMS_V2 = "securemesh_site_v2"
@@ -51,21 +54,38 @@ F5XC_ORIGIN_SERVER_TYPES = ['private_ip', 'k8s_service', 'consul_service', 'priv
 F5XC_CLOUD_CONNECT_TYPES = ["azure_vnet_site", "aws_tgw_site"]
 F5XC_SITE_INTERFACE_MODES = ["ingress_gw", "ingress_egress_gw"]
 F5XC_CREATOR_CLASS_MAURICE = "maurice"
+F5XC_SMV2_PROVIDERS = {"vmware", "aws", "azure", "gcp", "kvm", "oci", "nutanix", "openstack", "equinix", "baremetal"}
+
+#
+# Dict Keys
+#
+SITES_KEY = "sites"
+VIRTUAL_SITES_KEY = "virtual_sites"
+SITE_VIRTUAL_SITES_KEY = "vsites"
+SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 
 #
 # Site query
 #
-API_PROCESSORS = ["site", "vs", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
+API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
-CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces"]
+CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces", "vsites"]
+XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces", "vsites"]
+XLSX_INFRASTRUCTURE_EXPORT_KEYS = ["spec", "nodes"]
+COMPARE_REGEX_METADATA_LABELS = "metadata/labels/.*"
 COMPARE_REGEX_HW_INFO_CPU_FLAGS = "nodes/.*/hw_info/cpu/flags"
 COMPARE_REGEX_HW_INFO_USB = "nodes/.*/hw_info/usb"
-EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity",
-                              COMPARE_REGEX_HW_INFO_USB]
+COMPARE_REGEX_NODES = "nodes/.*"
+COMPARE_REGEX_SPEC = "spec/.*"
+COMPARE_REGEX_LEGACY_KEY = "legacy"
+COMPARE_REGEX_METADATA = "metadata/.*"
+COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT= "nodes/.*/interfaces/1/ethernet_interface/segment_network"
+COMPARE_REGEX_NODE_HW_INFO_BIOS = "nodes/.*/hw_info/bios/"
+EXCLUDE_COMPARE_ATTRIBUTES = ["serial", "asset_tag", "hw-serial-number", "spec/site_to_site_ipsec_connectivity", COMPARE_REGEX_HW_INFO_USB, COMPARE_REGEX_HW_INFO_CPU_FLAGS,
+                              COMPARE_REGEX_NODE_INTERFACES_INTERFACE_SEGMENT, COMPARE_REGEX_NODE_HW_INFO_BIOS, COMPARE_REGEX_LEGACY_KEY]
 SITE_OBJECT_TYPE_SMS = "sms"
 SITE_OBJECT_TYPE_LEGACY = "legacy"
-SITE_OBJECT_PROCESSORS = ["site_details", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info",
-                          "spokes"]
+SITE_OBJECT_PROCESSORS = ["site_details", "virtual_site", "efp", "fpp", "dc_cluster_group", "cloudlink", "node_interfaces", "hw_info", "spokes"]
 SITE_TYPE_TO_URI_MAP = {
     F5XC_SITE_TYPE_SMS_V1: URI_F5XC_SMS_V1,
     F5XC_SITE_TYPE_SMS_V2: URI_F5XC_SMS_V2,
@@ -80,4 +100,8 @@ HW_INFO_ITEMS_TO_PROCESS = {
     "cpu": ["model", "cpus", "cores", "threads"],
     "memory": ["speed", "size_mb"],
     "storage": ["size_gb"]
+}
+OBJECT_TO_KEY_MAP = {
+    F5XC_SITE: SITES_KEY,
+    F5XC_VIRTUAL_SITE: VIRTUAL_SITES_KEY,
 }

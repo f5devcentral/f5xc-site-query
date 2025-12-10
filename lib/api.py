@@ -3,21 +3,150 @@ authors: cklewar
 """
 
 import json
-import logging
 import os
 import re
 import sys
+
+from collections import OrderedDict
 from logging import Logger
-from typing import Any
+from typing import Any, Tuple, List
 
 import jsondiff
 import requests
-from jsondiff import diff
 from prettytable import PrettyTable, TableStyle
 from requests import Response
 
 import lib.const as c
 from lib.loader import load_module
+from lib.xlsx import Xlsx
+
+
+def custom_key_sorter(key: str) -> Tuple[int, int, str]:
+    """
+    Sorting function for Node keys.
+    Priority 1: Node-related keys (node0_*, node1_*, etc.)
+    Sorts by node number (n=0, 1, 2...), then alphabetically.
+    """
+    if key.startswith('node') and key[4:5].isdigit():
+        match = re.match(r'node(\d+)(.*)', key)
+        if match:
+            node_number = int(match.group(1))
+            # Returns: (Priority Level, Node Index, Key Name)
+            return 1, node_number, key
+
+    # Priority 0: All other keys
+    # Returns: (Priority Level, Sub-Index, Key Name)
+    return 0, 0, key
+
+
+def build_master_key_list(source_keys: List[str], target_keys: List[str]) -> List[str]:
+    """
+    Builds the final, sorted master list of keys by inserting target-only keys
+    into the logical group structure of the source keys.
+    """
+
+    source_set = set(source_keys)
+    target_set = set(target_keys)
+
+    # Keys that exist only in the Target
+    target_only_set = target_set - source_set
+    print("target_only_set", target_only_set)
+
+    # Master list of keys
+    master_keys = []
+
+    # Regular keys and keys that exist in both
+    for key in source_keys:
+        master_keys.append(key)
+
+    # Identify and sort Target-Only Keys
+    # Note: custom_key_sorter is assumed to exist and sort based on 'node' numbers.
+    target_only_keys_sorted = sorted(list(target_only_set), key=custom_key_sorter)
+    print("target_only_keys_sorted", target_only_keys_sorted)
+
+    # Supplement the master list with Target-Only Keys at the correct position
+    final_master_keys = []
+
+    # Iterate over the Source list and try to insert target keys in between
+    for key in master_keys:
+        final_master_keys.append(key)
+
+        # Logic: After each logical group in Source (Node, EFP/FPP, Namespace-Pools, etc.),
+        # we check if Target-Only Keys fall into this group.
+
+        # Insert all Target-Only Node keys AFTER the last Source Node key (e.g., after node2_interfaces)
+
+        if key.startswith('node') and key[4:5].isdigit():
+            # Find the highest node number in the Source list (e.g., 2)
+            node_numbers = [int(re.match(r'node(\d+)', k).group(1)) for k in final_master_keys if re.match(r'node\d+', k)]
+            max_source_node = max(node_numbers) if node_numbers else -1
+
+            # Check if this is the last node key in the Source list (nodeX_interfaces)
+            # This is a heuristic, based on the assumption that node_interfaces is the last in the group.
+            # Alternative: Insert all Target-Only Nodes after the last node key of the Source
+            if key == f'node{max_source_node}_interfaces':
+                # Filter Target-Only Node keys (e.g., node3_interfaces, node4_interfaces,...)
+                target_only_node_keys = [k for k in target_only_keys_sorted
+                                         if re.match(r'node(\d+)', k) and int(re.match(r'node(\d+)', k).group(1)) > max_source_node]
+
+                if target_only_node_keys:
+                    final_master_keys.extend(target_only_node_keys)
+
+                    # Remove them from the Target-Only list to prevent double use later
+                    target_only_set -= set(target_only_node_keys)
+                    target_only_keys_sorted = sorted(list(target_only_set), key=custom_key_sorter)
+
+    # --- Remaining Target-Only Keys (Namespace Pools, etc.) ---
+    # These are appended at the end, as they do not have a direct relation to a specific
+    # Source key at a particular position (other than the Nodes).
+    # Here they are simply added as a second 'Target-Only' group at the very end.
+    if target_only_keys_sorted:
+        final_master_keys.extend(target_only_keys_sorted)
+
+    return final_master_keys
+
+
+def join_dict_items(data_dict: dict, separator="\n"):
+    """
+    Joins all key-value pairs in a dictionary into a single string,
+    separated by a specified separator (default is a newline).
+    """
+
+    formatted_items = separator.join(f"{key}: {value}" for key, value in data_dict.items())
+
+    return formatted_items
+
+
+def format_list_with_newlines(value: Any) -> Any:
+    """
+    Converts a Python list into a string, displaying a maximum of
+    two list elements per line, regardless of total length.
+    """
+    if isinstance(value, list):
+        formatted_lines = []
+
+        # Iterate over the list in steps of 2 (i.e., i, i+2, i+4, ...)
+        for i in range(0, len(value), 2):
+            # Take the current element (value[i])
+            line = str(value[i])
+
+            # Check if there is a next element (value[i+1])
+            if i + 1 < len(value):
+                # If yes, append the next element to the current line
+                line += ', ' + str(value[i + 1])
+
+            formatted_lines.append(line)
+
+        # If there's only one line, return the string representation without explicit newlines
+        if len(formatted_lines) <= 1:
+            return str(value)
+
+        # Join all lines with a newline character.
+        # Prepend a newline for better visual alignment in the table cell.
+        return '[\'' + ',\n'.join(formatted_lines) + '\']'
+
+    # Return the value unchanged if it's not a list
+    return value
 
 
 class Api(object):
@@ -122,7 +251,7 @@ class Api(object):
 
         self._logger = logger
         self._data = dict()
-        for key in c.F5XC_SITE_TYPES:
+        for key in c.SITE_TYPES:
             self._data[key] = dict()
         self._api_url = api_url
         self._api_token = api_token
@@ -217,8 +346,12 @@ class Api(object):
         try:
             with open(name, 'r') as fd:
                 data = json.load(fp=fd)
-                self.logger.info(f"{len(data['site'])} {'sites' if len(data['site']) > 1 else 'site'} and {len(data['virtual_site'])} virtual {'sites' if len(data['virtual_site']) > 1 else 'site'} read from {name}")
-                return data
+                if c.SITES_KEY in data and c.VIRTUAL_SITES_KEY in data:
+                    self.logger.info(
+                        f"{len(data[c.SITES_KEY])} {c.SITES_KEY if len(data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
+                    return data
+                else:
+                    self.logger.info(f"Error reading data from file {name}. No site data available")
         except OSError as e:
             self.logger.info(f"Reading file {name} failed with error: {e}")
             return None
@@ -232,8 +365,11 @@ class Api(object):
         if name not in ['stdout', '-', '']:
             try:
                 with open(name, 'w') as fd:
+                    if "filter_expressions_per_virtual_site" in self.data:
+                        del self.data["filter_expressions_per_virtual_site"]
                     fd.write(json.dumps(self.data, indent=2))
-                    self.logger.info(f"{len(self.data['site'])} {'sites' if len(self.data['site']) > 1 else 'site'} and {len(self.data['virtual_site'])} virtual {'sites' if len(self.data['virtual_site']) > 1 else 'site'} written to {name}")
+                    self.logger.info(
+                        f"{len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self.data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(self.data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} written to {name}")
             except OSError as e:
                 self.logger.info(f"Writing file {name} failed with error: {e}")
         else:
@@ -257,14 +393,56 @@ class Api(object):
         else:
             self.logger.info(json.dumps(self.data, indent=2))
 
-    def build_inventory(self, json_file: str = None) -> PrettyTable | None:
+    def build_compare_xlsx(self, xlsx_file: str = None, data: str = None, data_source: dict = None, data_target: dict = None):
+        """
+        Write site comparison to XLSX file
+        :param xlsx_file: xlsx output data
+        :param data: compared json data
+        :param data_source: source site json input data
+        :param data_target: target site data json input data
+        :return:
+        """
+
+        self.logger.info(f"{self.build_compare_xlsx.__name__} started...")
+
+        if data:
+            try:
+                xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
+                xlsx.build_compare(data_source=data_source, data_target=data_target)
+                xlsx.write()
+                self.logger.info(f"{self.build_compare_xlsx.__name__} done.")
+            except json.decoder.JSONDecodeError as e:
+                self.logger.error(f"Error parsing json data for file {xlsx_file} with error: {e}")
+        else:
+            self.logger.info("Error data can not be null")
+
+    def build_inventory_xlsx(self, json_file: str = None, xlsx_file: str = None):
+        """
+        Write site inventory to XLSX file
+        :param json_file: json input data
+        :param xlsx_file: xlsx output data
+        :return:
+        """
+
+        self.logger.info(f"{self.build_inventory_xlsx.__name__} started...")
+        data = self.read_json_file(json_file)
+
+        if data:
+            xlsx = Xlsx(site=self.site, file=xlsx_file, logger=self.logger)
+            status = xlsx.build_inventory(data=data)
+
+            if status:
+                xlsx.write()
+                self.logger.info(f"{self.build_inventory_xlsx.__name__} done.")
+
+    def build_inventory_csv(self, json_file: str = None) -> PrettyTable | None:
         """
         Write site inventory to CSV file
         :param json_file: json input data
         :return: inventory data
         """
 
-        self.logger.info(f"{self.build_inventory.__name__} started...")
+        self.logger.info(f"{self.build_inventory_csv.__name__} started...")
 
         data = self.read_json_file(json_file)
         if data:
@@ -311,20 +489,22 @@ class Api(object):
                                     for ns_item, ns_item_value in attrs.items():
                                         if ns_item == "loadbalancer":
                                             for lb, lb_values in ns_item_value.items():
-                                                table.add_row([record_no, key, namespace, ns_item, lb, "", '\n'.join(list(lb_values.keys())) if len(lb_values.keys()) > 1 else list(lb_values.keys())[0]])
+                                                table.add_row([record_no, key, namespace, ns_item, lb, "",
+                                                               '\n'.join(list(lb_values.keys())) if len(lb_values.keys()) > 1 else list(lb_values.keys())[0]])
                                         else:
-                                            table.add_row([record_no, key, namespace, ns_item, '\n'.join(list(ns_item_value.keys())) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0], "", ""])
+                                            table.add_row([record_no, key, namespace, ns_item,
+                                                           '\n'.join(list(ns_item_value.keys())) if len(ns_item_value.keys()) > 1 else list(ns_item_value.keys())[0], "", ""])
                             else:
                                 for name in value:
                                     table.add_row([record_no, key, name, "", "", "", ""])
                     elif isinstance(value, list):
                         if len(value) > 0:
-                            table.add_row([record_no, key, value, "", "", "", ""])
+                            table.add_row([record_no, key, format_list_with_newlines(value), "", "", "", ""])
                     record_no += 1
 
                 table.add_divider()
 
-            for site, site_data in data['site'].items():
+            for site, site_data in data[c.SITES_KEY].items():
                 if self.must_break:
                     break
                 else:
@@ -336,7 +516,7 @@ class Api(object):
                     else:
                         process()
 
-            self.logger.info(f"{self.build_inventory.__name__} -> Done")
+            self.logger.info(f"{self.build_inventory_csv.__name__} -> Done")
 
             return table
         return None
@@ -356,11 +536,7 @@ class Api(object):
                 items.pop(0)
 
                 if isinstance(root, list) and item.isdigit():
-                    #Skip inserted elements on new site
-                    if int(item) <= len(root)-1:
-                        self._get_by_path(root[int(item)], items, resp)
-                    #else:
-                    #    self._get_by_path(root[len(root)-1], items, resp)
+                    resp.append(root[int(item)])
                 elif isinstance(root, dict):
                     new_root = root.get(int(item)) if item.isdigit() else root.get(item)
 
@@ -371,8 +547,13 @@ class Api(object):
                         elif isinstance(new_root, int):
                             self.logger.debug(f"INT: {new_root}")
                             resp.append(new_root)
-                        elif isinstance(root, list):
+                        elif isinstance(new_root, list):
                             self.logger.debug(f"LIST: {new_root}")
+                            if all(isinstance(root_item, str) for root_item in new_root):
+                                self._get_by_path(new_root, items, resp)
+                            else:
+                                for root_item in new_root:
+                                    self._get_by_path(root_item, items, resp)
                         elif isinstance(root, dict):
                             self.logger.debug(f"DICT: {new_root}")
                             if len(items) == 0:
@@ -388,7 +569,6 @@ class Api(object):
                                 elif type(_tmp) == dict:
                                     for item in list(new_root.keys()):
                                         resp.append(item)
-
                                 else:
                                     self.logger.debug(f"DICT: {new_root}")
                                     for item in list(new_root.keys()):
@@ -425,139 +605,368 @@ class Api(object):
                 key = keys[0]
                 keys.pop(0)
 
+                # skip sms e.g. sms/metadata/labels
                 if key not in ["sms"]:
                     if type(key) is jsondiff.symbols.Symbol:
                         if key.label == "delete":
                             self.logger.debug(f"DELETE: {parent_key} -- {key} -- {compared.get(key)}")
                             for item in compared.get(key):
                                 if item == "namespaces":
-                                    for namespace in data_old['site'][old_site]['namespaces']:
-                                        if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                    for namespace in data_old[c.SITES_KEY][old_site]['namespaces']:
+                                        if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                                if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                     resp.append(f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
-                                        elif "origin_pools" in data_old['site'][old_site]['namespaces'][namespace]:
+                                                    self.logger.debug(f"APPEND NEW ITEM10: {f"{item}/{namespace}/loadbalancer/{lb_type.split("_")[0]}"}")
+                                        if "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             resp.append(f"{item}/{namespace}/origin_pools")
-                                        elif "proxys" in data_old['site'][old_site]['namespaces'][namespace]:
+                                            self.logger.debug(f"APPEND NEW ITEM11: {f"{item}/{namespace}/origin_pools"}")
+                                        if "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                             resp.append(f"{item}/{namespace}/proxys")
-                                        self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                            self.logger.debug(f"APPEND NEW ITEM12: {f"{item}/{namespace}/proxys"}")
+                                        self.logger.debug(f"APPEND NEW ITEM13: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                                 if item == "loadbalancer":
                                     namespace = parent_key.split("/")[1]
-                                    if "loadbalancer" in data_old['site'][old_site]['namespaces'][namespace]:
+                                    if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
                                         for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
-                                            if data_old['site'][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                            if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
                                                 resp.append(f"{parent_key}/{item}/{lb_type.split("_")[0]}")
+                                                self.logger.debug(f"APPEND NEW ITEM14: {f"{parent_key}/{item}/{lb_type.split("_")[0]}"}")
                                 else:
-                                    resp.append(f"{parent_key}/{item}")
-                                self.logger.debug(f"APPEND NEW ITEM: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
+                                    resp.append(f"{parent_key}/{item}" if parent_key else f"{item}")
+                                    self.logger.debug(f"APPEND NEW ITEM16: {f"{parent_key}/{item}" if parent_key else f"{item}"}")
                         elif key.label == "replace":
                             self.logger.debug(f"REPLACE: {parent_key} -- {key} -- {compared.get(key)}")
-                            resp.append(f"{parent_key}" if parent_key else f"{key}")
-                        #elif key.label == "insert":
-                        #    self.logger.info(f"INSERT: {parent_key} -- {key} -- {compared.get(key)}")
-                            #resp.append(f"{parent_key}" if parent_key else f"{key}")
+                            if parent_key == "namespaces":
+                                resp.append(f"{parent_key}")
+                                for namespace in data_old[c.SITES_KEY][old_site]['namespaces']:
+                                    self.logger.debug(f"APPEND NEW ITEM1: {f"{parent_key}/{namespace}"}")
+                                    if "loadbalancer" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                        for lb_type in c.F5XC_LOAD_BALANCER_TYPES:
+                                            if data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'].get(lb_type.split("_")[0]):
+                                                resp.append(f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}")
+                                                for lb_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['loadbalancer'][lb_type.split("_")[0]]:
+                                                    self.logger.debug(f"APPEND NEW ITEM2: {f"{parent_key}/{namespace}/loadbalancer/{lb_type.split("_")[0]}/{lb_name}"}")
+                                    if "origin_pools" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                        resp.append(f"{parent_key}/{namespace}/origin_pools")
+                                        for op_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['origin_pools']:
+                                            self.logger.debug(f"APPEND NEW ITEM3: {f"{parent_key}/{namespace}/origin_pools/{op_name}"}")
+                                    if "proxys" in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]:
+                                        resp.append(f"{parent_key}/{namespace}/proxys")
+                                        for proxy_name in data_old[c.SITES_KEY][old_site]['namespaces'][namespace]['proxys']:
+                                            self.logger.debug(f"APPEND NEW ITEM4: {f"{parent_key}/{namespace}/proxys/{proxy_name}"}")
+                            else:
+                                resp.append(f"{parent_key}" if parent_key else None)
+                                self.logger.debug(f"APPEND NEW ITEM5: {f"{parent_key}"}")
+                        # elif key.label == "insert":
+                        #    self.logger.debug(f"INSERT: {parent_key} -- {key} -- {compared.get(key)}")
+                        # resp.append(f"{parent_key}" if parent_key else f"{key}")
                         else:
                             self.logger.debug(f"UNKNOWN KEY: {key}")
                     elif isinstance(compared.get(key), list):
+                        # e.g. vsites on target sites
                         self.logger.debug(f"LIST: {parent_key} -- {key} -- {compared.get(key)}")
                         resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                        self.logger.debug(f"APPEND NEW ITEM100: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                     else:
                         if isinstance(compared.get(key), str):
-                            if key not in c.EXCLUDE_COMPARE_ATTRIBUTES:
+                            if not any(list(map(lambda regex: re.match(regex, key), c.EXCLUDE_COMPARE_ATTRIBUTES))):
                                 self.logger.debug(f"STRING: {parent_key} -- {key} -- {compared.get(key)}")
                                 resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                                self.logger.debug(f"APPEND NEW ITEM101: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                         elif isinstance(compared.get(key), int):
                             self.logger.debug(f"INT: {parent_key} -- {key} -- {compared.get(key)}")
                             resp.append(f"{parent_key}/{key}" if parent_key else f"{key}")
+                            self.logger.debug(f"APPEND NEW ITEM102: {f"{parent_key}/{key}" if parent_key else f"{key}"}")
                         elif isinstance(compared.get(key), dict):
                             self.logger.debug(f"DICT: {key} -- {type(key)} -- {compared.get(key)}")
-                            self._get_keys(f"{parent_key}/{key}", compared.get(key), resp, old_site, data_old) if parent_key else self._get_keys(key, compared.get(key), resp, old_site, data_old)
+                            self._get_keys(f"{parent_key}/{key}", compared.get(key), resp, old_site, data_old) if parent_key else self._get_keys(key, compared.get(key), resp,
+                                                                                                                                                 old_site, data_old)
                         else:
                             self.logger.debug(f"UNKNOWN KEY: {key} -- {type(compared.get(key))}")
 
             return resp
         return None
 
-    def compare(self, old_site: str = None, old_file: str = None, new_site: str = None, new_file: str = None) -> PrettyTable | None:
+    def compare(self, source: str = None, source_file: str = None, target: str = None, target_file: str = None, data_source: dict = None,
+                data_target: dict = None) -> PrettyTable | None:
         """
         Compare takes data of previous run from file and data from current from api and does a comparison of hw_info items
-        :param new_site: new site name to compare with
-        :param old_site: old site name to compare with
-        :param new_file: file name data loaded to compare with
-        :param old_file: file name data loaded to compare with
+        :param target: target site name to compare with
+        :param source: source site name to compare with
+        :param target_file: file name data loaded to compare with
+        :param source_file: file name data loaded to compare with
+        :param data_source: data from source site
+        :param data_target: data from target site
         :return: comparison status per hw_info item or False if site is orphaned site or does not exist in data
         """
 
-        self.logger.info(f"{self.compare.__name__} started with data from previous run: <{os.path.basename(old_file)}> and data from latest run <{os.path.basename(new_file)}>")
-        self.logger.info(f"Compare old site: {old_site} --> {old_file}")
-        self.logger.info(f"Compare new site: {new_site} --> {new_file}")
+        self.logger.info(
+            f"{self.compare.__name__} started with data from previous run: <{os.path.basename(source_file)}> and data from latest run <{os.path.basename(target_file)}>")
+        self.logger.info(f"Compare old site: {source} --> {source_file}")
+        self.logger.info(f"Compare new site: {target} --> {target_file}")
 
-        data_old = self.read_json_file(old_file)
-        data_new = self.read_json_file(new_file)
+        self.logger.debug(f"DATA_OLD: {data_source}")
+        self.logger.debug(f"DATA_NEW: {data_target}")
 
-        self.logger.debug(f"DATA_OLD: {data_old}")
-        self.logger.debug(f"DATA_NEW: {data_new}")
+        if data_source and data_target:
+            if source in data_source["failed"]:
+                self.logger.info(f"Comparing source site <{source}> failed. Error site <{source}> is in <{data_source["failed"][source]}> state")
+                return None
 
-        if data_old and data_new:
+            if target in data_target["failed"]:
+                self.logger.info(f"Comparing target site <{target}> failed. Error site <{target}> is in <{data_target["failed"][target]}> state")
+                return None
+
+            if not target in data_target[c.SITES_KEY]:
+                self.logger.info(f"Comparing new site <{target}> not found in file {target_file}.")
+                return None
+
+            if not source in data_source[c.SITES_KEY]:
+                self.logger.info(f"Comparing new site <{source}> not found in file {source_file}.")
+                return None
+
             # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
-            if not new_site in data_new['site']:
-                self.logger.info(f"Comparing new site <{new_site}> not found in file {new_file}.")
-                return None
+            legacy_to_smv2 = data_source[c.SITES_KEY][source]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC,
+                                                                          c.F5XC_SITE_TYPE_AZURE_VNET] and data_target[c.SITES_KEY][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
+            smv1_to_smv2 = data_source[c.SITES_KEY][source]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and data_target[c.SITES_KEY][target]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
 
-            if not old_site in data_old['site']:
-                self.logger.info(f"Comparing new site <{old_site}> not found in file {old_file}.")
-                return None
+            if legacy_to_smv2 or smv1_to_smv2:
 
-            same = data_old['site'][old_site]['kind'] == data_new['site'][new_site]['kind']
-            secure_mesh = data_old['site'][old_site]['kind'] == "securemesh_site" and data_new['site'][new_site]['kind'] == "securemesh_site_v2"
-
-            if same or secure_mesh:
-                compared = diff(data_old['site'][old_site], data_new['site'][new_site], syntax="compact")
-                r = []
-                # build list of key paths
-                dict_keys = self._get_keys(None, compared, r, old_site, data_old)
                 table = PrettyTable()
                 table.set_style(TableStyle.SINGLE_BORDER)
-                table.field_names = ["path", "values"]
+                table.field_names = ["Item", "Source", "Target"]
 
                 if self.site:
                     table.padding_width = 1
                     table.title = self.site
 
-                for k in dict_keys:
-                    response = list()
-                    # get list of items to be added as table row data
-                    values_from_path = self._get_by_path(data_old['site'][old_site], k.split("/"), response)
+                compare_paths = [
+                    "metadata/name",
+                    "kind",
+                    "metadata/labels",
+                    "main_node_count",
+                    "worker_node_count",
+                    "nodes",
+                    "efp",
+                    "fpp",
+                    "bgp",
+                    "smg",
+                    "segments",
+                    "dc_cluster_group",
+                    "vsites",
+                    "namespaces",
+                    "namespaces/loadbalancer",
+                    "namespaces/proxys",
+                    "namespaces/origin_pools",
+                ]
 
-                    if values_from_path:
-                        check = list(map(lambda regex: re.match(regex, k), c.EXCLUDE_COMPARE_ATTRIBUTES))
-                        if not any(check):
-                            if re.match(c.COMPARE_REGEX_HW_INFO_CPU_FLAGS, k):
-                                start = 0
-                                item_counter = 0
-                                values_from_path_as_list = values_from_path[0].split(" ")
+                source_table_data = list()
+                target_table_data = list()
 
-                                for i in range(len(values_from_path_as_list)):
-                                    if item_counter == 15:
-                                        table.add_row([k, values_from_path_as_list[start:i]])
-                                        start = i
-                                        item_counter = 0
-                                    item_counter += 1
-                                table.add_divider()
-                            elif re.match(c.COMPARE_REGEX_HW_INFO_USB, k):
-                                for item in values_from_path:
-                                    for item1 in item:
-                                        for k1,v in item1.items():
-                                            table.add_row([k, {k1: v}])
-                                table.add_divider()
+                def recurse(key_path: list, data, table_data):
+                    if len(key_path) > 1:
+                        recurse(key_path[1:], data[key_path[0]], table_data)
+                    else:
+                        if key_path[0] == "namespaces":
+                            table_data.extend(["add_section_title_namespaces", "namespaces"])
+                            table_data.extend([f"namespaces_count", len(data.get(key_path[0]).keys())])
+                            table_data.extend([f"namespaces", format_list_with_newlines([namespace for namespace in data.get(key_path[0]).keys()])])
+                        elif key_path[0] == "labels":
+                            _labels = data.get(key_path[0])
+                            for label_key, label_value in _labels.items():
+                                if label_key == "ves.io/provider":
+                                    table_data.extend(["provider_type", label_value])
+                        elif key_path[0] == "nodes":
+                            table_data.extend([f"add_section_title_nodes", f"nodes"])
+                            for node_name, node_values in data[key_path[0]].items():
+                                if node_name in ["node0", "node1", "node2"]:
+                                    table_data.extend([f"{node_name}_hostname", node_values["hostname"]])
+                                    table_data.extend([f"{node_name}_cpu_count", node_values["hw_info"]["cpu"]["cpus"]])
+                                    table_data.extend([f"{node_name}_cpu_model", node_values["hw_info"]["cpu"]["model"]])
+                                    table_data.extend([f"{node_name}_memory_size", f"{round(node_values["hw_info"]["memory"]["size_mb"] / 1024)} GB"])
+                                    table_data.extend([f"{node_name}_interface_count", len(node_values["interfaces"])])
+                                    table_data.extend([f"{node_name}_os_name", node_values["hw_info"]["os"]["name"]])
+                                    table_data.extend([f"{node_name}_os_version", node_values["hw_info"]["os"]["version"]])
+                                    for index, storage in enumerate(node_values["hw_info"]["storage"]):
+                                        table_data.extend([f"{node_name}_storage_{index}", f"{storage["size_gb"]} GB"])
+                            # Interfaces
+                            if data["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                                for node_name, node_values in data[key_path[0]].items():
+                                    node_interfaces = list()
+                                    for interface in node_values["interfaces"]:
+                                        interface_details = dict()
+                                        # table_data.extend([f"add_section_title_{node_name}_interfaces", "node_interfaces"])
+                                        if "dedicated_interface" in interface.keys():
+                                            interface_details["is_primary"] = "true" if "is_primary" in interface["dedicated_interface"].keys() else "false"
+                                            interface_details["device_name"] = interface["dedicated_interface"]["device"]
+                                            interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                                            interface_details["interface_type"] = "dedicated_interface"
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
+                                            node_interfaces.append(interface_details["device_name"])
+                                        if "ethernet_interface" in interface.keys():
+                                            interface_details["mtu"] = interface["ethernet_interface"]["mtu"]
+                                            interface_details["is_primary"] = True if "is_primary" in interface["ethernet_interface"].keys() else False
+                                            interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                                            interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                                            interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                                            if "dhcp_server" in interface["ethernet_interface"].keys():
+                                                network_prefixes = list()
+                                                for network in interface["ethernet_interface"]["dhcp_server"]["dhcp_networks"]:
+                                                    network_prefixes.append(network["network_prefix"])
+                                                interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                                            interface_details["interface_type"] = "ethernet_interface"
+                                            interface_details["segment_network"] = interface["ethernet_interface"]["segment_network"]["name"] if "segment_network" in interface[
+                                                "ethernet_interface"].keys() else "None"
+                                            node_interfaces.append(interface_details["device_name"])
+
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
+                                        # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_server", interface_details["dhcp_server"]])
+                                        # if "dhcp_networks" in interface_details.keys():
+                                        #     table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_networks", interface_details["dhcp_networks"]])
+                                    table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
+                            elif data["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                                for node_name, node_values in data[key_path[0]].items():
+                                    node_interfaces = list()
+                                    for interface in node_values["interfaces"]:
+                                        interface_details = dict()
+                                        interface_details["mtu"] = interface["mtu"] if "mtu" in interface else "None"
+                                        interface_details["is_primary"] = interface["is_primary"] if "is_primary" in interface else "None"
+                                        interface_details["description"] = interface["description"] if interface["description"] != "" else "None"
+                                        interface_details["is_management"] = interface["is_management"] if "is_management" in interface else "None"
+                                        interface_details["site_local_network"] = "True" if "site_local_network" in interface["network_option"] else "None"
+                                        interface_details["site_local_inside_network"] = "True" if "site_local_inside_network" in interface["network_option"] else "None"
+                                        interface_details["dhcp_client"] = "True" if "dhcp_client" in interface else "False"
+                                        interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
+                                        interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
+                                            "network_option"].keys() else "None"
+                                        if "dhcp_server" in interface.keys():
+                                            network_prefixes = list()
+                                            for network in interface["dhcp_server"]["dhcp_networks"]:
+                                                network_prefixes.append(network["network_prefix"])
+                                            interface_details["dhcp_networks"] = ",".join(network_prefixes) if network_prefixes else "None"
+                                        if "ethernet_interface" in interface.keys():
+                                            interface_details["device_name"] = interface["ethernet_interface"]["device"]
+                                            interface_details["interface_type"] = "ethernet_interface"
+                                            interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface[
+                                                "ethernet_interface"].keys() else "None"
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_type", interface_details["interface_type"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_description", interface_details["description"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_is_primary", interface_details["is_primary"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_site_local_network", interface_details["site_local_network"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_site_local_inside_network", interface_details["site_local_inside_network"]])
+                                            # table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_server", interface_details["dhcp_server"]])
+                                            # if "dhcp_networks" in interface_details.keys():
+                                            #    table_data.extend([f"{node_name}_interface_{interface_details["device_name"]}_dhcp_networks", interface_details["dhcp_networks"]])
+                                        node_interfaces.append(interface["name"])
+                                    table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
                             else:
-                                table.add_row([k, values_from_path[0] if len(values_from_path) == 1 else values_from_path])
-                                table.add_divider()
+                                # Legacy sites
+                                for node_name, node_values in data[key_path[0]].items():
+                                    node_interfaces = list()
+                                    for interface_name, interface_attrs in node_values["interfaces"].items():
+                                        interface_details = dict()
+                                        #interface_details["device_name"] = interface_name
+                                        #interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                                        #interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
+                                        #interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                                        #_interface = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                                        node_interfaces.append(interface_name)
+                                    table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
+                        elif key_path[0] == "vsites":
+                            table_data.extend(["add_section_title_virtual_sites", "virtual_sites"])
+                            table_data.extend([f"virtual_sites_count", len(data.get(key_path[0]) if data.get(key_path[0]) is not None else [])])
+                            table_data.extend([f"virtual_sites", format_list_with_newlines(data.get(key_path[0]))])
+                        elif key_path[0] == "origin_pools":
+                            origin_pool_count = 0
+                            for namespace, values in data.items():
+                                table_data.extend(["add_section_title_op", "origin_pools"])
+                                for item, item_values in values.items():
+                                    if item == "origin_pools":
+                                        origin_pools = values.get(key_path[0])
+                                        origin_pool_count = origin_pool_count + len(origin_pools.keys())
+                                        table_data.extend([f"origin_pool_count", origin_pool_count])
+                                        table_data.extend([f"{namespace}[origin_pools]", format_list_with_newlines(list(origin_pools.keys()))])
+                        elif key_path[0] == "loadbalancer":
+                            load_balancer_count = 0
+                            for namespace, values in data.items():
+                                table_data.extend(["add_section_title_lb", "load_balancer"])
+                                for item, item_values in values.items():
+                                    if item == "loadbalancer":
+                                        for lb_type, load_balancer in item_values.items():
+                                            load_balancer_count = load_balancer_count + len(load_balancer.keys())
+                                            table_data.extend([f"load_balancer_count", load_balancer_count])
+                                            table_data.extend([f"{namespace}[load_balancer][{lb_type}]", format_list_with_newlines(list(load_balancer.keys()))])
+                        elif key_path[0] == "proxys":
+                            proxys_count = 0
+                            for namespace, values in data.items():
+                                table_data.extend(["add_section_title_proxys", "proxys"])
+                                for item, item_values in values.items():
+                                    if item == "proxys":
+                                        proxys_count = proxys_count + len(item_values.keys())
+                                        table_data.extend([f"proxys_count", proxys_count])
+                                        table_data.extend([f"{namespace}[proxys]", format_list_with_newlines(list(item_values.keys()))])
+                        elif key_path[0] == "dc_cluster_group":
+                            table_data.extend(["add_section_title_dc_cluster_group", "dc_cluster_group"])
+                            table_data.extend([f"dc_cluster_group", format_list_with_newlines(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else None)])
+                        elif key_path[0] == "smg":
+                            table_data.extend(["add_section_title_smg", "site_mesh_group"])
+                            table_data.extend([f"smg_count", len(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else {})])
+                            table_data.extend([f"smg", format_list_with_newlines(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else {})])
+                        elif key_path[0] == "efp":
+                            table_data.extend(["add_section_title_efp", "enhanced_firewall_policy"])
+                            table_data.extend([f"efp_count", len(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else {})])
+                            table_data.extend([f"efp", format_list_with_newlines(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else None)])
+                        elif key_path[0] == "fpp":
+                            table_data.extend(["add_section_title_fpp", "forward_proxy_policy"])
+                            table_data.extend([f"fpp_count", len(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else {})])
+                            table_data.extend([f"fpp", format_list_with_newlines(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else None)])
+                        elif key_path[0] == "bgp":
+                            table_data.extend(["add_section_title_bgp", "bgp"])
+                            table_data.extend([f"bgp_count", len(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else {})])
+                            table_data.extend([f"bgp", format_list_with_newlines(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else None)])
+                        elif key_path[0] == "segments":
+                            table_data.extend(["add_section_title_segments", "segments"])
+                            table_data.extend([f"segments_count", len(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else {})])
+                            table_data.extend([f"segments", format_list_with_newlines(list(data.get(key_path[0]).keys()) if data.get(key_path[0]) is not None else None)])
+                        else:
+                            table_data.extend([key_path[0], data.get(key_path[0])])
+
+                for allowed_path in compare_paths:
+                    p = allowed_path.split("/")
+                    recurse(p, data_source[c.SITES_KEY][source], source_table_data)
+                    recurse(p, data_target[c.SITES_KEY][target], target_table_data)
+
+                # Convert flat lists into ordered Dictionaries (using OrderedDict for robustness across Python versions)
+                # The slicing [::2] gets keys, [1::2] gets values. zip combines them into (key, value) pairs.
+                source_dict = OrderedDict(zip(source_table_data[0::2], source_table_data[1::2]))
+                target_dict = OrderedDict(zip(target_table_data[0::2], target_table_data[1::2]))
+
+                self.logger.debug(source_dict)
+                self.logger.debug(target_dict)
+
+                # Build the final result list using the unified keys
+                placeholder = 'N/A'
+
+                # Master Key Liste generieren
+                source_keys = list(source_dict.keys())
+                target_keys = list(target_dict.keys())
+                final_master_keys = build_master_key_list(source_keys, target_keys)
+
+                for key in final_master_keys:
+                    val1 = source_dict.get(key, placeholder)
+                    val2 = target_dict.get(key, placeholder)
+
+                    if key.startswith("add_section_title_"):
+                        table.add_divider()
+                    else:
+                        table.add_row([key, val1, val2])
 
                 return table
-            else:
-                self.logger.info(f"Comparing new site <{new_site}> with old site <{old_site}> not supported since not of same kind.")
-                return None
 
         return None
 
@@ -578,7 +987,8 @@ class Api(object):
         for index, processor in enumerate(c.API_PROCESSORS):
             self.logger.info(f"Loading processor <{processor}>...")
             package = load_module(c.PROCESSOR_PACKAGE, processor.lower())
-            _processor = getattr(package, processor.capitalize())(session=self.session, api_url=self.api_url, data=self.data, site=self.site, workers=self.workers, logger=self.logger)
+            _processor = getattr(package, processor.capitalize())(session=self.session, api_url=self.api_url, data=self.data, site=self.site, workers=self.workers,
+                                                                  logger=self.logger)
             _processors[processor] = _processor
             _processor.run()
 

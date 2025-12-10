@@ -98,7 +98,7 @@ def test_api_inventory_function(caplog):
     q = Api(logger=logger, api_url=API_URL, api_token=API_TOKEN, namespace=None, site=None, workers=WORKERS)
 
     # retrieving inventory data, asserting if it is not empty and writing data to inventory csv_file
-    data = q.build_inventory(json_file=TEST_DATA_SITE_OLD_FILE_NAME_REPLICA)
+    data = q.build_inventory_csv(json_file=TEST_DATA_SITE_OLD_FILE_NAME_REPLICA)
     assert data is not None, "Inventory data is None"
     if data:
         q.write_string_file(INVENTORY_FILE_CSV, data.get_csv_string())
@@ -135,8 +135,8 @@ def test_api_compare_function(caplog):
     q = Api(logger=logger, api_url=API_URL, api_token=API_TOKEN, namespace=None, site=None, workers=WORKERS)
 
     # retrieving data, asserting if data is not empty or not and logging and writing data to diff csv_file
-    data = q.compare(old_site=TEST_DATA_SITE_OLD_NAME, old_file=TEST_DATA_SITE_OLD_FILE_NAME_2,
-                     new_site=TEST_DATA_SITE_NEW_NAME, new_file=TEST_DATA_SITE_NEW_FILE_NAME_2)
+    data = q.compare(source=TEST_DATA_SITE_OLD_NAME, source_file=TEST_DATA_SITE_OLD_FILE_NAME_2,
+                     target=TEST_DATA_SITE_NEW_NAME, target_file=TEST_DATA_SITE_NEW_FILE_NAME_2)
     assert data is not None, "Comparison data is None"
     if data:
         q.write_string_file(DIFF_FILE_CSV, data.get_csv_string())

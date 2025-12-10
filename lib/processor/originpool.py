@@ -7,6 +7,8 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
+__DEPENDENCIES__ = ["site"]
+
 
 class Originpool(Base):
     def __init__(self, session: Session = None, api_url: str = None, data: dict = None, site: str = None, workers: int = 10, logger: Logger = None):
@@ -38,23 +40,23 @@ class Originpool(Base):
             try:
                 origin_pool_name = r["metadata"]["name"]
                 namespace = r["metadata"]["namespace"]
-                if site_name not in self.data[site_type].keys():
-                    self.data[site_type][site_name] = dict()
-                    self.data[site_type][site_name]['namespaces'] = dict()
-                if 'namespaces' not in self.data[site_type][site_name].keys():
-                    self.data[site_type][site_name]['namespaces'] = dict()
-                if namespace not in self.data[site_type][site_name]['namespaces'].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace] = dict()
-                if "origin_pools" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"] = dict()
+                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
+                if 'namespaces' not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
+                if namespace not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace] = dict()
+                if "origin_pools" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"] = dict()
 
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
-                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
-                self.data[site_type][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
 
                 self.logger.info(f"process origin pools add data: [namespace: {namespace} origin pool: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
@@ -95,30 +97,15 @@ class Originpool(Base):
                         origin_servers = r['spec'].get('origin_servers', [])
 
                         for origin_server in origin_servers:
-                            if self.must_break:
-                                break
-                            else:
-                                for key in c.F5XC_ORIGIN_SERVER_TYPES:
-                                    if self.must_break:
-                                        break
-                                    else:
-                                        site_locator = origin_server.get(key, {}).get('site_locator', {})
-
-                                        for site_type, site_data in site_locator.items():
-                                            site_name = site_data.get('name')
-
-                                            if site_name:
-                                                # Referenced site must exist
-                                                if site_name in self.data[site_type]:
-                                                    # Only processing sites which are not in failed state
-                                                    if site_name not in self.data["failed"]:
-                                                        if self.site:
-
-                                                            if self.site == site_name:
-                                                                self.must_break = True
-                                                                process()
-                                                                break
-                                                        else:
-                                                            process()
+                            for key in c.F5XC_ORIGIN_SERVER_TYPES:
+                                site_locator = origin_server.get(key, {}).get('site_locator', {})
+                                for site_type, site_data in site_locator.items():
+                                    site_name = site_data.get('name')
+                                    if site_name:
+                                        # Referenced site must exist
+                                        if site_name in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
+                                            # Only processing sites which are not in failed state
+                                            if site_name not in self.data["failed"]:
+                                                process()
 
         return self.data

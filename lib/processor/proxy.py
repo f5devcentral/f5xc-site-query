@@ -1,11 +1,14 @@
 import concurrent.futures
 import json
+import pprint
 from logging import Logger
 
 from requests import Session
 
 import lib.const as c
 from lib.processor.base import Base
+
+__DEPENDENCIES__ = ["site"]
 
 
 class Proxy(Base):
@@ -31,6 +34,7 @@ class Proxy(Base):
         Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
         :return: structure with proxies information being added
         """
+        pp = pprint.PrettyPrinter()
 
         proxies = self.execute(name="proxies query", urls=self.urls)
 
@@ -39,21 +43,21 @@ class Proxy(Base):
                 proxy_name = r["metadata"]["name"]
                 site_name = site_info[site_type][site_type]['name']
                 namespace = r["metadata"]["namespace"]
-                if site_name not in self.data[site_type].keys():
-                    self.data[site_type][site_name] = dict()
-                if "namespaces" not in self.data[site_type][site_name]:
-                    self.data[site_type][site_name]['namespaces'] = dict()
-                if namespace not in self.data[site_type][site_name]['namespaces'].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace] = dict()
-                if "proxys" not in self.data[site_type][site_name]['namespaces'][namespace].keys():
-                    self.data[site_type][site_name]['namespaces'][namespace]["proxys"] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
-                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['spec'] = r['spec']
-                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['metadata'] = r['metadata']
-                self.data[site_type][site_name]['namespaces'][namespace]['proxys'][proxy_name]['system_metadata'] = r['system_metadata']
+                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
+                if "namespaces" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]:
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
+                if namespace not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace] = dict()
+                if "proxys" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace].keys():
+                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['proxys'][proxy_name]['spec'] = r['spec']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['proxys'][proxy_name]['metadata'] = r['metadata']
+                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['proxys'][proxy_name]['system_metadata'] = r['system_metadata']
                 self.logger.info(f"process proxies add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 self.logger.info("site_type:", site_type)
@@ -97,11 +101,13 @@ class Proxy(Base):
                             for site_type in site_info.keys():
                                 if site_type in c.F5XC_SITE_TYPES:
                                     # Referenced site must exist
-                                    if site_info[site_type][site_type]['name'] in self.data[site_type]:
+                                    if site_info[site_type][site_type]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
                                         # Only processing sites which are not in failed state
                                         if site_info[site_type][site_type]['name'] not in self.data["failed"]:
                                             if self.site:
                                                 if self.site == site_info[site_type][site_type]['name']:
                                                     process()
+                                            else:
+                                                process()
 
         return self.data
