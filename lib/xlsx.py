@@ -1450,7 +1450,7 @@ class Xlsx(object):
             for source_item in data_source["namespaces"].values():
                 if "loadbalancer" in source_item.keys():
                     for source_lb_type in source_item["loadbalancer"].keys():
-                        source_lbs.append(list(source_item["loadbalancer"][source_lb_type].keys())[0])
+                        source_lbs.extend(list(source_item["loadbalancer"][source_lb_type].keys()))
 
                 if "proxys" in source_item.keys():
                     for source_proxy_type in source_item["proxys"].keys():
@@ -1458,7 +1458,7 @@ class Xlsx(object):
 
             for source_item in data_source["namespaces"].values():
                 if "origin_pools" in source_item.keys():
-                    source_ops.append(list(source_item["origin_pools"].keys())[0])
+                    source_ops.extend(list(source_item["origin_pools"].keys()))
 
         if "namespaces" in data_target:
             for namespace in data_target["namespaces"]:
@@ -1466,7 +1466,7 @@ class Xlsx(object):
             for target_item in data_target["namespaces"].values():
                 if "loadbalancer" in target_item.keys():
                     for target_lb_type in target_item["loadbalancer"].keys():
-                        target_lbs.append(list(target_item["loadbalancer"][target_lb_type].keys())[0])
+                        target_lbs.extend(list(target_item["loadbalancer"][target_lb_type].keys()))
 
                 if "proxys" in target_item.keys():
                     for target_proxy_type in target_item["proxys"].keys():
@@ -1474,7 +1474,7 @@ class Xlsx(object):
 
             for target_item in data_target["namespaces"].values():
                 if "origin_pools" in target_item.keys():
-                    target_ops.append(list(target_item["origin_pools"].keys())[0])
+                    target_ops.extend(list(target_item["origin_pools"].keys()))
 
         table_data_services = [
             ('NS', "\n".join(source_ns) if len(source_ns) > 0 else "None", "\n".join(target_ns) if len(target_ns) > 0 else "None"),
