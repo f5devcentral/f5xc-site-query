@@ -447,7 +447,6 @@ class Xlsx(object):
                     interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
                     interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
                         "network_option"].keys() else "None"
-                    _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
                     if "dhcp_server" in interface.keys():
                         network_prefixes = list()
                         for network in interface["dhcp_server"]["dhcp_networks"]:
@@ -457,6 +456,7 @@ class Xlsx(object):
                         interface_details["device_name"] = interface["ethernet_interface"]["device"]
                         interface_details["interface_type"] = "ethernet_interface"
                         interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                    _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
                     site_node1_interfaces.append(_interface)
             else:
                 # Legacy sites
@@ -513,7 +513,6 @@ class Xlsx(object):
                     interface_details["dhcp_server"] = "true" if "dhcp_server" in interface.keys() else "false"
                     interface_details["segment_network"] = interface["network_option"]["segment_network"]["name"] if "segment_network" in interface[
                         "network_option"].keys() else "None"
-                    _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
                     if "dhcp_server" in interface.keys():
                         network_prefixes = list()
                         for network in interface["dhcp_server"]["dhcp_networks"]:
@@ -523,6 +522,7 @@ class Xlsx(object):
                         interface_details["device_name"] = interface["ethernet_interface"]["device"]
                         interface_details["interface_type"] = "ethernet_interface"
                         interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
+                    _interface = ["Node2", f"{interface["name"]}", join_dict_items(interface_details)]
                     site_node2_interfaces.append(_interface)
             else:
                 # Legacy sites
@@ -1295,7 +1295,7 @@ class Xlsx(object):
                         interface_details["interface_type"] = "ethernet_interface"
                         interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
                     _interface = [f"{interface["name"]}", join_dict_items(interface_details)]
-                    target_node1_interfaces.append(_interface)
+                    target_node2_interfaces.append(_interface)
 
             if len(source_node2_interfaces) >= len(target_node2_interfaces):
                 for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["N/A", "N/A"]):
