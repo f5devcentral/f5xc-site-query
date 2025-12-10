@@ -672,7 +672,7 @@ class Xlsx(object):
             for site_item in site["namespaces"].values():
                 if "loadbalancer" in site_item.keys():
                     for source_lb_type in site_item["loadbalancer"].keys():
-                        site_lbs.append(list(site_item["loadbalancer"][source_lb_type].keys())[0])
+                        site_lbs.extend(list(site_item["loadbalancer"][source_lb_type].keys()))
 
                 if "proxys" in site_item.keys():
                     for source_proxy_type in site_item["proxys"].keys():
@@ -680,7 +680,7 @@ class Xlsx(object):
 
             for site_item in site["namespaces"].values():
                 if "origin_pools" in site_item.keys():
-                    site_ops.append(list(site_item["origin_pools"].keys())[0])
+                    site_ops.extend(list(site_item["origin_pools"].keys()))
 
         table_data_services = [
             ('NS', "\n".join(site_ns) if len(site_ns) > 0 else "None"),
