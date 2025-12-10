@@ -50,6 +50,7 @@ def build_master_key_list(source_keys: List[str], target_keys: List[str]) -> Lis
 
     # Keys that exist only in the Target
     target_only_set = target_set - source_set
+    print("target_only_set", target_only_set)
 
     # Master list of keys
     master_keys = []
@@ -61,6 +62,7 @@ def build_master_key_list(source_keys: List[str], target_keys: List[str]) -> Lis
     # Identify and sort Target-Only Keys
     # Note: custom_key_sorter is assumed to exist and sort based on 'node' numbers.
     target_only_keys_sorted = sorted(list(target_only_set), key=custom_key_sorter)
+    print("target_only_keys_sorted", target_only_keys_sorted)
 
     # Supplement the master list with Target-Only Keys at the correct position
     final_master_keys = []
@@ -73,6 +75,7 @@ def build_master_key_list(source_keys: List[str], target_keys: List[str]) -> Lis
         # we check if Target-Only Keys fall into this group.
 
         # Insert all Target-Only Node keys AFTER the last Source Node key (e.g., after node2_interfaces)
+
         if key.startswith('node') and key[4:5].isdigit():
             # Find the highest node number in the Source list (e.g., 2)
             node_numbers = [int(re.match(r'node(\d+)', k).group(1)) for k in final_master_keys if re.match(r'node\d+', k)]
@@ -862,8 +865,18 @@ class Api(object):
                                         node_interfaces.append(interface["name"])
                                     table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
                             else:
-                                pass
-
+                                # Legacy sites
+                                for node_name, node_values in data[key_path[0]].items():
+                                    node_interfaces = list()
+                                    for interface_name, interface_attrs in node_values["interfaces"].items():
+                                        interface_details = dict()
+                                        #interface_details["device_name"] = interface_name
+                                        #interface_details["ipv4"] = interface_attrs["subnet_param"]["ipv4"] if "subnet_param" in interface_attrs else None
+                                        #interface_details["ipv6"] = interface_attrs["subnet_param"]["ipv6"] if "subnet_param" in interface_attrs else None
+                                        #interface_details["existing_subnet_id"] = interface_attrs["existing_subnet_id"] if "existing_subnet_id" in interface_attrs else None
+                                        #_interface = [f"Node0", f"{interface_details["device_name"]}", join_dict_items(interface_details)]
+                                        node_interfaces.append(interface_name)
+                                    table_data.extend([f"{node_name}_interfaces", format_list_with_newlines(node_interfaces)])
                         elif key_path[0] == "vsites":
                             table_data.extend(["add_section_title_virtual_sites", "virtual_sites"])
                             table_data.extend([f"virtual_sites_count", len(data.get(key_path[0]) if data.get(key_path[0]) is not None else [])])
