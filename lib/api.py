@@ -778,9 +778,9 @@ class Api(object):
                                 if label_key == "ves.io/provider":
                                     table_data.extend(["provider_type", label_value])
                         elif key_path[0] == "nodes":
+                            table_data.extend([f"add_section_title_nodes", f"nodes"])
                             for node_name, node_values in data[key_path[0]].items():
                                 if node_name in ["node0", "node1", "node2"]:
-                                    table_data.extend(["add_divider_nodes", "nodes"])
                                     table_data.extend([f"{node_name}_hostname", node_values["hostname"]])
                                     table_data.extend([f"{node_name}_cpu_count", node_values["hw_info"]["cpu"]["cpus"]])
                                     table_data.extend([f"{node_name}_cpu_model", node_values["hw_info"]["cpu"]["model"]])
