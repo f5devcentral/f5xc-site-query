@@ -790,9 +790,11 @@ class Xlsx(Base):
 
         if data:
             self._build_compare_summary(0, source_name=source_name, target_name=target_name)
+            #self._build_compare_infrastructure(1, source_name=source_name, target_name=target_name)
+            self.logger.info(f"XLSX {self.build_comparison.__name__}. Done.")
             return self.wb
         else:
-            self.logger.info("Error compare data can not be empty")
+            self.logger.info("Error compare data can not be empty.")
             return None
 
     def _build_compare_summary(self, order: int = None, source_name: str = None, target_name: str = None,):

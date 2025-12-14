@@ -101,6 +101,9 @@ def main():
             source_data = q.read_json_file(args.old_site_file)
             target_data = q.read_json_file(args.new_site_file)
 
+            if not source_data and not target_data:
+                sys.exit(1)
+
             if args.diff_table:
                 output_processor = StdoutTable(logger=logger, site=args.site)
                 data = output_processor.build_comparison(source_name=args.old_site, source_data=source_data, source_file=args.old_site_file, target_name=args.new_site,

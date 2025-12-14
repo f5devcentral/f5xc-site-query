@@ -1,6 +1,5 @@
-import itertools
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 from logging import Logger
 from typing import Any
 
@@ -71,6 +70,8 @@ class Base(ABC):
         self._data_services_details = list()
         self._data_service_counter = dict()
         self._data = dict()
+        self._source_data = None
+        self._target_data = None
 
     @property
     def logger(self):
@@ -84,6 +85,14 @@ class Base(ABC):
         }
 
         return self._data
+
+    @property
+    def source_data(self):
+        return self._source_data
+
+    @property
+    def target_data(self):
+        return self._target_data
 
     @property
     def data_service_counter(self):
@@ -137,8 +146,7 @@ class Base(ABC):
 
         """
 
-        self.logger.info(
-            f"{self.compare.__name__} started with data from previous run: <{os.path.basename(source_file)}> and data from latest run <{os.path.basename(target_file)}>")
+        self.logger.info(f"{self.compare.__name__} started with data from previous run: <{os.path.basename(source_file)}> and data from latest run <{os.path.basename(target_file)}>")
         self.logger.info(f"Compare old site: {source_name} --> {source_file}")
         self.logger.info(f"Compare new site: {target_name} --> {target_file}")
 
@@ -164,18 +172,18 @@ class Base(ABC):
 
             # Only support comparison if site type is of same kind or if source site is secure mesh v1 and destination site is secure mesh v2
             legacy_to_smv2 = source_data[c.SITES_KEY][source_name]['kind'] in [c.F5XC_SITE_TYPE_AWS_VPC, c.F5XC_SITE_TYPE_AWS_TGW, c.F5XC_SITE_TYPE_GCP_VPC,
-                                                                               c.F5XC_SITE_TYPE_AZURE_VNET] and target_data[c.SITES_KEY][target_name][
-                                 'kind'] == c.F5XC_SITE_TYPE_SMS_V2
+                                                                               c.F5XC_SITE_TYPE_AZURE_VNET] and target_data[c.SITES_KEY][target_name]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
             smv1_to_smv2 = source_data[c.SITES_KEY][source_name]['kind'] == c.F5XC_SITE_TYPE_SMS_V1 and target_data[c.SITES_KEY][target_name]['kind'] == c.F5XC_SITE_TYPE_SMS_V2
 
             if legacy_to_smv2 or smv1_to_smv2:
-                source = source_data[c.SITES_KEY][source_name]
-                target = target_data[c.SITES_KEY][target_name]
+                self._source_data = source_data
+                self._target_data = target_data
+                source = self.source_data[c.SITES_KEY][source_name]
+                target = self.target_data[c.SITES_KEY][target_name]
                 self._compare_infrastructure(source=source, target=target)
-                self._compare_interfaces(source_name=source_name, source_data=source_data, target_name=target_name, target_data=target_data)
+                self._compare_interfaces(source=source, target=target)
                 self._compare_services(source=source, target=target)
                 self._compare_services_details(source=source, target=target)
-                self._compare_services_counter(source=source, target=target)
 
                 return self.data
 
@@ -203,7 +211,7 @@ class Base(ABC):
         else:
             table_data_common.extend([["Labels", join_dict_items(source["legacy"]["metadata"]["labels"]), join_dict_items(target["sms"]["metadata"]["labels"])]])
 
-        self.data["common"] = table_data_common
+        self._data_common = table_data_common
 
         #######################################
         # Node0 hardware / software           #
@@ -365,17 +373,17 @@ class Base(ABC):
 
         return self.data_nodes
 
-    def _compare_interfaces(self, source_name: str = None, source_data: dict[str, Any] = None, target_name: str = None, target_data: dict[str, Any] = None) -> list[dict[
-        str, Any]] | None:
+    @abstractmethod
+    def _compare_interfaces(self, source: dict[str, Any]= None, target: dict[str, Any] = None) -> list[dict[str, Any]] | None:
         pass
 
     def _compare_services(self, source: dict = None, target: dict = None) -> list | None:
         """
-               Populate compare services detail table data
+       Populate compare services detail table data
 
-               :param source: source site data to compare with
-               :param target: target site data to compare with
-               """
+       :param source: source site data to compare with
+       :param target: target site data to compare with
+       """
 
         source_ns = list()
         target_ns = list()
@@ -436,113 +444,6 @@ class Base(ABC):
 
         return self.data_services
 
-    def _compare_services_counter(self, source: dict = None, target: dict = None) -> dict | None:
-        """
-        Dict representation of services and according counter
-        Returns
-        -------
-
-        """
-
-        source_ns = list()
-        target_ns = list()
-        source_lbs = list()
-        target_lbs = list()
-        source_proxies = list()
-        target_proxies = list()
-        ops = dict()
-
-        if "namespaces" in source and "namespaces" in target:
-            for namespace in source["namespaces"]:
-                source_ns.append(namespace)
-            for source_item in source["namespaces"].values():
-                if "loadbalancer" in source_item.keys():
-                    for source_lb_type in source_item["loadbalancer"].keys():
-                        source_lbs.extend(list(source_item["loadbalancer"][source_lb_type].keys()))
-
-                if "proxys" in source_item.keys():
-                    for source_proxy_type in source_item["proxys"].keys():
-                        source_proxies.append(source_item["proxys"][source_proxy_type]["metadata"]["name"])
-
-            for ns, source_item in source["namespaces"].items():
-                if "origin_pools" in source_item.keys():
-                    ops[f"OriginPools[{ns}]"] = [len(list(source_item["origin_pools"].keys()))]
-
-            for namespace in target["namespaces"]:
-                target_ns.append(namespace)
-
-            for target_item in target["namespaces"].values():
-                if "loadbalancer" in target_item.keys():
-                    for target_lb_type in target_item["loadbalancer"].keys():
-                        target_lbs.extend(list(target_item["loadbalancer"][target_lb_type].keys()))
-
-                if "proxys" in target_item.keys():
-                    for target_proxy_type in target_item["proxys"].keys():
-                        target_proxies.append(target_item["proxys"][target_proxy_type]["metadata"]["name"])
-
-            for ns, target_item in source["namespaces"].items():
-                if "origin_pools" in target_item.keys():
-                    ops[f"OriginPools[{ns}]"] = [len(list(target_item["origin_pools"].keys()))]
-        elif "namespace" in source and "namespaces" not in target:
-            for namespace in source["namespaces"]:
-                source_ns.append(namespace)
-            for source_item in source["namespaces"].values():
-                if "loadbalancer" in source_item.keys():
-                    for source_lb_type in source_item["loadbalancer"].keys():
-                        source_lbs.extend(list(source_item["loadbalancer"][source_lb_type].keys()))
-
-                if "proxys" in source_item.keys():
-                    for source_proxy_type in source_item["proxys"].keys():
-                        source_proxies.append(source_item["proxys"][source_proxy_type]["metadata"]["name"])
-
-            for ns, source_item in source["namespaces"].items():
-                if "origin_pools" in source_item.keys():
-                    ops[f"OriginPools[{ns}]"] = [len(list(source_item["origin_pools"].keys())), 0]
-
-            for namespace in target["namespaces"]:
-                target_ns.append(namespace)
-        elif "namespace" not in source and "namespaces" in target:
-            for namespace in target["namespaces"]:
-                target_ns.append(namespace)
-            for target_item in target["namespaces"].values():
-                if "loadbalancer" in target_item.keys():
-                    for target_lb_type in target_item["loadbalancer"].keys():
-                        target_lbs.extend(list(target_item["loadbalancer"][target_lb_type].keys()))
-
-                if "proxys" in target_item.keys():
-                    for target_proxy_type in target_item["proxys"].keys():
-                        target_proxies.append(target_item["proxys"][target_proxy_type]["metadata"]["name"])
-
-            for ns, target_item in target["namespaces"].items():
-                if f"OriginPools[{ns}]" not in ops:
-                    ops[f"OriginPools[{ns}]"] = list()
-
-                if "origin_pools" in target_item.keys():
-                    ops[f"OriginPools[{ns}]"] = [0, len(list(target_item["origin_pools"].keys()))]
-
-        table_data_services = {
-            "Namespaces": [len(source_ns), len(target_ns)],
-            "LoadBalancer": [len(source_lbs), len(target_lbs)],
-        }
-        table_data_services.update(ops)
-        table_data_services.update(
-            {
-                "EFP": [len(list(source["efp"].keys())) if "efp" in source else 0, len(list(target["efp"].keys())) if "efp" in target else 0],
-                "FPP": [len(list(source["fpp"].keys())) if "fpp" in source else 0, len(list(target["fpp"].keys())) if "fpp" in target else 0],
-                "SMG": [len(list(source["smg"].keys())) if len(source["smg"]) > 0 else 0, len(list(target["smg"].keys())) if len(target["smg"]) > 0 else 0],
-                "DCCG": [len(list(source["dc_cluster_group"].keys())) if "dc_cluster_group" in source else 0,
-                         len(list(target["dc_cluster_group"].keys())) if "dc_cluster_group" in target else 0],
-                "Proxies": [len(source_proxies) if len(source_proxies) > 0 else 0, len(target_proxies) if len(target_proxies) > 0 else 0],
-                "Segments": [len(source["segments"].keys()) if "segments" in source else 0, len(target["segments"].keys()) if "segments" in target else 0],
-                "BGP Policies": [len(list(source["bgp"].keys())) if "bgp" in source else 0, len(list(target["bgp"].keys())) if "bgp" in target else 0],
-                "Virtual Sites": [len(source["vsites"]), len(target["vsites"])],
-            }
-        )
-
-        self._data_service_counter = table_data_services
-
-        return self.data_service_counter
-
     def _compare_services_details(self, source: dict = None, target: dict = None) -> list | None:
         """
         Populate compare services detail table data
@@ -559,116 +460,155 @@ class Base(ABC):
         target_ops = list()
         source_proxies = list()
         target_proxies = list()
+        source_vsites = list()
+        target_vsites = list()
 
         if "namespaces" in source and "namespaces" in target:
             for namespace in source["namespaces"]:
                 source_ns.append(namespace)
-            for source_item in source["namespaces"].values():
+            for ns, source_item in source["namespaces"].items():
                 if "loadbalancer" in source_item.keys():
-                    for source_lb_type in source_item["loadbalancer"].keys():
-                        source_lbs.extend(list(source_item["loadbalancer"][source_lb_type].keys()))
+                    for source_lb_type, source_lb_type_values in source_item["loadbalancer"].items():
+                        for lb_name, lb_values in source_lb_type_values.items():
+                            source_lbs.append(f"{lb_name}[{source_lb_type}][{ns}]")
 
                 if "proxys" in source_item.keys():
-                    for source_proxy_type in source_item["proxys"].keys():
-                        source_proxies.append(source_item["proxys"][source_proxy_type]["metadata"]["name"])
+                    for source_proxy_name, source_proxy_values in source_item["proxys"].items():
+                        for spec_key in source_proxy_values['spec'].keys():
+                            if spec_key == "http_proxy":
+                                source_proxies.append(f"{source_proxy_name}[{spec_key}][{ns}]")
+                            elif spec_key == "dynamic_proxy":
+                                source_proxies.append(f"{source_proxy_name}[{spec_key}][{ns}]")
 
             for ns, source_item in source["namespaces"].items():
                 if "origin_pools" in source_item.keys():
-                    a = f"OriginPools[{ns}]", list(source_item["origin_pools"].keys())
-                    source_ops.append(a)
+                    for op in source_item["origin_pools"].keys():
+                        source_ops.append(f"{op}[{ns}]")
 
             for namespace in target["namespaces"]:
                 target_ns.append(namespace)
-            for target_item in target["namespaces"].values():
+            for ns, target_item in target["namespaces"].items():
                 if "loadbalancer" in target_item.keys():
-                    for target_lb_type in target_item["loadbalancer"].keys():
-                        target_lbs.extend(list(target_item["loadbalancer"][target_lb_type].keys()))
+                    for target_lb_type, target_lb_type_values in target_item["loadbalancer"].items():
+                        for lb_name, lb_values in target_lb_type_values.items():
+                            target_lbs.append(f"{lb_name}[{target_lb_type}][{ns}]")
 
                 if "proxys" in target_item.keys():
-                    for target_proxy_type in target_item["proxys"].keys():
-                        target_proxies.append(target_item["proxys"][target_proxy_type]["metadata"]["name"])
+                    for target_proxy_name, target_proxy_values in target_item["proxys"].items():
+                        for spec_key in target_proxy_values['spec'].keys():
+                            if spec_key == "http_proxy":
+                                target_proxies.append(f"{target_proxy_name}[{spec_key}][{ns}]")
+                            elif spec_key == "dynamic_proxy":
+                                target_proxies.append(f"{target_proxy_name}[{spec_key}][{ns}]")
 
             for ns, target_item in target["namespaces"].items():
                 if "origin_pools" in target_item.keys():
-                    a = [list(target_item["origin_pools"].keys())]
-                    target_ops.append(a)
+                    for op in target_item["origin_pools"].keys():
+                        target_ops.append(f"{op}[{ns}]")
 
         elif "namespaces" in source and "namespaces" not in target:
             # Only source namespace exists
-
             for namespace in source["namespaces"]:
                 source_ns.append(namespace)
-            for source_item in source["namespaces"].values():
+            for ns, source_item in source["namespaces"].items():
                 if "loadbalancer" in source_item.keys():
-                    for source_lb_type in source_item["loadbalancer"].keys():
-                        source_lbs.extend(list(source_item["loadbalancer"][source_lb_type].keys()))
+                    for source_lb_type, source_lb_type_values in source_item["loadbalancer"].items():
+                        for lb_name, lb_values in source_lb_type_values.items():
+                            source_lbs.append(f"{lb_name}[{source_lb_type}][{ns}]")
 
                 if "proxys" in source_item.keys():
-                    for source_proxy_type in source_item["proxys"].keys():
-                        source_proxies.append(source_item["proxys"][source_proxy_type]["metadata"]["name"])
+                    for source_proxy_name, source_proxy_values in source_item["proxys"].items():
+                        for spec_key in source_proxy_values['spec'].keys():
+                            if spec_key == "http_proxy":
+                                source_proxies.append(f"{source_proxy_name}[{spec_key}][{ns}]")
+                            elif spec_key == "dynamic_proxy":
+                                source_proxies.append(f"{source_proxy_name}[{spec_key}][{ns}]")
 
             for ns, source_item in source["namespaces"].items():
                 if "origin_pools" in source_item.keys():
-                    a = [f"OriginPools[{ns}]", list(source_item["origin_pools"].keys()), PLACE_HOLDER]
-                    source_ops.append(a)
+                    for op in source_item["origin_pools"].keys():
+                        source_ops.append(f"{op}[{ns}]")
 
         elif "namespaces" not in source and "namespaces" in target:
             # Only target namespace exist
             for namespace in target["namespaces"]:
                 target_ns.append(namespace)
 
-            for target_item in target["namespaces"].values():
+            for ns, target_item in target["namespaces"].items():
                 if "loadbalancer" in target_item.keys():
-                    for target_lb_type in target_item["loadbalancer"].keys():
-                        target_lbs.extend(list(target_item["loadbalancer"][target_lb_type].keys()))
+                    for target_lb_type, target_lb_type_values in target_item["loadbalancer"].items():
+                        for lb_name, lb_values in target_lb_type_values.items():
+                            target_lbs.append(f"{lb_name}[{target_lb_type}][{ns}]")
 
                 if "proxys" in target_item.keys():
-                    for target_proxy_type in target_item["proxys"].keys():
-                        target_proxies.append(target_item["proxys"][target_proxy_type]["metadata"]["name"])
+                    for target_proxy_name, target_proxy_values in target_item["proxys"].items():
+                        for spec_key in target_proxy_values['spec'].keys():
+                            if spec_key == "http_proxy":
+                                target_proxies.append(f"{target_proxy_name}[{spec_key}][{ns}]")
+                            elif spec_key == "dynamic_proxy":
+                                target_proxies.append(f"{target_proxy_name}[{spec_key}][{ns}]")
 
             for ns, target_item in target["namespaces"].items():
                 if "origin_pools" in target_item.keys():
-                    target_ops.append([f"OriginPools[{ns}]", PLACE_HOLDER, format_list_with_newlines(list(target_item["origin_pools"].keys()))])
+                    for op in target_item["origin_pools"].keys():
+                        target_ops.append(f"{op}[{ns}]")
+
+        for vsite in source["vsites"]:
+            source_vsites.append(f"{vsite}[{self._source_data[c.VIRTUAL_SITES_KEY][vsite]['metadata']['namespace']}]")
+
+        for vsite in target["vsites"]:
+            target_vsites.append(f"{vsite}[{self._target_data[c.VIRTUAL_SITES_KEY][vsite]['metadata']['namespace']}]")
 
         table_data_services = [
+            ['Namespaces Counter', len(source_ns), len(target_ns)],
             ['Namespaces', format_list_with_newlines(source_ns) if len(source_ns) > 0 else "None", format_list_with_newlines(target_ns) if len(target_ns) > 0 else "None"],
             ["new_section"],
+            ['LoadBalancer Counter', len(source_lbs), len(target_lbs)],
             ['LoadBalancer', format_list_with_newlines(source_lbs) if len(source_lbs) > 0 else "None", format_list_with_newlines(target_lbs) if len(target_lbs) > 0 else "None"],
+            ["new_section"],
+            ['OriginPools Counter', len(source_ops), len(target_ops)],
+            ['OriginPools', format_list_with_newlines(source_ops), format_list_with_newlines(target_ops)],
             ["new_section"],
         ]
 
-        # Origin Pools
-        if len(source_ns) > 0:
-            #a = [source_ops if len(source_ops) > 0 else "None", target_ops if len(target_ops) > 0 else "None"],
-            table_data_services.extend([source_ops, target_ops])
-        else:
-            table_data_services.extend(target_ops)
-
-        table_data_services.append(["new_section"])
-
         table_data_services.extend(
             [
+                ['EFP Counter', len(list(source["efp"].keys())) if "efp" in source else 0, len(list(target["efp"].keys())) if "efp" in target else 0],
                 ['EFP', format_list_with_newlines(list(source["efp"].keys())) if "efp" in source else "None",
                  format_list_with_newlines(list(target["efp"].keys())) if "efp" in target else "None"],
                 ["new_section"],
+                ['FPP Counter', len(list(source["fpp"].keys())) if "fpp" in source else 0, len(list(target["fpp"].keys())) if "fpp" in target else 0],
                 ['FPP', format_list_with_newlines(list(source["fpp"].keys())) if "fpp" in source else "None",
                  format_list_with_newlines(list(target["fpp"].keys())) if "fpp" in target else "None"],
+                ["new_section"],
+                ['SMG Counter', len(list(source["smg"].keys())) if len(source["smg"]) > 0 else 0,
+                 len(list(target["smg"].keys())) if len(target["smg"]) > 0 else 0],
                 ['SMG', format_list_with_newlines(list(source["smg"].keys())) if len(source["smg"]) > 0 else "None",
                  format_list_with_newlines(list(target["smg"].keys())) if len(target["smg"]) > 0 else "None"],
                 ["new_section"],
+                ['DCCG Counter', len(list(source["dc_cluster_group"].keys())) if "dc_cluster_group" in source else 0,
+                 len(list(target["dc_cluster_group"].keys())) if "dc_cluster_group" in target else 0],
                 ['DCCG', format_list_with_newlines(list(source["dc_cluster_group"].keys())) if "dc_cluster_group" in source else "None",
                  format_list_with_newlines(list(target["dc_cluster_group"].keys())) if "dc_cluster_group" in target else "None"],
+                ["new_section"],
+                ['Proxies Counter', len(source_proxies) if len(source_proxies) > 0 else 0,
+                 len(target_proxies) if len(target_proxies) > 0 else 0],
                 ['Proxies', format_list_with_newlines(source_proxies) if len(source_proxies) > 0 else "None",
                  format_list_with_newlines(target_proxies) if len(target_proxies) > 0 else "None"],
                 ["new_section"],
-                ['Segments', format_list_with_newlines(source["segments"].keys()) if "segments" in source else "None",
-                 format_list_with_newlines(target["segments"].keys()) if "segments" in target else "None"],
+                ['Segments Counter', len(source["segments"].keys()) if "segments" in source else 0,
+                 len(target["segments"].keys()) if "segments" in target else 0],
+                ['Segments', format_list_with_newlines(list(source["segments"].keys())) if "segments" in source else "None",
+                 format_list_with_newlines(list(target["segments"].keys())) if "segments" in target else "None"],
                 ["new_section"],
+                ['BGP Policies Counter', len(list(source["bgp"].keys())) if "bgp" in source else 0,
+                 len(list(target["bgp"].keys())) if "bgp" in target else 0],
                 ['BGP Policies', format_list_with_newlines(list(source["bgp"].keys())) if "bgp" in source else "None",
                  format_list_with_newlines(list(target["bgp"].keys())) if "bgp" in target else "None"],
                 ["new_section"],
-                ['Virtual Sites', format_list_with_newlines(source["vsites"]) if len(source["vsites"]) > 0 else "None",
-                 format_list_with_newlines(target["vsites"]) if len(target["vsites"]) else "None"],
+                ['Virtual Sites Counter', len(source_vsites), len(target_vsites)],
+                ['Virtual Sites', format_list_with_newlines(source_vsites) if len(source_vsites) > 0 else "None",
+                 format_list_with_newlines(target_vsites) if len(target_vsites) else "None"],
             ]
         )
 
