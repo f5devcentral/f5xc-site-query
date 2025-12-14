@@ -58,6 +58,11 @@ class Originpool(Base):
                 self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
                 self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
 
+                if site_type == c.F5XC_VIRTUAL_SITE:
+                    print("EXTRA STEP NEEDED....")
+                    pass
+
+
                 self.logger.info(f"process origin pools add data: [namespace: {namespace} origin pool: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 self.logger.info("site_type:", site_type)

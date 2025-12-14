@@ -333,7 +333,7 @@ class Api(object):
                 data = json.load(fp=fd)
                 if c.SITES_KEY in data and c.VIRTUAL_SITES_KEY in data:
                     self.logger.info(
-                        f"{len(data[c.SITES_KEY])} {c.SITES_KEY if len(data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
+                        f"{len(self.data[c.NAMESPACES_KEY])} {c.NAMESPACES_KEY if len(self.data[c.NAMESPACES_KEY]) > 1 else 'namespace'}, {len(data[c.SITES_KEY])} {c.SITES_KEY if len(data[c.SITES_KEY]) > 1 else 'site'} and {len(data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(data[c.VIRTUAL_SITES_KEY]) > 1 else 'site'} read from {name}")
                     return data
                 else:
                     self.logger.info(f"Error reading data from file {name}. No site data available")
@@ -354,7 +354,7 @@ class Api(object):
                         del self.data["filter_expressions_per_virtual_site"]
                     fd.write(json.dumps(self.data, indent=2))
                     self.logger.info(
-                        f"{len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self.data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(self.data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} written to {name}")
+                        f"{len(self.data[c.NAMESPACES_KEY])} {c.NAMESPACES_KEY if len(self.data[c.NAMESPACES_KEY]) > 1 else 'namespace'}, {len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else 'site'} and {len(self.data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(self.data[c.VIRTUAL_SITES_KEY]) > 1 else 'site'} written to {name}")
             except OSError as e:
                 self.logger.info(f"Writing file {name} failed with error: {e}")
         else:

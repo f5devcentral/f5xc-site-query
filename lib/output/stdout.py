@@ -54,7 +54,7 @@ class StdoutTable(Base):
                     elif isinstance(value, int):
                         table.add_row([record_no, key, value, "", "", "", ""])
                     elif isinstance(value, dict):
-                        if key in c.CSV_EXPORT_KEYS:
+                        if key in c.INVENTORY_EXPORT_KEYS:
                             if key == "spec":
                                 table.add_row([record_no, key, "ce_sw_version", value["volterra_software_version"], "", "", ""])
                             elif key == "spoke":
@@ -66,7 +66,28 @@ class StdoutTable(Base):
                             elif key == "nodes":
                                 for node, attrs in value.items():
                                     if "interfaces" in attrs:
-                                        table.add_row([record_no, "node", node, "interfaces", len(attrs["interfaces"]), "", ""])
+                                        if site_data["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
+                                            interfaces = list()
+                                            for interface in attrs['interfaces']:
+                                                if "dedicated_interface" in interface.keys():
+                                                    interfaces.append(interface['dedicated_interface']['device'])
+                                                elif 'ethernet_interface' in interface.keys():
+                                                    interfaces.append(interface['ethernet_interface']['device'])
+                                            table.add_row([record_no, "node", node, "interfaces", len(interfaces), "", ", ".join(interfaces)])
+                                        elif site_data["kind"] == c.F5XC_SITE_TYPE_SMS_V2:
+                                            interfaces = list()
+                                            for interface in attrs['interfaces']:
+                                                if 'ethernet_interface' in interface.keys():
+                                                    interfaces.append(interface['ethernet_interface']['device'])
+                                            table.add_row([record_no, "node", node, "interfaces", len(interfaces), "", ", ".join(interfaces)])
+                                        else:
+                                            # Legacy Sites
+                                            interfaces = list()
+                                            if "slo" in attrs["interfaces"]:
+                                                interfaces.append("slo")
+                                            elif "sli" in attrs["interfaces"]:
+                                                interfaces.append("sli")
+                                            table.add_row([record_no, "node", node, "interfaces", len(interfaces), "", ", ".join(interfaces)])
                                     if "hw_info" in attrs:
                                         for k, v in c.HW_INFO_ITEMS_TO_PROCESS.items():
                                             if k == "storage":

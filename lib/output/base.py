@@ -482,10 +482,7 @@ class Base(ABC):
 
             for ns, target_item in source["namespaces"].items():
                 if "origin_pools" in target_item.keys():
-                    if ns in ops:
-                        ops[f"OriginPools[{ns}]"] = [len(list(target_item["origin_pools"].keys()))]
-                        elements = a[f"OriginPools[{ns}]"]
-                        elements.append(len(list(target_item["origin_pools"].keys())))
+                    ops[f"OriginPools[{ns}]"] = [len(list(target_item["origin_pools"].keys()))]
         elif "namespace" in source and "namespaces" not in target:
             for namespace in source["namespaces"]:
                 source_ns.append(namespace)

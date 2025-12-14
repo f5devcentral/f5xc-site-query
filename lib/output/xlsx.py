@@ -56,6 +56,7 @@ class Xlsx(Base):
         super().__init__(logger=logger, site=site)
         self.wb = Workbook()
         self.ws = self.wb.active
+        self.must_break = False
 
     def build_inventory(self, data: dict = None) -> Workbook | None:
         """
@@ -71,8 +72,8 @@ class Xlsx(Base):
             return None
         else:
             self._build_inventory_summary(0, data)
-            #self._build_inventory_infrastructure(1, data)
-            #self._build_inventory_service(2, data)
+            self._build_inventory_infrastructure(1, data)
+            self._build_inventory_service(2, data)
             self.logger.info(f"{self.build_inventory.__name__} done.")
             return self.wb
 
@@ -463,7 +464,7 @@ class Xlsx(Base):
                         interface_details["device_name"] = interface["ethernet_interface"]["device"]
                         interface_details["interface_type"] = "ethernet_interface"
                         interface_details["mac"] = interface["ethernet_interface"]["mac"] if "ethernet_interface" in interface["ethernet_interface"].keys() else "None"
-                    _interface = ["Node0", f"{interface["name"]}", join_dict_items(interface_details)]
+                    _interface = ["Node1", f"{interface["name"]}", join_dict_items(interface_details)]
                     site_node1_interfaces.append(_interface)
             else:
                 # Legacy sites
@@ -672,22 +673,30 @@ class Xlsx(Base):
         site_lbs = list()
         site_ops = list()
         site_proxies = list()
+        vsites = list()
 
         if "namespaces" in site:
             for namespace in site["namespaces"]:
                 site_ns.append(namespace)
-            for site_item in site["namespaces"].values():
+            for ns, site_item in site["namespaces"].items():
                 if "loadbalancer" in site_item.keys():
-                    for source_lb_type in site_item["loadbalancer"].keys():
-                        site_lbs.extend(list(site_item["loadbalancer"][source_lb_type].keys()))
-
+                    for lb_type, lb_type_values in site_item["loadbalancer"].items():
+                        for lb_name, lb_values in lb_type_values.items():
+                            site_lbs.append(f"{lb_name}[{lb_type}][{ns}]")
                 if "proxys" in site_item.keys():
-                    for source_proxy_type in site_item["proxys"].keys():
-                        site_proxies.append(site_item["proxys"][source_proxy_type]["metadata"]["name"])
-
-            for site_item in site["namespaces"].values():
+                    for proxy_name, proxy_values in site_item["proxys"].items():
+                        for proxy_type in proxy_values['spec'].keys():
+                            if proxy_type == 'http_proxy':
+                                site_proxies.append(f"{proxy_name}[{proxy_type}][{ns}]")
+                            elif proxy_type == 'dynamic_proxy':
+                                site_proxies.append(f"{proxy_name}[{proxy_type}][{ns}]")
+            for ns, site_item in site["namespaces"].items():
                 if "origin_pools" in site_item.keys():
-                    site_ops.extend(list(site_item["origin_pools"].keys()))
+                    for op in site_item["origin_pools"].keys():
+                        site_ops.append(f"{op}[{ns}]")
+
+        for vsite in site["vsites"]:
+            vsites.append(f"{vsite}[{data[c.VIRTUAL_SITES_KEY][vsite]['metadata']['namespace']}]")
 
         table_data_services = [
             ('NS', "\n".join(site_ns) if len(site_ns) > 0 else "None"),
@@ -700,7 +709,7 @@ class Xlsx(Base):
             ('Proxies', "\n".join(site_proxies) if len(site_proxies) > 0 else "None"),
             ('Segments', "\n".join(site["segments"].keys()) if "segments" in site else "None"),
             ('BGP Policies', "\n".join(site["bgp"].keys()) if "bgp" in site else "None"),
-            ('Virtual Sites', "\n".join(site["vsites"]) if len(site["vsites"]) > 0 else "None"),
+            ('Virtual Sites', "\n".join(vsites) if len(vsites) > 0 else "None"),
         ]
 
         ws_services.append([f"Services: {site["metadata"]["name"]}"])

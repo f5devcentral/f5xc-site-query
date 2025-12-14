@@ -127,7 +127,7 @@ def main():
             sys.exit(1)
 
         # stdout inventory
-        if args.diff_table:
+        if args.inventory_table:
             output_processor = StdoutTable(logger=logger, site=args.site)
             data = q.read_json_file(name=args.file)
 
@@ -137,8 +137,15 @@ def main():
                     logger.info(f"\n\n{table_data.get_formatted_string('text')}\n") if args.inventory_table else None
 
         # XLSX inventory
-        if args.diff_file_xlsx:
-            q.build_inventory_xlsx(json_file=args.file, xlsx_file=args.inventory_file_xlsx) if args.inventory_file_xlsx else None
+        if args.inventory_file_xlsx:
+            output_processor = Xlsx(logger=logger, site=args.site)
+            data = q.read_json_file(name=args.file)
+
+            if data:
+                wb = output_processor.build_inventory(data=data)
+                logger.info(f"Writing xlsx file: {args.inventory_file_xlsx}...")
+                wb.save(filename=args.inventory_file_xlsx)
+                logger.info(f"Writing xlsx file: {args.inventory_file_xlsx}. Done.")
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
