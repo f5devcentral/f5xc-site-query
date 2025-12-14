@@ -22,7 +22,6 @@ class Vs(Base):
         :param logger: log instance for writing / printing log information
         """
         super().__init__(session=session, api_url=api_url, data=data, site=site, workers=workers, logger=logger)
-        self.data[c.VIRTUAL_SITES_COUNTER_KEY] = 0
 
         # Reset urls
         self.urls = list()
@@ -44,28 +43,20 @@ class Vs(Base):
         def process():
             try:
                 vs_name = r["metadata"]["name"]
-                vs_namespace = r["metadata"]["namespace"]
-
-                if vs_namespace not in self.data[c.NAMESPACES_KEY]:
-                    self.logger.info(f"Error: {vs_namespace} not found in namespaces data. Can not process virtual site data.")
-                else:
-                    if c.VIRTUAL_SITES_KEY not in self.data[c.NAMESPACES_KEY][vs_namespace]:
-                        self.data[c.NAMESPACES_KEY][vs_namespace][c.VIRTUAL_SITES_KEY] = dict()
-                    if vs_name not in self.data[c.NAMESPACES_KEY][vs_namespace][c.VIRTUAL_SITES_KEY]:
-                        self.data[c.NAMESPACES_KEY][vs_namespace][c.VIRTUAL_SITES_KEY][vs_name] = dict()
-                        self.data[c.NAMESPACES_KEY][vs_namespace][c.VIRTUAL_SITES_KEY][vs_name]['metadata'] = r["metadata"]
-                        self.data[c.NAMESPACES_KEY][vs_namespace][c.VIRTUAL_SITES_KEY][vs_name]['spec'] = r["spec"]
-                        self.data[c.VIRTUAL_SITES_COUNTER_KEY] += 1
+                self.data[c.VIRTUAL_SITES_KEY][vs_name] = dict()
+                self.data[c.VIRTUAL_SITES_KEY][vs_name]['metadata'] = r["metadata"]
+                self.data[c.VIRTUAL_SITES_KEY][vs_name]['spec'] = r["spec"]
             except Exception as e:
                 self.logger.info("namespace:", r["metadata"]["namespace"])
                 self.logger.info("system_metadata:", r['system_metadata'])
                 self.logger.info("Exception:", e)
 
         urls = list()
+
         for item in _virtual_sites:
-            for url, vss in item.items():
-                for vs in vss:
-                    _url = "{}/{}".format(url, vs['name'])
+            for url, lbs in item.items():
+                for lb in lbs:
+                    _url = "{}/{}".format(url, lb['name'])
                     urls.append(_url)
 
         self.logger.debug(f"process virtual site url: {urls}")
@@ -80,7 +71,6 @@ class Vs(Base):
                 try:
                     self.logger.info(f"process virtual site get item: {future_to_ds[future]} ...")
                     result = future.result()
-
                 except Exception as exc:
                     self.logger.info('%s: %r generated an exception: %s' % ("process virtual site", _data, exc))
                 else:

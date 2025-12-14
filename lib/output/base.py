@@ -656,7 +656,6 @@ class Base(ABC):
                 ["new_section"],
                 ['FPP', format_list_with_newlines(list(source["fpp"].keys())) if "fpp" in source else "None",
                  format_list_with_newlines(list(target["fpp"].keys())) if "fpp" in target else "None"],
-                ["new_section"],
                 ['SMG', format_list_with_newlines(list(source["smg"].keys())) if len(source["smg"]) > 0 else "None",
                  format_list_with_newlines(list(target["smg"].keys())) if len(target["smg"]) > 0 else "None"],
                 ["new_section"],

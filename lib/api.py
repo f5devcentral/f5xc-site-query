@@ -236,9 +236,8 @@ class Api(object):
 
         self._logger = logger
         self._data = dict()
-        self._data[c.NAMESPACES_KEY] = dict()
-        self._data[c.NAMESPACES_COUNTER_KEY] = 0
-        self._data[c.SITES_KEY] = dict()
+        for key in c.SITE_TYPES:
+            self._data[key] = dict()
         self._api_url = api_url
         self._api_token = api_token
         self._site = site
@@ -256,11 +255,7 @@ class Api(object):
             if response:
                 self.logger.debug(json.dumps(response.json(), indent=2))
                 namespaces = response.json()
-
-                for item in namespaces['items']:
-                    self._data['namespaces'][item['name']] = dict()
-                    self._data[c.NAMESPACES_COUNTER_KEY] += 1
-
+                self._data['namespaces'] = [item['name'] for item in namespaces['items']]
                 self.logger.info(f"Processing {len(self.data['namespaces'])} available namespaces")
             else:
                 sys.exit(1)
@@ -271,9 +266,7 @@ class Api(object):
 
             if response:
                 self.logger.debug(json.dumps(response.json(), indent=2))
-                namespace = response.json()
-                self._data['namespaces'][namespace['metadata']['name']] = dict()
-                self._data[c.NAMESPACES_COUNTER_KEY] += 1
+                self._data['namespaces'] = [namespace]
             else:
                 sys.exit(1)
 
@@ -338,13 +331,12 @@ class Api(object):
         try:
             with open(name, 'r') as fd:
                 data = json.load(fp=fd)
-                if c.SITES_KEY in data and c.NAMESPACES_KEY in data:
-                    if c.VIRTUAL_SITES_KEY in data[c.NAMESPACES_KEY]:
-                        self.logger.info(
-                            f"{self.data[c.NAMESPACES_COUNTER_KEY]} namespaces, {len(data[c.SITES_KEY])} {c.SITES_KEY if len(data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {data[c.VIRTUAL_SITES_COUNTER_KEY]} virtual {c.SITES_KEY if data[c.VIRTUAL_SITES_COUNTER_KEY] > 1 else c.SITES_KEY} read from {name}")
-                        return data
+                if c.SITES_KEY in data and c.VIRTUAL_SITES_KEY in data:
+                    self.logger.info(
+                        f"{len(data[c.SITES_KEY])} {c.SITES_KEY if len(data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(data[c.VIRTUAL_SITES_KEY])} virtual {c.SITES_KEY if len(data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} read from {name}")
+                    return data
                 else:
-                    self.logger.info(f"Error reading data from file {name}. No site or namespace data available")
+                    self.logger.info(f"Error reading data from file {name}. No site data available")
         except OSError as e:
             self.logger.info(f"Reading file {name} failed with error: {e}")
             return None
@@ -362,7 +354,7 @@ class Api(object):
                         del self.data["filter_expressions_per_virtual_site"]
                     fd.write(json.dumps(self.data, indent=2))
                     self.logger.info(
-                        f"{self.data[c.NAMESPACES_COUNTER_KEY]} namespaces, {len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {self.data[c.VIRTUAL_SITES_COUNTER_KEY]} virtual {'sites' if self.data[c.VIRTUAL_SITES_COUNTER_KEY] > 1 else c.SITES_KEY} written to {name}")
+                        f"{len(self.data[c.SITES_KEY])} {'sites' if len(self.data[c.SITES_KEY]) > 1 else c.SITES_KEY} and {len(self.data[c.VIRTUAL_SITES_KEY])} virtual {'sites' if len(self.data[c.VIRTUAL_SITES_KEY]) > 1 else c.SITES_KEY} written to {name}")
             except OSError as e:
                 self.logger.info(f"Writing file {name} failed with error: {e}")
         else:

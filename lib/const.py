@@ -60,17 +60,13 @@ F5XC_SMV2_PROVIDERS = {"vmware", "aws", "azure", "gcp", "kvm", "oci", "nutanix",
 # Dict Keys
 #
 SITES_KEY = "sites"
-NAMESPACES_KEY = "namespaces"
-NAMESPACES_COUNTER_KEY = "namespaces_counter"
 VIRTUAL_SITES_KEY = "virtual_sites"
-VIRTUAL_SITES_COUNTER_KEY = "virtual_sites_counter"
 SITE_VIRTUAL_SITES_KEY = "vsites"
 SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 
 #
 # Site query
 #
-#API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
 CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces", "vsites"]
