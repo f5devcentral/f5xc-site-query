@@ -100,12 +100,24 @@ class Originpool(Base):
                             for key in c.F5XC_ORIGIN_SERVER_TYPES:
                                 site_locator = origin_server.get(key, {}).get('site_locator', {})
                                 for site_type, site_data in site_locator.items():
+                                    exists = False
                                     site_name = site_data.get('name')
                                     if site_name:
-                                        # Referenced site must exist
-                                        if site_name in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
-                                            # Only processing sites which are not in failed state
-                                            if site_name not in self.data["failed"]:
-                                                process()
+                                        # Only processing sites which are not in failed state
+                                        if site_name not in self.data["failed"]:
+                                            # Referenced site must exist
+                                            if site_type == c.F5XC_SITE:
+                                                path = self.data[c.SITES_KEY]
+                                                if site_name in self.data[c.SITES_KEY]:
+                                                    exists = True
+                                            elif site_type == c.F5XC_VIRTUAL_SITE:
+                                                # Only processing sites which are not in failed state
+                                                for ns, ns_values in self.data[c.NAMESPACES_KEY].items():
+                                                    if c.VIRTUAL_SITES_KEY in ns_values:
+                                                        path = self.data[c.NAMESPACES_KEY][ns][c.VIRTUAL_SITES_KEY]
+                                                        if site_name in ns_values[c.VIRTUAL_SITES_KEY].keys():
+                                                            exists = True
+                                    if exists:
+                                        process()
 
         return self.data

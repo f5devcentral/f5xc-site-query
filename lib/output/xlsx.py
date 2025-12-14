@@ -2,6 +2,8 @@ import itertools
 import sys
 from logging import Logger
 
+
+from lib.output.base import Base
 from enlighten import get_manager
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
@@ -38,38 +40,43 @@ def join_dict_items(data_dict: dict, separator="\n"):
     return formatted_items
 
 
-class Xlsx(object):
+class Xlsx(Base):
     """
     """
 
-    def __init__(self, site: str = None, file: str = None, logger: Logger = None):
+    def __init__(self, logger: Logger, site: str = None):
         """
 
         Parameters
         ----------
-        site: str
-        file: str
         logger: Logger
+        site: str
         """
-        self.logger = logger
-        self.file = file
+
+        super().__init__(logger=logger, site=site)
         self.wb = Workbook()
         self.ws = self.wb.active
-        self.site = site
-        self.must_break = False
 
-    def write(self):
+    def build_inventory(self, data: dict = None) -> Workbook | None:
+        """
+        Write site inventory to XLSX file
+        :param data: json input data
+        :return:
         """
 
-        Returns
-        -------
+        self.logger.info(f"{self.build_inventory.__name__} started...")
 
-        """
-        self.logger.info(f"Writing xlsx file: {self.file}")
-        self.wb.save(self.file)
-        self.logger.info(f"Writing xlsx file: {self.file}. Done.")
+        if self.site == "":
+            self.logger.info(f"Building inventory failed. Site name required. use -s option to provide site name")
+            return None
+        else:
+            self._build_inventory_summary(0, data)
+            #self._build_inventory_infrastructure(1, data)
+            #self._build_inventory_service(2, data)
+            self.logger.info(f"{self.build_inventory.__name__} done.")
+            return self.wb
 
-    def build_inventory_summary(self, order: int = None, data: dict = None, title_prefix: str = None):
+    def _build_inventory_summary(self, order: int = None, data: dict = None, title_prefix: str = None):
         """
 
         Parameters
@@ -250,7 +257,7 @@ class Xlsx(object):
                         else:
                             process()
 
-    def build_inventory_infrastructure(self, order: int = None, data: dict = None):
+    def _build_inventory_infrastructure(self, order: int = None, data: dict = None):
         """
 
         Parameters
@@ -636,7 +643,7 @@ class Xlsx(object):
                 if max_height_for_row > 0:
                     ws_infrastructure.row_dimensions[row_num].height = max_height_for_row
 
-    def build_inventory_service(self, order: int = None, data: dict = None):
+    def _build_inventory_service(self, order: int = None, data: dict = None):
         """
 
         Parameters
@@ -753,37 +760,40 @@ class Xlsx(object):
                 cell = ws_services[f'{col_letter}{row_num}']
                 cell.alignment = Alignment(horizontal='center', vertical='center')
 
-    def build_inventory(self, data: dict = None) -> bool:
+    def build_comparison(self, source_name: str = None, source_file: str = None, target_name: str = None, target_file: str = None, source_data: dict = None,
+                         target_data: dict = None)-> Workbook | None:
+        """
+        Build site comparison data for XLSX file
+
+        :param source_name
+        :param source_file
+        :param target_name
+        :param target_file
+        :param source_data: source site json input data
+        :param target_data: target site data json input data
+
+        :return:
+
         """
 
-        Parameters
-        ----------
-        data: dict
+        self.logger.info(f"XLSX {self.build_comparison.__name__} started...")
+        data = self.compare(source_name=source_name, source_file=source_file, target_name=target_name, target_file=target_file, source_data=source_data, target_data=target_data)
 
-        Returns
-        -------
-
-        """
-
-        if self.site == "":
-            self.logger.info(f"Building inventory failed. Site name required. use -s option to provide site name")
-
-            return False
+        if data:
+            self._build_compare_summary(0, source_name=source_name, target_name=target_name)
+            return self.wb
         else:
-            self.build_inventory_summary(0, data)
-            self.build_inventory_infrastructure(1, data)
-            self.build_inventory_service(2, data)
+            self.logger.info("Error compare data can not be empty")
+            return None
 
-            return True
-
-    def build_compare_summary(self, order: int = None, data_source: dict = None, data_target: dict = None):
+    def _build_compare_summary(self, order: int = None, source_name: str = None, target_name: str = None,):
         """
 
         Parameters
         ----------
         order: int
-        data_source: dict
-        data_target: dict
+        source_name: dict
+        target_name: dict
 
         Returns
         -------
@@ -792,121 +802,18 @@ class Xlsx(object):
 
         # WS Summary Comparison Tab
         ws_summary = self.wb.create_sheet("Summary", order)
-        ws_summary.column_dimensions['A'].width = 25
-        ws_summary.column_dimensions['B'].width = 30
-        ws_summary.column_dimensions['C'].width = 30
+        ws_summary.column_dimensions['A'].width = 30
+        ws_summary.column_dimensions['B'].width = 60
+        ws_summary.column_dimensions['C'].width = 60
 
-        table_data_infrastructure = [
-            ("Kind", data_source["kind"], data_target["kind"]),
-            ("Provider Type", data_source["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in data_source["metadata"]["labels"] else "Unknown",
-             data_target["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in data_target["metadata"]["labels"] else "Unknown"),
-            ("Main Node Count", data_source["main_node_count"], data_target["main_node_count"]),
-            ("Worker Node Count", data_source["worker_node_count"] if "worker_node_count" in data_source else 0,
-             data_target["worker_node_count"] if "worker_node_count" in data_target else 0),
-            ("Node0 CPU Count", data_source["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node0"] else 0,
-             data_target["nodes"]["node0"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node0"] else 0),
-            ("Node0 Memory Size (GB)", round(data_source["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node0"] else 0,
-             round(data_target["nodes"]["node0"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node0"] else 0),
-            ("Node0 Interface Count", len(data_source["nodes"]["node0"]["interfaces"]) if "interfaces" in data_source["nodes"]["node0"] else 0,
-             len(data_target["nodes"]["node0"]["interfaces"]) if "interfaces" in data_target["nodes"]["node0"] else 0)
-        ]
-
-        if "hw_info" in data_source["nodes"]["node0"] and "hw_info" in data_target["nodes"]["node0"]:
-            for storage_source, storage_target in zip(data_source["nodes"]["node0"]["hw_info"]["storage"], data_target["nodes"]["node0"]["hw_info"]["storage"]):
-                source_node0_storage_size = storage_source["size_gb"]
-                target_node0_storage_size = storage_target["size_gb"]
-                table_data_infrastructure.append((f"Node0 Storage {storage_source["name"]} Size (GB)", source_node0_storage_size, target_node0_storage_size))
-
-        if data_source["main_node_count"] > 1 and data_target["main_node_count"] > 1:
-            table_data_infrastructure.extend(
-                [
-                    ("Node1 CPU Count", data_source["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node1"] else 0,
-                     data_target["nodes"]["node1"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node1"] else 0),
-                    ("Node1 Memory Size (GB)", round(data_source["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node1"] else 0,
-                     round(data_target["nodes"]["node1"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node1"] else 0),
-                    ("Node1 Interface Count", len(data_source["nodes"]["node1"]["interfaces"]) if "interfaces" in data_source["nodes"]["node1"] else 0,
-                     len(data_target["nodes"]["node1"]["interfaces"]) if "interfaces" in data_target["nodes"]["node1"] else 0),
-                ]
-            )
-
-            if "hw_info" in data_source["nodes"]["node1"]:
-                for storage_source, storage_target in zip(data_source["nodes"]["node1"]["hw_info"]["storage"], data_target["nodes"]["node1"]["hw_info"]["storage"]):
-                    source_node1_storage_size = storage_source["size_gb"]
-                    target_node1_storage_size = storage_target["size_gb"]
-                    table_data_infrastructure.append((f"Node1 Storage {storage_source["name"]} Size (GB)", source_node1_storage_size, target_node1_storage_size))
-
-            table_data_infrastructure.extend(
-                [
-                    ("Node2 CPU Count", data_source["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_source["nodes"]["node2"] else 0,
-                     data_target["nodes"]["node2"]["hw_info"]["cpu"]["cpus"] if "hw_info" in data_target["nodes"]["node2"] else 0),
-                    ("Node2 Memory Size (GB)", round(data_source["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_source["nodes"]["node2"] else 0,
-                     round(data_target["nodes"]["node2"]["hw_info"]["memory"]["size_mb"] / 1024) if "hw_info" in data_target["nodes"]["node2"] else 0),
-                    ("Node2 Interface Count", len(data_source["nodes"]["node2"]["interfaces"]) if "interfaces" in data_source["nodes"]["node2"] else 0,
-                     len(data_target["nodes"]["node2"]["interfaces"]) if "interfaces" in data_target["nodes"]["node2"] else 0),
-                ]
-            )
-
-            if "hw_info" in data_source["nodes"]["node2"]:
-                for storage_source, storage_target in zip(data_source["nodes"]["node2"]["hw_info"]["storage"], data_target["nodes"]["node2"]["hw_info"]["storage"]):
-                    source_node2_storage_size = storage_source["size_gb"]
-                    target_node2_storage_size = storage_target["size_gb"]
-                    table_data_infrastructure.append((f"Node2 Storage {storage_source["name"]} Size (GB)", source_node2_storage_size, target_node2_storage_size))
-
-        source_lbs = 0
-        source_ops = 0
-        target_lbs = 0
-        target_ops = 0
-        source_proxies = 0
-        target_proxies = 0
-
-        if "namespaces" in data_source:
-            for source_item in data_source["namespaces"].values():
-                if "loadbalancer" in source_item.keys():
-                    for source_lb_type in source_item["loadbalancer"].keys():
-                        source_lbs = source_lbs + len(source_item["loadbalancer"][source_lb_type].keys())
-                if "proxys" in source_item.keys():
-                    for source_proxy_type in source_item["proxys"].keys():
-                        source_proxies = source_proxies + len(source_item["proxys"][source_proxy_type].keys())
-
-            for source_item in data_source["namespaces"].values():
-                if "origin_pools" in source_item.keys():
-                    source_ops = source_ops + len(source_item["origin_pools"].keys())
-
-        if "namespaces" in data_target:
-            for target_item in data_target["namespaces"].values():
-                if "loadbalancer" in target_item.keys():
-                    for target_lb_type in target_item["loadbalancer"].keys():
-                        target_lbs = target_lbs + len(target_item["loadbalancer"][target_lb_type].keys())
-                if "proxys" in target_item.keys():
-                    for target_proxy_type in target_item["proxys"].keys():
-                        target_proxies = target_proxies + len(target_item["proxys"][target_proxy_type].keys())
-
-            for target_item in data_target["namespaces"].values():
-                if "origin_pools" in target_item.keys():
-                    target_ops = target_ops + len(target_item["origin_pools"].keys())
-
-        table_data_services = [
-            ('Count of LBs', source_lbs, target_lbs),
-            ('Count of Origin pools', source_ops, target_ops),
-            ('Count of EFP', len(data_source["efp"].keys()) if "efp" in data_source else 0, len(data_target["efp"].keys()) if "efp" in data_target else 0),
-            ('Count of FPP', len(data_source["fpp"].keys()) if "fpp" in data_source else 0, len(data_target["fpp"].keys()) if "fpp" in data_target else 0),
-            ('Count of SMG', len(data_source["smg"].keys()) if "smg" in data_source else 0, len(data_target["smg"].keys()) if "smg" in data_target else 0),
-            ('Count of DCCG', len(data_source["dc_cluster_group"].keys()) if "dc_cluster_group" in data_source else 0,
-             len(data_target["dc_cluster_group"].keys()) if "dc_cluster_group" in data_target else 0),
-            ('Count of Proxies', source_proxies, target_proxies),
-            ('Count of Segments', len(data_source["segments"].keys()) if "segments" in data_source else 0, len(data_target["segments"].keys()) if "segments" in data_target else 0),
-            ('Count of BGP Policies', len(data_source["bgp"].keys()) if "bgp" in data_source else 0, len(data_target["bgp"].keys()) if "bgp" in data_target else 0),
-            ('Count of Virtual Sites', len(data_source["vsites"]), len(data_target["vsites"]))
-        ]
-
-        ws_summary.append([f"Summary comparison: {data_source["metadata"]["name"]} with {data_target["metadata"]["name"]}"])
+        ws_summary.append([f"Summary comparison: {source_name} with {target_name}"])
         ws_summary.merge_cells(f"A{ws_summary.max_row}:F{ws_summary.max_row}")
         for cell in ws_summary[ws_summary.max_row]:
             cell.fill = GREY_FILL
             cell.font = HEADER_FONT
             cell.alignment = LEFT_CENTER_ALIGNMENT
 
-        ### Infrastructure Section
+        # Common Section
         ws_summary.append(["Infrastructure", ""])
 
         for cell in ws_summary[ws_summary.max_row]:
@@ -922,7 +829,12 @@ class Xlsx(object):
                 cell.alignment = RIGHT_ALIGNMENT
 
         append_count = 0
-        for item, source, target in table_data_infrastructure:
+        for item, source, target in self.data_common:
+            ws_summary.append([item, source, target])
+            append_count = append_count + 1
+
+        # Nodes Section
+        for item, source, target in self.data_nodes:
             ws_summary.append([item, source, target])
             append_count = append_count + 1
 
@@ -945,7 +857,7 @@ class Xlsx(object):
                 for cell in ws_summary[idx]:
                     cell.fill = LIGHT_GREY_FILL
 
-        ### Services Section
+        # Services Section
         ws_summary.append(["Services", ""])
 
         for cell in ws_summary[ws_summary.max_row]:
@@ -961,8 +873,8 @@ class Xlsx(object):
                 cell.alignment = RIGHT_ALIGNMENT
 
         append_count = 0
-        for item, source_value, target_value in table_data_services:
-            ws_summary.append([item, source_value, target_value])
+        for item, source, target in self.data_services:
+            ws_summary.append([item, source, target])
             append_count += 1
 
         for idx in range(ws_summary.max_row - append_count + 1, ws_summary.max_row + 1):
@@ -981,13 +893,13 @@ class Xlsx(object):
                 for cell in ws_summary[idx]:
                     cell.fill = LIGHT_GREY_FILL
 
-    def build_compare_infrastructure(self, order: int = None, data_source: dict = None, data_target: dict = None):
+    def _build_compare_infrastructure(self, order: int = None, source_name: str = None, target_name: str = None, data: dict = None):
         """
 
         Parameters
         ----------
-        data_source
-        data_target
+        source_name
+        target_name
         order: int
 
         Returns
@@ -1003,20 +915,28 @@ class Xlsx(object):
         ws_infrastructure.column_dimensions['D'].width = 20
         ws_infrastructure.column_dimensions['E'].width = 60
 
+        #for item, source, target in table_data_infrastructure:
+        #    ws_infrastructure.append([item, source, target])
+
+        """
         table_data_infrastructure = [
-            ("Kind", data_source["kind"], data_target["kind"]),
-            ("Provider Type", data_source["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in data_source["metadata"]["labels"] else "Unknown",
-             data_target["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in data_target["metadata"]["labels"] else "Unknown"),
-            ("Main Node Count", data_source["main_node_count"], data_target["main_node_count"]),
-            ("Worker Node Count", data_source["worker_node_count"] if "worker_node_count" in data_source else 0,
-             data_target["worker_node_count"] if "worker_node_count" in data_target else 0),
+            ["Kind", data_source["kind"], data_target["kind"]],
+            ["Provider Type", data_source["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in data_source["metadata"]["labels"] else "Unknown",
+             data_target["metadata"]["labels"]["ves.io/provider"] if "ves.io/provider" in data_target["metadata"]["labels"] else "Unknown"],
+            ["Main Node Count", data_source["main_node_count"], data_target["main_node_count"]],
+            ["Worker Node Count", data_source["worker_node_count"] if "worker_node_count" in data_source else 0,
+             data_target["worker_node_count"] if "worker_node_count" in data_target else 0],
         ]
 
         if data_source["kind"] == c.F5XC_SITE_TYPE_SMS_V1:
-            table_data_infrastructure.append(("Labels", join_dict_items(data_source["sms"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])))
+            table_data_infrastructure.append(["Labels", join_dict_items(data_source["sms"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])])
         else:
-            table_data_infrastructure.append(("Labels", join_dict_items(data_source["legacy"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])))
+            table_data_infrastructure.append(["Labels", join_dict_items(data_source["legacy"]["metadata"]["labels"]), join_dict_items(data_target["sms"]["metadata"]["labels"])])
 
+        for item, source, target in table_data_infrastructure:
+            ws_infrastructure.append([item, source, target])
+        """
+        """
         table_data_infrastructure.extend(
             [
                 ("Node0 Hostname", data_source["nodes"]["node0"]["hostname"], data_target["nodes"]["node0"]["hostname"]),
@@ -1413,8 +1333,9 @@ class Xlsx(object):
 
                 if max_height_for_row > 0:
                     ws_infrastructure.row_dimensions[row_num].height = max_height_for_row
+    """
 
-    def build_compare_service(self, order: int = None, data_source: dict = None, data_target: dict = None):
+    def _build_compare_service(self, order: int = None, data_source: dict = None, data_target: dict = None):
         """
 
         Parameters
@@ -1552,20 +1473,3 @@ class Xlsx(object):
             for row_num in range(4, ws_services.max_row + 1):
                 cell = ws_services[f'{col_letter}{row_num}']
                 cell.alignment = Alignment(horizontal='center', vertical='center')
-
-    def build_compare(self, data_source: dict = None, data_target: dict = None):
-        """
-
-        Parameters
-        ----------
-        data_source: dict
-        data_target: dict
-
-        Returns
-        -------
-
-        """
-
-        self.build_compare_summary(0, data_source, data_target)
-        self.build_compare_infrastructure(1, data_source, data_target)
-        self.build_compare_service(2, data_source, data_target)

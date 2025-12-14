@@ -140,17 +140,29 @@ class Lb(Base):
                                     break
                                 else:
                                     for site_type in site_info.keys():
+                                        is_member = False
+
                                         if site_type in c.F5XC_SITE_TYPES:
-                                            # Referenced site must exist
-                                            if site_info[site_type][site_type]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
+                                            # Only processing sites which are not in failed state
+                                            if site_info[site_type][site_type]['name'] not in self.data["failed"]:
+                                                # Referenced site must exist
+                                                if site_type == c.F5XC_SITE:
+                                                    if site_info[site_type][site_type]['name'] in self.data[c.SITES_KEY]:
+                                                        is_member = True
+                                            elif site_type == c.F5XC_VIRTUAL_SITE:
                                                 # Only processing sites which are not in failed state
                                                 if site_info[site_type][site_type]['name'] not in self.data["failed"]:
-                                                    if self.site:
-                                                        if self.site == site_info[site_type][site_type]['name']:
-                                                            self.must_break = True
-                                                            process()
-                                                            break
-                                                    else:
-                                                        process()
+                                                    for ns, ns_values in self.data[c.NAMESPACES_KEY].items():
+                                                        if c.VIRTUAL_SITES_KEY in ns_values:
+                                                            if site_info[site_type][site_type]['name'] in ns_values[c.VIRTUAL_SITES_KEY].keys():
+                                                                is_member = True
+                                        if is_member:
+                                            if self.site:
+                                                if self.site == site_info[site_type][site_type]['name']:
+                                                    self.must_break = True
+                                                    process()
+                                                    break
+                                            else:
+                                                process()
 
         return self.data
