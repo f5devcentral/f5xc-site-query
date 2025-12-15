@@ -174,7 +174,7 @@ class Xlsx(Base):
             ]
 
             ws_summary.append([f"Summary: {site}"] if title_prefix is None else [f"{title_prefix}: {site}"])
-            ws_summary.merge_cells(f"A{ws_summary.max_row}:C{ws_summary.max_row}")
+            ws_summary.merge_cells(f"A{ws_summary.max_row}:B{ws_summary.max_row}")
             for cell in ws_summary[ws_summary.max_row]:
                 cell.fill = GREY_FILL
                 cell.font = HEADER_FONT
@@ -667,7 +667,6 @@ class Xlsx(Base):
         ws_services = self.wb.create_sheet("Services", order)
         ws_services.column_dimensions['A'].width = 25
         ws_services.column_dimensions['B'].width = 60
-        ws_services.column_dimensions['C'].width = 20
 
         site_ns = list()
         site_lbs = list()
@@ -700,20 +699,20 @@ class Xlsx(Base):
 
         table_data_services = [
             ('NS', "\n".join(site_ns) if len(site_ns) > 0 else "None"),
-            ('LB', "\n".join(site_lbs) if len(site_lbs) > 0 else "None"),
-            ('OP', "\n".join(site_ops) if len(site_ops) > 0 else "None"),
+            ('LB[Type][Namespace]', "\n".join(site_lbs) if len(site_lbs) > 0 else "None"),
+            ('OP[Namespace]', "\n".join(site_ops) if len(site_ops) > 0 else "None"),
             ('EFP', "\n".join(site["efp"].keys()) if "efp" in site else "None"),
             ('FPP', "\n".join(site["fpp"].keys()) if "fpp" in site else "None"),
             ('SMG', "\n".join(site["smg"].keys()) if len(site["smg"]) > 0 else "None"),
             ('DCCG', "\n".join(site["dc_cluster_group"].keys()) if "dc_cluster_group" in site else "None"),
-            ('Proxies', "\n".join(site_proxies) if len(site_proxies) > 0 else "None"),
+            ('Proxies[Type][Namespace]', "\n".join(site_proxies) if len(site_proxies) > 0 else "None"),
             ('Segments', "\n".join(site["segments"].keys()) if "segments" in site else "None"),
             ('BGP Policies', "\n".join(site["bgp"].keys()) if "bgp" in site else "None"),
-            ('Virtual Sites', "\n".join(vsites) if len(vsites) > 0 else "None"),
+            ('Virtual Sites[Namespace]', "\n".join(vsites) if len(vsites) > 0 else "None"),
         ]
 
         ws_services.append([f"Services: {site["metadata"]["name"]}"])
-        ws_services.merge_cells(f"A{ws_services.max_row}:C{ws_services.max_row}")
+        ws_services.merge_cells(f"A{ws_services.max_row}:B{ws_services.max_row}")
         for cell in ws_services[ws_services.max_row]:
             cell.fill = GREY_FILL
             cell.font = HEADER_FONT
@@ -751,7 +750,7 @@ class Xlsx(Base):
 
             max_height_for_row = 0
 
-            for col_letter in ["B", "C"]:
+            for col_letter in ["B", "B"]:
                 cell = ws_services[f'{col_letter}{row_num}']
                 cell.alignment = Alignment(wrap_text=True, vertical='top')
 
