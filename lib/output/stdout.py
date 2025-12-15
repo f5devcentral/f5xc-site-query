@@ -113,7 +113,12 @@ class StdoutTable(Base):
                                     table.add_row([record_no, key, name, "", "", "", ""])
                     elif isinstance(value, list):
                         if len(value) > 0:
-                            table.add_row([record_no, key, format_list_with_newlines(value), "", "", "", ""])
+                            if key == "vsites":
+                                for vsite in value:
+                                    ns = data[c.VIRTUAL_SITES_KEY][vsite]["metadata"]["namespace"]
+                                    table.add_row([record_no, key, vsite, "namespace", ns, "", ""])
+                            else:
+                                table.add_row([record_no, key, format_list_with_newlines(value), "", "", "", ""])
                     record_no += 1
 
                 table.add_divider()
