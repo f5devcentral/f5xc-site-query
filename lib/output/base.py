@@ -564,10 +564,10 @@ class Base(ABC):
             ['Namespaces', format_list_with_newlines(source_ns) if len(source_ns) > 0 else "None", format_list_with_newlines(target_ns) if len(target_ns) > 0 else "None"],
             ["new_section"],
             ['LoadBalancer Counter', len(source_lbs), len(target_lbs)],
-            ['LoadBalancer', format_list_with_newlines(source_lbs) if len(source_lbs) > 0 else "None", format_list_with_newlines(target_lbs) if len(target_lbs) > 0 else "None"],
+            ['LoadBalancer[Type][Namespace]', format_list_with_newlines(source_lbs) if len(source_lbs) > 0 else "None", format_list_with_newlines(target_lbs) if len(target_lbs) > 0 else "None"],
             ["new_section"],
             ['OriginPools Counter', len(source_ops), len(target_ops)],
-            ['OriginPools', format_list_with_newlines(source_ops) if len(source_ops) > 0 else "None", format_list_with_newlines(target_ops) if len(target_ops) > 0 else "None"],
+            ['OriginPools[Namespace]', format_list_with_newlines(source_ops) if len(source_ops) > 0 else "None", format_list_with_newlines(target_ops) if len(target_ops) > 0 else "None"],
             ["new_section"],
         ]
 
@@ -593,7 +593,7 @@ class Base(ABC):
                 ["new_section"],
                 ['Proxies Counter', len(source_proxies) if len(source_proxies) > 0 else 0,
                  len(target_proxies) if len(target_proxies) > 0 else 0],
-                ['Proxies', format_list_with_newlines(source_proxies) if len(source_proxies) > 0 else "None",
+                ['Proxies[Type][Namespace]', format_list_with_newlines(source_proxies) if len(source_proxies) > 0 else "None",
                  format_list_with_newlines(target_proxies) if len(target_proxies) > 0 else "None"],
                 ["new_section"],
                 ['Segments Counter', len(source["segments"].keys()) if "segments" in source else 0,
@@ -607,7 +607,7 @@ class Base(ABC):
                  format_list_with_newlines(list(target["bgp"].keys())) if "bgp" in target else "None"],
                 ["new_section"],
                 ['Virtual Sites Counter', len(source_vsites), len(target_vsites)],
-                ['Virtual Sites', format_list_with_newlines(source_vsites) if len(source_vsites) > 0 else "None",
+                ['Virtual Sites[NameSpace]', format_list_with_newlines(source_vsites) if len(source_vsites) > 0 else "None",
                  format_list_with_newlines(target_vsites) if len(target_vsites) else "None"],
             ]
         )

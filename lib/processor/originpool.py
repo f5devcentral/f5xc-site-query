@@ -7,7 +7,7 @@ from requests import Session
 import lib.const as c
 from lib.processor.base import Base
 
-__DEPENDENCIES__ = ["site"]
+__DEPENDENCIES__ = ["vs", "site"]
 
 
 class Originpool(Base):
@@ -40,30 +40,24 @@ class Originpool(Base):
             try:
                 origin_pool_name = r["metadata"]["name"]
                 namespace = r["metadata"]["namespace"]
-                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
-                if 'namespaces' not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
-                if namespace not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace] = dict()
-                if "origin_pools" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"] = dict()
 
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
+                if 'namespaces' not in self.data[c.SITES_KEY][site_name].keys():
+                    self.data[c.SITES_KEY][site_name]['namespaces'] = dict()
+                if namespace not in self.data[c.SITES_KEY][site_name]['namespaces'].keys():
+                    self.data[c.SITES_KEY][site_name]['namespaces'][namespace] = dict()
+                if "origin_pools" not in self.data[c.SITES_KEY][site_name]['namespaces'][namespace].keys():
+                    self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["origin_pools"] = dict()
 
-                if site_type == c.F5XC_VIRTUAL_SITE:
-                    print("EXTRA STEP NEEDED....")
-                    pass
-
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['spec'] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['metadata'] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["origin_pools"][origin_pool_name]['system_metadata'] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['spec'] = r['spec']
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['metadata'] = r['metadata']
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]['origin_pools'][origin_pool_name]['system_metadata'] = r['system_metadata']
 
                 self.logger.info(f"process origin pools add data: [namespace: {namespace} origin pool: {origin_pool_name} site_type: {site_type} site_name: {site_name}]")
+
             except Exception as e:
                 self.logger.info("site_type:", site_type)
                 self.logger.info("site_name:", site_name)
@@ -107,10 +101,24 @@ class Originpool(Base):
                                 for site_type, site_data in site_locator.items():
                                     site_name = site_data.get('name')
                                     if site_name:
-                                        # Referenced site must exist
-                                        if site_name in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
-                                            # Only processing sites which are not in failed state
-                                            if site_name not in self.data["failed"]:
-                                                process()
+                                        # Only processing sites which are not in failed state
+                                        if site_name not in self.data["failed"]:
+                                            # Referenced site must exist
+                                            if site_type == c.F5XC_SITE:
+                                                if site_name in self.data[c.SITES_KEY].keys():
+                                                        process()
+                                            if site_type == c.F5XC_VIRTUAL_SITE:
+                                                # Add origin pool to site namespace structure
+                                                for s_name, s_values in self.data[c.SITES_KEY].items():
+                                                    if c.SITE_VIRTUAL_SITES_KEY in s_values:
+                                                        if len(s_values[c.SITE_VIRTUAL_SITES_KEY]) > 0:
+                                                            if site_name in s_values[c.SITE_VIRTUAL_SITES_KEY]:
+                                                                self.logger.debug(f"Virtual site reference detected. virtual_site_name: {site_name} site name: {s_name}")
+                                                                self.logger.debug(f"swapping site name from VSITE to SITE: {site_name} <--> {s_name}")
+                                                                site_name = s_name
+                                                                process()
+                                            else:
+                                                self.logger.info(
+                                                    f"process origin pools error: unsupported site type: {site_type} for site_name: {site_name}")
 
         return self.data

@@ -41,23 +41,23 @@ class Proxy(Base):
         def process():
             try:
                 proxy_name = r["metadata"]["name"]
-                site_name = site_info[site_type][site_type]['name']
                 namespace = r["metadata"]["namespace"]
-                if site_name not in self.data[c.OBJECT_TO_KEY_MAP[site_type]].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name] = dict()
-                if "namespaces" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]:
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'] = dict()
-                if namespace not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace] = dict()
-                if "proxys" not in self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace].keys():
-                    self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['proxys'][proxy_name]['spec'] = r['spec']
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['proxys'][proxy_name]['metadata'] = r['metadata']
-                self.data[c.OBJECT_TO_KEY_MAP[site_type]][site_name]['namespaces'][namespace]['proxys'][proxy_name]['system_metadata'] = r['system_metadata']
+                if site_name not in self.data[c.SITES_KEY].keys():
+                    self.data[c.SITES_KEY][site_name] = dict()
+                if "namespaces" not in self.data[c.SITES_KEY][site_name]:
+                    self.data[c.SITES_KEY][site_name]['namespaces'] = dict()
+                if namespace not in self.data[c.SITES_KEY][site_name]['namespaces'].keys():
+                    self.data[c.SITES_KEY][site_name]['namespaces'][namespace] = dict()
+                if "proxys" not in self.data[c.SITES_KEY][site_name]['namespaces'][namespace].keys():
+                    self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["proxys"] = dict()
+
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["proxys"][proxy_name] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["proxys"][proxy_name]['spec'] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["proxys"][proxy_name]['metadata'] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]["proxys"][proxy_name]['system_metadata'] = dict()
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]['proxys'][proxy_name]['spec'] = r['spec']
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]['proxys'][proxy_name]['metadata'] = r['metadata']
+                self.data[c.SITES_KEY][site_name]['namespaces'][namespace]['proxys'][proxy_name]['system_metadata'] = r['system_metadata']
                 self.logger.info(f"process proxies add data: [namespace: {namespace} proxy: {proxy_name} site_type: {site_type} site_name: {site_name}]")
             except Exception as e:
                 self.logger.info("site_type:", site_type)
@@ -100,14 +100,29 @@ class Proxy(Base):
                         for site_info in advertise_where:
                             for site_type in site_info.keys():
                                 if site_type in c.F5XC_SITE_TYPES:
-                                    # Referenced site must exist
-                                    if site_info[site_type][site_type]['name'] in self.data[c.OBJECT_TO_KEY_MAP[site_type]]:
-                                        # Only processing sites which are not in failed state
-                                        if site_info[site_type][site_type]['name'] not in self.data["failed"]:
+                                    if site_type == c.F5XC_SITE:
+                                        # Referenced site must exist
+                                        if site_info[site_type][site_type]['name'] in self.data[c.SITES_KEY]:
+                                            site_name = site_info[site_type][site_type]['name']
                                             if self.site:
-                                                if self.site == site_info[site_type][site_type]['name']:
+                                                if self.site == site_name:
                                                     process()
                                             else:
                                                 process()
+                                    if site_type == c.F5XC_VIRTUAL_SITE:
+                                        for s_name, s_values in self.data[c.SITES_KEY].items():
+                                            if c.SITE_VIRTUAL_SITES_KEY in s_values:
+                                                if len(s_values[c.SITE_VIRTUAL_SITES_KEY]) > 0:
+                                                    vsite_name = site_info[site_type][site_type]['name']
+                                                    if vsite_name in s_values[c.SITE_VIRTUAL_SITES_KEY]:
+                                                        self.logger.debug(f"Virtual site reference detected. virtual_site_name: {vsite_name} site name: {s_name}")
+                                                        self.logger.debug(f"swapping site name from VSITE to SITE: {vsite_name} <--> {s_name}")
+                                                        site_name = s_name
+
+                                                        if self.site:
+                                                            if self.site == site_name:
+                                                                process()
+                                                        else:
+                                                            process()
 
         return self.data
