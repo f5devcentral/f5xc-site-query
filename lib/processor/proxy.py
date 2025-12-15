@@ -1,6 +1,5 @@
 import concurrent.futures
 import json
-import pprint
 from logging import Logger
 
 from requests import Session
@@ -34,8 +33,6 @@ class Proxy(Base):
         Add proxies to site if proxy refers to a site. Obtains specific proxy by name.
         :return: structure with proxies information being added
         """
-        pp = pprint.PrettyPrinter()
-
         proxies = self.execute(name="proxies query", urls=self.urls)
 
         def process():
