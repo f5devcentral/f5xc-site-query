@@ -1198,7 +1198,7 @@ class Xlsx(Base):
         ws_summary.column_dimensions['C'].width = 60
 
         ws_summary.append([f"Summary comparison: {source_name} with {target_name}"])
-        ws_summary.merge_cells(f"A{ws_summary.max_row}:F{ws_summary.max_row}")
+        ws_summary.merge_cells(f"A{ws_summary.max_row}:C{ws_summary.max_row}")
         for cell in ws_summary[ws_summary.max_row]:
             cell.fill = GREY_FILL
             cell.font = HEADER_FONT
@@ -1302,7 +1302,7 @@ class Xlsx(Base):
         ws_infrastructure.column_dimensions['E'].width = 60
 
         ws_infrastructure.append([f"Infrastructure comparison: {source_name} with {target_name}"])
-        ws_infrastructure.merge_cells(f"A{ws_infrastructure.max_row}:F{ws_infrastructure.max_row}")
+        ws_infrastructure.merge_cells(f"A{ws_infrastructure.max_row}:E{ws_infrastructure.max_row}")
         for cell in ws_infrastructure[ws_infrastructure.max_row]:
             cell.fill = GREY_FILL
             cell.font = HEADER_FONT
@@ -1427,13 +1427,13 @@ class Xlsx(Base):
 
         # WS Services Comparison Tab
         ws_services = self.wb.create_sheet("Services", order)
-        ws_services.column_dimensions['A'].width = 25
+        ws_services.column_dimensions['A'].width = 30
         ws_services.column_dimensions['B'].width = 80
         ws_services.column_dimensions['C'].width = 80
         ws_services.column_dimensions['D'].width = 20
 
         ws_services.append([f"Services comparison: {source_name} with {target_name}"])
-        ws_services.merge_cells(f"A{ws_services.max_row}:F{ws_services.max_row}")
+        ws_services.merge_cells(f"A{ws_services.max_row}:C{ws_services.max_row}")
         for cell in ws_services[ws_services.max_row]:
             cell.fill = GREY_FILL
             cell.font = HEADER_FONT
