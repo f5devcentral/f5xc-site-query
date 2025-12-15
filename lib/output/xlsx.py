@@ -947,11 +947,11 @@ class Xlsx(Base):
                     target_node1_interfaces.append(_interface)
 
             if len(source_node1_interfaces) >= len(target_node1_interfaces):
-                for source, target in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["N/A", "N/A"]):
-                    table_data_infrastructure_interfaces.append(tuple(source + target))
+                for s, t in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(s + t))
             else:
-                for source, target in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["Node1", "N/A", "N/A"]):
-                    table_data_infrastructure_interfaces.append(tuple(source + target))
+                for s, t in itertools.zip_longest(source_node1_interfaces, target_node1_interfaces, fillvalue=["Node1", "N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(s + t))
 
             # Node2 Interface computation
             source_node2_interfaces = list()
@@ -1018,11 +1018,11 @@ class Xlsx(Base):
                     target_node2_interfaces.append(_interface)
 
             if len(source_node2_interfaces) >= len(target_node2_interfaces):
-                for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["N/A", "N/A"]):
-                    table_data_infrastructure_interfaces.append(tuple(source + target))
+                for s, t in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(s + t))
             else:
-                for source, target in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["Node2", "N/A", "N/A"]):
-                    table_data_infrastructure_interfaces.append(tuple(source + target))
+                for s, t in itertools.zip_longest(source_node2_interfaces, target_node2_interfaces, fillvalue=["Node2", "N/A", "N/A"]):
+                    table_data_infrastructure_interfaces.append(tuple(s + t))
         elif source["main_node_count"] > 2 > target["main_node_count"]:
             # Node1 Interface computation only source exists
             source_node1_interfaces = list()
