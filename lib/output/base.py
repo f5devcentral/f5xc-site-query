@@ -567,7 +567,7 @@ class Base(ABC):
             ['LoadBalancer', format_list_with_newlines(source_lbs) if len(source_lbs) > 0 else "None", format_list_with_newlines(target_lbs) if len(target_lbs) > 0 else "None"],
             ["new_section"],
             ['OriginPools Counter', len(source_ops), len(target_ops)],
-            ['OriginPools', format_list_with_newlines(source_ops), format_list_with_newlines(target_ops)],
+            ['OriginPools', format_list_with_newlines(source_ops) if len(source_ops) > 0 else "None", format_list_with_newlines(target_ops) if len(target_ops) > 0 else "None"],
             ["new_section"],
         ]
 

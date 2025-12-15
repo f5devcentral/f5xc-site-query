@@ -275,6 +275,6 @@ class StdoutTable(Base):
 
             self._data_interfaces = table_data_node_interfaces
 
-            return self.data["interfaces"]
+            return self.data_interfaces
         else:
             return None
