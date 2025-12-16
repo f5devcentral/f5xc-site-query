@@ -60,6 +60,7 @@ F5XC_SMV2_PROVIDERS = {"vmware", "aws", "azure", "gcp", "kvm", "oci", "nutanix",
 # Dict Keys
 #
 SITES_KEY = "sites"
+NAMESPACES_KEY = "namespaces"
 VIRTUAL_SITES_KEY = "virtual_sites"
 SITE_VIRTUAL_SITES_KEY = "vsites"
 SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
@@ -69,7 +70,7 @@ SITE_TYPES = [SITES_KEY, VIRTUAL_SITES_KEY]
 #
 API_PROCESSORS = ["vs", "site", "lb", "proxy", "originpool", "bgp", "smg", "cloudconnect", "segment"]
 PROCESSOR_PACKAGE = "lib.processor"
-CSV_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces", "vsites"]
+INVENTORY_EXPORT_KEYS = ["spec", "efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "nodes", "namespaces", "vsites"]
 XLSX_SERVICE_EXPORT_KEYS = ["efp", "fpp", "bgp", "smg", "spoke", "segments", "dc_cluster_group", "namespaces", "vsites"]
 XLSX_INFRASTRUCTURE_EXPORT_KEYS = ["spec", "nodes"]
 COMPARE_REGEX_METADATA_LABELS = "metadata/labels/.*"

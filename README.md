@@ -522,15 +522,15 @@ This tool offers functions to create an inventory of a tenant. Supported invento
      ```bash
      ./get-sites.py -f ./all-ns.json -q --log-stdout
      ```
-- Run create CSV inventory file function
+- Run create inventory
   - Docker
     ```bash
-     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json --build-inventory --inventory-table --log-stdout
+     docker run -it --rm -v "$(pwd)":/data -e f5xc_api_url=$f5xc_api_url -e f5xc_api_token=$f5xc_api_token site-query -f /data/json/all-ns.json -s my_site --build-inventory --inventory-table --log-stdout
     ```
   
   - Executable Call
     ```bash
-    ./get-sites.py -f ./all-ns.json --build-inventory --inventory-table --log-stdout
+    ./get-sites.py -f ./all-ns.json -s my_site --build-inventory --inventory-table --log-stdout
     ```
 
 ##### Stdout inventory table example

@@ -11,8 +11,9 @@ import sys
 import time
 from pathlib import Path
 
-import lib.const as c
 from coloredlogs import ColoredFormatter
+from lib.output.stdout import StdoutTable
+from lib.output.xlsx import Xlsx
 
 from lib.api import Api
 
@@ -97,13 +98,28 @@ def main():
 
     if args.compare:
         if args.old_site_file and args.new_site_file and args.old_site and args.new_site:
-            data_site_source = q.read_json_file(args.old_site_file)
-            data_site_target = q.read_json_file(args.new_site_file)
-            data = q.compare(source=args.old_site, source_file=args.old_site_file, target=args.new_site, target_file=args.new_site_file, data_source=data_site_source, data_target=data_site_target)
+            source_data = q.read_json_file(args.old_site_file)
+            target_data = q.read_json_file(args.new_site_file)
 
-            if data:
-                logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
-                q.build_compare_xlsx(xlsx_file=args.diff_file_xlsx, data=data.get_json_string(), data_source=data_site_source[c.SITES_KEY][args.old_site], data_target=data_site_target[c.SITES_KEY][args.new_site]) if args.diff_file_xlsx else None
+            if not source_data and not target_data:
+                sys.exit(1)
+
+            if args.diff_table:
+                output_processor = StdoutTable(logger=logger, site=args.site)
+                data = output_processor.build_comparison(source_name=args.old_site, source_data=source_data, source_file=args.old_site_file, target_name=args.new_site,
+                                                         target_data=target_data, target_file=args.new_site_file)
+
+                if data:
+                    logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.diff_table else None
+
+            if args.diff_file_xlsx:
+                output_processor = Xlsx(logger=logger, site=args.site)
+                data = output_processor.build_comparison(source_name=args.old_site, source_data=source_data, source_file=args.old_site_file, target_name=args.new_site,
+                                                         target_data=target_data, target_file=args.new_site_file)
+                if data:
+                    logger.info(f"Writing xlsx file: {args.diff_file_xlsx}")
+                    data.save(filename=args.diff_file_xlsx)
+                    logger.info(f"Writing xlsx file: {args.diff_file_xlsx}. Done.")
         else:
             logger.info("Compare needs --old-site-file, --new-site-file, --new-site, --old-site options set")
             sys.exit(1)
@@ -114,12 +130,25 @@ def main():
             sys.exit(1)
 
         # stdout inventory
-        data = q.build_inventory_csv(json_file=args.file) if args.inventory_table else None
-        if data:
-            logger.info(f"\n\n{data.get_formatted_string('text')}\n") if args.inventory_table else None
+        if args.inventory_table:
+            output_processor = StdoutTable(logger=logger, site=args.site)
+            data = q.read_json_file(name=args.file)
+
+            if data:
+                table_data = output_processor.build_inventory(data=data)
+                if table_data:
+                    logger.info(f"\n\n{table_data.get_formatted_string('text')}\n") if args.inventory_table else None
 
         # XLSX inventory
-        q.build_inventory_xlsx(json_file=args.file, xlsx_file=args.inventory_file_xlsx) if args.inventory_file_xlsx else None
+        if args.inventory_file_xlsx:
+            output_processor = Xlsx(logger=logger, site=args.site)
+            data = q.read_json_file(name=args.file)
+
+            if data:
+                wb = output_processor.build_inventory(data=data)
+                logger.info(f"Writing xlsx file: {args.inventory_file_xlsx}...")
+                wb.save(filename=args.inventory_file_xlsx)
+                logger.info(f"Writing xlsx file: {args.inventory_file_xlsx}. Done.")
 
     logger.info(f"Application {os.path.basename(__file__)} finished")
 
